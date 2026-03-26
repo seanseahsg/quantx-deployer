@@ -1,0 +1,7 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+cryptography==42.0.7
+longport==1.2.13
+python-multipart==0.0.9
+httpx==0.27.0

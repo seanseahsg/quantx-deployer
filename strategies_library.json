@@ -1,0 +1,139 @@
+{
+  "strategies": [
+    {
+      "id": "EMA_CROSS",
+      "name": "EMA Crossover",
+      "category": "Trend Following",
+      "difficulty": 2,
+      "stars": 4,
+      "description": "Classic trend-following strategy. Buys when the fast EMA crosses above the slow EMA — price momentum is shifting upward. Sells on the reverse cross. Works well on trending stocks like TQQQ and Tencent on 5m-15m timeframes.",
+      "signal_logic": "BUY when EMA(fast) crosses above EMA(slow). SELL when EMA(fast) crosses below EMA(slow).",
+      "indicator": "EMA_CROSS",
+      "default_timeframe": "5m",
+      "allowed_timeframes": ["1m","5m","15m","30m"],
+      "params": [
+        {"key": "fast_period", "label": "Fast EMA Period", "default": 5, "min": 2, "max": 50, "type": "int", "hint": "Shorter = more sensitive to price changes"},
+        {"key": "slow_period", "label": "Slow EMA Period", "default": 20, "min": 5, "max": 200, "type": "int", "hint": "Longer = smoother, fewer signals"}
+      ],
+      "default_risk": {"tp_pct": 0.5, "sl_pct": 0.3, "trail_pct": 0.0, "lots": 1},
+      "recommended_symbols": ["TQQQ.US", "700.HK", "2800.HK"],
+      "recommended_timeframes": ["5m", "15m"]
+    },
+    {
+      "id": "RSI_MEAN_REVERSION",
+      "name": "RSI Mean Reversion",
+      "category": "Mean Reversion",
+      "difficulty": 2,
+      "stars": 4,
+      "description": "Buys when RSI is oversold (market has fallen too far, too fast) and sells when RSI is overbought. Best in ranging/sideways markets. Works well on Tencent intraday on 1m-5m. Avoid using in strong trending markets.",
+      "signal_logic": "BUY when RSI drops below oversold threshold (e.g. 30). SELL when RSI rises above overbought threshold (e.g. 70).",
+      "indicator": "RSI",
+      "default_timeframe": "5m",
+      "allowed_timeframes": ["tick","1m","5m","15m"],
+      "params": [
+        {"key": "period", "label": "RSI Period", "default": 14, "min": 5, "max": 50, "type": "int", "hint": "Standard is 14. Lower = faster signals"},
+        {"key": "oversold", "label": "Oversold Level", "default": 30, "min": 10, "max": 45, "type": "int", "hint": "Buy signal fires below this level"},
+        {"key": "overbought", "label": "Overbought Level", "default": 70, "min": 55, "max": 90, "type": "int", "hint": "Sell signal fires above this level"}
+      ],
+      "default_risk": {"tp_pct": 0.4, "sl_pct": 0.3, "trail_pct": 0.0, "lots": 1},
+      "recommended_symbols": ["700.HK", "TQQQ.US", "2800.HK"],
+      "recommended_timeframes": ["1m", "5m"]
+    },
+    {
+      "id": "BB_GRID",
+      "name": "Bollinger Band Grid",
+      "category": "Grid Trading",
+      "difficulty": 3,
+      "stars": 3,
+      "description": "Uses Bollinger Bands as dynamic grid levels. Buys at the lower band (oversold zone) and sells at the upper band (overbought zone). Acts like a grid system that adapts to volatility. Best in choppy, ranging markets.",
+      "signal_logic": "BUY when price touches or breaks below the lower Bollinger Band. SELL when price touches or breaks above the upper Bollinger Band.",
+      "indicator": "BB_BREAKOUT",
+      "default_timeframe": "5m",
+      "allowed_timeframes": ["1m","5m","15m","30m"],
+      "params": [
+        {"key": "period", "label": "BB Period", "default": 20, "min": 5, "max": 100, "type": "int", "hint": "Lookback period for moving average. 20 is standard"},
+        {"key": "num_std", "label": "Standard Deviations", "default": 2.0, "min": 1.0, "max": 4.0, "type": "float", "hint": "Width of bands. Higher = fewer but stronger signals"}
+      ],
+      "default_risk": {"tp_pct": 0.4, "sl_pct": 0.25, "trail_pct": 0.0, "lots": 1},
+      "recommended_symbols": ["700.HK", "TQQQ.US"],
+      "recommended_timeframes": ["5m", "15m"]
+    },
+    {
+      "id": "MOMENTUM_BREAKOUT",
+      "name": "Momentum Breakout",
+      "category": "Breakout",
+      "difficulty": 2,
+      "stars": 3,
+      "description": "Catches strong momentum moves when price breaks out to new highs or lows over a lookback window. Designed to enter breakouts early and ride the move. Works well on volatile stocks like TQQQ and Tencent during news-driven sessions.",
+      "signal_logic": "BUY when current price makes a new high over the lookback period. SELL when current price makes a new low over the lookback period.",
+      "indicator": "NEW_HIGH_LOW",
+      "default_timeframe": "15m",
+      "allowed_timeframes": ["5m","15m","30m"],
+      "params": [
+        {"key": "lookback", "label": "Lookback Bars", "default": 20, "min": 5, "max": 100, "type": "int", "hint": "Number of bars to look back for high/low. Higher = stronger breakout required"}
+      ],
+      "default_risk": {"tp_pct": 0.8, "sl_pct": 0.4, "trail_pct": 0.2, "lots": 1},
+      "recommended_symbols": ["TQQQ.US", "700.HK"],
+      "recommended_timeframes": ["15m", "30m"]
+    },
+    {
+      "id": "MACD_MOMENTUM",
+      "name": "MACD Momentum",
+      "category": "Momentum",
+      "difficulty": 3,
+      "stars": 4,
+      "description": "Uses MACD crossover to identify momentum shifts. Buys when the MACD line crosses above the signal line (bullish momentum building). Sells on the reverse. A favourite among professional traders for capturing medium-term momentum on 5m-15m charts.",
+      "signal_logic": "BUY when MACD line crosses above Signal line. SELL when MACD line crosses below Signal line.",
+      "indicator": "MACD_SIGNAL",
+      "default_timeframe": "15m",
+      "allowed_timeframes": ["5m","15m","30m"],
+      "params": [
+        {"key": "fast", "label": "Fast Period", "default": 12, "min": 5, "max": 50, "type": "int", "hint": "Standard is 12"},
+        {"key": "slow", "label": "Slow Period", "default": 26, "min": 10, "max": 100, "type": "int", "hint": "Standard is 26"},
+        {"key": "signal", "label": "Signal Period", "default": 9, "min": 3, "max": 50, "type": "int", "hint": "Standard is 9. Smoothing of MACD line"}
+      ],
+      "default_risk": {"tp_pct": 0.6, "sl_pct": 0.35, "trail_pct": 0.15, "lots": 1},
+      "recommended_symbols": ["TQQQ.US", "700.HK"],
+      "recommended_timeframes": ["5m", "15m"]
+    },
+    {
+      "id": "VWAP_REVERSION",
+      "name": "VWAP Reversion",
+      "category": "VWAP",
+      "difficulty": 2,
+      "stars": 4,
+      "description": "Trades mean reversion back to VWAP (Volume Weighted Average Price) — the fair value benchmark used by institutional traders. Buys when price drops significantly below VWAP, sells when it rises significantly above. Excellent intraday strategy for liquid stocks like Tencent and TQQQ.",
+      "signal_logic": "BUY when price deviates below VWAP by more than deviation_pct%. SELL when price deviates above VWAP by more than deviation_pct%.",
+      "indicator": "VWAP_DEV",
+      "default_timeframe": "tick",
+      "allowed_timeframes": ["tick","1m","5m"],
+      "params": [
+        {"key": "deviation_pct", "label": "Deviation % from VWAP", "default": 0.1, "min": 0.05, "max": 2.0, "type": "float", "hint": "How far price must deviate from VWAP to trigger. Lower = more trades, higher = stronger signals"}
+      ],
+      "default_risk": {"tp_pct": 0.3, "sl_pct": 0.2, "trail_pct": 0.0, "lots": 1},
+      "recommended_symbols": ["700.HK", "TQQQ.US", "2800.HK"],
+      "recommended_timeframes": ["tick", "1m"]
+    },
+    {
+      "id": "SYMMETRIC_GRID",
+      "name": "Symmetric Grid",
+      "category": "Grid Trading",
+      "difficulty": 3,
+      "stars": 5,
+      "description": "Places buy limit orders below current price. When each buy fills, immediately places a sell limit above at take-profit distance. When the sell fills, the buy level is automatically replenished. Profits from price oscillation. Works immediately on deployment — 4 buy orders placed within seconds.",
+      "signal_logic": "STARTUP: Places N buy limits below CMP. ON BUY FILL: Places sell limit at fill_price + TP%. ON SELL FILL: Re-places buy limit (replenish). Repeats indefinitely.",
+      "indicator": "SYMMETRIC_GRID",
+      "default_timeframe": "tick",
+      "allowed_timeframes": ["tick"],
+      "params": [
+        {"key": "grid_levels", "label": "Grid Levels (each side)", "default": 4, "min": 1, "max": 10, "type": "int", "hint": "Number of buy levels below CMP + same number of sell levels above CMP"},
+        {"key": "grid_spacing_pct", "label": "Grid Spacing %", "default": 0.5, "min": 0.1, "max": 5.0, "type": "float", "hint": "Percentage distance between each grid level. 0.5 = 0.5% apart"},
+        {"key": "tp_pct", "label": "Take Profit % per level", "default": 0.5, "min": 0.1, "max": 5.0, "type": "float", "hint": "TP per grid level. Usually same as grid spacing"},
+        {"key": "sl_boundary_pct", "label": "Emergency SL Boundary %", "default": 3.0, "min": 1.0, "max": 20.0, "type": "float", "hint": "If price moves this far from CMP at startup, flatten ALL positions immediately"}
+      ],
+      "default_risk": {"tp_pct": 0.5, "sl_pct": 0.0, "trail_pct": 0.0, "lots": 1},
+      "recommended_symbols": ["700.HK", "TQQQ.US", "2800.HK"],
+      "recommended_timeframes": ["tick"]
+    }
+  ]
+}

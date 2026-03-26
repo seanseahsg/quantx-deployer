@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuantX Deployer — Student Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2332;--surface3:#0d1520;--border:#00f0ff22;--cyan:#00f0ff;--magenta:#ff00ff;--green:#00ff88;--red:#ff3366;--yellow:#ffd700;--text:#e0e6ed;--dim:#5a6a7a}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh}
+.scanline{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,240,255,.015) 2px,rgba(0,240,255,.015) 4px)}
+.header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.header h1{font-family:'Orbitron',monospace;font-size:1.2rem;color:var(--cyan);text-shadow:0 0 20px rgba(0,240,255,.3)}
+.header .email-display{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--magenta)}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface3)}
+.tab{padding:12px 24px;font-family:'Orbitron',monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab-content{display:none;padding:24px;max-width:1200px;margin:0 auto}.tab-content.active{display:block}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.9rem;padding:10px 14px;border-radius:4px;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--cyan);box-shadow:0 0 12px rgba(0,240,255,.15)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-group .hint{font-size:.7rem;color:var(--dim);margin-top:3px;font-family:'Share Tech Mono',monospace}
+.btn{font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;border:none;padding:12px 28px;border-radius:4px;cursor:pointer;transition:all .2s}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--cyan),#0088aa);color:#000}
+.btn-primary:hover:not(:disabled){box-shadow:0 0 20px rgba(0,240,255,.3)}
+.btn-danger{background:linear-gradient(135deg,var(--red),#cc0033);color:#fff}
+.btn-magenta{background:linear-gradient(135deg,var(--magenta),#aa00aa);color:#fff}
+.btn-success{background:linear-gradient(135deg,var(--green),#00aa66);color:#000}
+.btn-sm{padding:6px 14px;font-size:.65rem}
+.msg{font-family:'Share Tech Mono',monospace;font-size:.85rem;margin-top:12px;min-height:20px}.msg.ok{color:var(--green)}.msg.err{color:var(--red)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--magenta))}
+.card .label{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.card .value{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:var(--cyan)}.card .value.green{color:var(--green)}.card .value.red{color:var(--red)}
+/* Strategy cards */
+.strat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:16px}
+.strat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative}
+.strat-card .sc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.strat-card .sc-name{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--cyan)}
+.strat-card .sc-symbol{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--magenta)}
+.strat-card .sc-meta{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:var(--dim);margin-bottom:10px;line-height:1.5}
+.strat-card .sc-actions{display:flex;gap:8px;flex-wrap:wrap}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:'Share Tech Mono',monospace}
+.badge.library{background:rgba(0,240,255,.12);color:var(--cyan);border:1px solid rgba(0,240,255,.25)}
+.badge.custom{background:rgba(255,0,255,.1);color:var(--magenta);border:1px solid rgba(255,0,255,.25)}
+.badge.script{background:rgba(255,215,0,.1);color:var(--yellow);border:1px solid rgba(255,215,0,.25)}
+.badge.active{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.badge.inactive{background:rgba(255,51,102,.08);color:var(--red);border:1px solid rgba(255,51,102,.2)}
+/* Modal overlay */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:32px;max-width:800px;width:90%;max-height:85vh;overflow-y:auto}
+.modal h2{font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:20px;text-align:center}
+.mode-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.mode-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:24px;cursor:pointer;text-align:center;transition:all .2s}
+.mode-card:hover{border-color:var(--cyan);box-shadow:0 0 20px rgba(0,240,255,.15)}
+.mode-card .mc-icon{font-size:2rem;margin-bottom:12px}
+.mode-card .mc-title{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--cyan);margin-bottom:8px}
+.mode-card .mc-desc{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--dim);line-height:1.5}
+/* Library grid */
+.lib-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:16px 0;max-height:400px;overflow-y:auto;padding-right:4px}
+.lib-card{background:var(--surface);border:2px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:all .2s}
+.lib-card:hover{border-color:var(--cyan)}.lib-card.selected{border-color:var(--magenta);box-shadow:0 0 16px rgba(255,0,255,.2)}
+.lib-card .lc-name{font-family:'Orbitron',monospace;font-size:.75rem;color:var(--cyan);margin-bottom:4px}
+.lib-card .lc-cat{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--magenta);margin-bottom:6px}
+.lib-card .lc-desc{font-family:'Rajdhani',sans-serif;font-size:.8rem;color:var(--dim);line-height:1.4}
+.lib-card .lc-stars{color:var(--yellow);font-size:.75rem;margin-top:4px}
+.lib-card .lc-diff{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);margin-top:2px}
+/* Form panel */
+.form-panel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:20px;margin-top:16px;display:none}
+.form-panel.open{display:block}
+.form-panel h3{font-family:'Orbitron',monospace;font-size:.85rem;color:var(--magenta);margin-bottom:16px}
+/* Code editor */
+.code-editor{background:#000;border:1px solid var(--border);border-radius:6px;padding:0;position:relative;margin-bottom:12px}
+.code-editor textarea{width:100%;min-height:250px;background:transparent;border:none;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:.82rem;line-height:1.7;padding:16px;resize:vertical;outline:none;tab-size:4}
+.validation-box{padding:12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:.8rem;margin-bottom:12px;display:none}
+.validation-box.ok{display:block;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green)}
+.validation-box.err{display:block;background:rgba(255,51,102,.08);border:1px solid rgba(255,51,102,.3);color:var(--red)}
+.validation-box.loading{display:block;background:rgba(0,240,255,.05);border:1px solid var(--border);color:var(--cyan)}
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;margin-top:16px}
+table{width:100%;border-collapse:collapse}
+th{font-family:'Orbitron',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--dim);text-align:left;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
+td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech Mono',monospace;font-size:.8rem}
+.pnl-pos{color:var(--green)}.pnl-neg{color:var(--red)}
+/* Log terminal */
+.log-terminal{background:#000;border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:16px;max-height:300px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--green);line-height:1.6}
+.log-terminal .log-warn{color:var(--yellow)}.log-terminal .log-err{color:var(--red)}
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--dim);border-top-color:var(--cyan);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* Symbol search */
+.sym-result{padding:6px 12px;margin-top:4px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.78rem;display:none;border:1px solid}
+.sym-result.found{display:block;border-color:var(--green);background:rgba(0,255,136,.05);color:var(--green)}
+.sym-result.not-found{display:block;border-color:var(--red);background:rgba(255,51,102,.05);color:var(--red)}
+.sym-result.searching{display:block;border-color:var(--border);color:var(--dim)}
+.quick-syms{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quick-sym{background:var(--surface2);border:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all .15s}
+.quick-sym:hover{border-color:var(--cyan);color:var(--cyan)}
+/* Condition row */
+.cond-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px}
+.cond-row select,.cond-row input{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.82rem;padding:6px 10px;border-radius:4px}
+.cond-row .cond-params{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;width:100%}
+.cond-row .cond-params label{font-size:.65rem;color:var(--dim);margin-bottom:2px;display:block}
+.cond-row .cond-params input{width:90px}
+.exit-checks{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.exit-check{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--dim)}
+.exit-check input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px}
+.exit-check input[type=number],.exit-check input[type=text]{width:70px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.8rem;padding:4px 8px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="header"><h1>QUANTX DEPLOYER</h1><div class="email-display" id="hdr-email">NOT REGISTERED</div></div>
+<div class="tabs">
+<div class="tab active" onclick="switchTab('register')">Register</div>
+<div class="tab" onclick="switchTab('strategies')">Strategies</div>
+<div class="tab" onclick="switchTab('deploy')">Deploy</div>
+<div class="tab" onclick="switchTab('dashboard')">Dashboard</div>
+<div class="tab" onclick="switchTab('settings')">Settings</div>
+</div>
+
+<!-- MODE SELECTOR MODAL -->
+<div class="modal-overlay" id="mode-modal">
+<div class="modal">
+<h2>CHOOSE STRATEGY MODE</h2>
+<div class="mode-cards">
+<div class="mode-card" onclick="openStratForm('library')"><div class="mc-icon">&#128218;</div><div class="mc-title">STRATEGY LIBRARY</div><div class="mc-desc">Curated &amp; proven strategies</div></div>
+<div class="mode-card" onclick="openStratForm('custom')"><div class="mc-icon">&#128295;</div><div class="mc-title">CUSTOM</div><div class="mc-desc">Build with indicators. Full control.</div></div>
+<div class="mode-card" onclick="openStratForm('script')"><div class="mc-icon">&#9889;</div><div class="mc-title">SCRIPT</div><div class="mc-desc">Upload your own Python logic. For advanced students.</div></div>
+</div>
+</div>
+</div>
+
+<!-- TAB: REGISTER -->
+<div class="tab-content active" id="tab-register">
+<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:20px">STUDENT REGISTRATION</h2>
+<div style="max-width:600px">
+<div class="form-group"><label>Email</label><input type="email" id="reg-email" placeholder="student@example.com"></div>
+<div class="form-group"><label>Name</label><input type="text" id="reg-name" placeholder="Your Name"></div>
+<div class="form-group"><label>Central API URL</label><input type="url" id="reg-central" placeholder="https://quantx-central.up.railway.app"></div>
+<div class="form-row">
+<div class="form-group"><label>LongPort App Key</label><input type="password" id="reg-appkey" placeholder="App Key"></div>
+<div class="form-group"><label>LongPort App Secret</label><input type="password" id="reg-appsecret" placeholder="App Secret"></div>
+</div>
+<div class="form-group"><label>LongPort Access Token</label><input type="password" id="reg-token" placeholder="Access Token"></div>
+<button class="btn btn-primary" onclick="doRegister()">REGISTER</button>
+<div class="msg" id="reg-msg"></div>
+</div>
+</div>
+
+<!-- TAB: STRATEGIES -->
+<div class="tab-content" id="tab-strategies">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan)">STRATEGIES</h2>
+<button class="btn btn-magenta btn-sm" onclick="document.getElementById('mode-modal').classList.add('open')">+ ADD STRATEGY</button>
+</div>
+<div id="strat-list-empty" style="display:none;text-align:center;padding:40px 20px">
+<p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.9rem;margin-bottom:24px">No strategies yet. Choose a mode to get started:</p>
+<div class="mode-cards" style="max-width:700px;margin:0 auto">
+<div class="mode-card" onclick="openStratForm('library')"><div class="mc-icon">&#128218;</div><div class="mc-title">STRATEGY LIBRARY</div><div class="mc-desc">Curated library</div></div>
+<div class="mode-card" onclick="openStratForm('custom')"><div class="mc-icon">&#128295;</div><div class="mc-title">CUSTOM</div><div class="mc-desc">Build your own</div></div>
+<div class="mode-card" onclick="openStratForm('script')"><div class="mc-icon">&#9889;</div><div class="mc-title">SCRIPT</div><div class="mc-desc">Python code</div></div>
+</div>
+</div>
+<div class="strat-cards" id="strat-list"></div>
+
+<!-- PREMADE FORM -->
+<div class="form-panel" id="form-library">
+<h3>STRATEGY LIBRARY</h3>
+<p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.8rem;margin-bottom:12px">Select a strategy from the library:</p>
+<div class="lib-grid" id="lib-grid" style="grid-template-columns:repeat(2,1fr)"></div>
+<div id="library-params" style="margin-top:16px"></div>
+<div class="form-row" style="margin-top:12px">
+<div class="form-group"><label>Strategy ID (auto-generated)</label><input type="text" id="pm-sid" placeholder="auto-generated"></div>
+<div class="form-group"><label>Strategy Name</label><input type="text" id="pm-sname" placeholder="Strategy Name"></div>
+</div>
+<div class="form-row three">
+<div class="form-group"><label>Symbol</label><input type="text" id="pm-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('pm')"><div class="sym-result" id="pm-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK, 2800.HK</div><div id="pm-rec-syms" class="quick-syms"></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('pm','700.HK')">700.HK</span><span class="quick-sym" onclick="fillSym('pm','2800.HK')">2800.HK</span><span class="quick-sym" onclick="fillSym('pm','9988.HK')">9988.HK</span><span class="quick-sym" onclick="fillSym('pm','TQQQ.US')">TQQQ.US</span><span class="quick-sym" onclick="fillSym('pm','SPY.US')">SPY.US</span><span class="quick-sym" onclick="fillSym('pm','QQQ.US')">QQQ.US</span></div></div>
+<div class="form-group"><label>Arena</label><select id="pm-arena"><option>US</option><option>HK</option><option>SG</option></select><div class="hint" id="pm-lot-hint"></div></div>
+<div class="form-group"><label>Timeframe</label><select id="pm-tf"></select></div>
+</div>
+<h3 style="margin-top:12px">RISK</h3>
+<div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+<div class="form-group"><label>TP %</label><input type="number" id="pm-tp" value="0.5" step="0.1"></div>
+<div class="form-group"><label>SL %</label><input type="number" id="pm-sl" value="0.3" step="0.1"></div>
+<div class="form-group"><label>Trail %</label><input type="number" id="pm-trail" value="0" step="0.1"></div>
+<div class="form-group"><label>Lots</label><input type="number" id="pm-lots" value="1" step="1"></div>
+</div>
+<div style="display:flex;gap:12px;margin-top:8px">
+<button class="btn btn-primary" onclick="savePremade()">SAVE STRATEGY</button>
+<button class="btn btn-danger btn-sm" onclick="closeAllForms()">CANCEL</button>
+</div>
+<div class="msg" id="pm-msg"></div>
+</div>
+
+<!-- CUSTOM FORM -->
+<div class="form-panel" id="form-custom">
+<h3>CUSTOM STRATEGY</h3>
+<div class="form-row">
+<div class="form-group"><label>Strategy ID</label><input type="text" id="cu-id" placeholder="my-custom-strat"></div>
+<div class="form-group"><label>Strategy Name</label><input type="text" id="cu-name" placeholder="My Custom Strategy"></div>
+</div>
+<h3 style="margin-top:8px">ENTRY CONDITIONS</h3>
+<div id="cu-conditions"></div>
+<button class="btn btn-sm btn-magenta" onclick="addConditionRow()" style="margin-bottom:16px">+ ADD CONDITION</button>
+<h3>EXIT CONDITIONS</h3>
+<div class="exit-checks">
+<label class="exit-check"><input type="checkbox" id="cu-ex-opposite" checked> Opposite signal exit</label>
+<label class="exit-check"><input type="checkbox" id="cu-ex-tp" checked> Take Profit <input type="number" id="cu-ex-tp-val" value="0.5" step="0.1"> %</label>
+<label class="exit-check"><input type="checkbox" id="cu-ex-sl" checked> Stop Loss <input type="number" id="cu-ex-sl-val" value="0.3" step="0.1"> %</label>
+<label class="exit-check"><input type="checkbox" id="cu-ex-trail"> Trailing Stop <input type="number" id="cu-ex-trail-val" value="0" step="0.1"> %</label>
+<label class="exit-check"><input type="checkbox" id="cu-ex-maxbars"> Max bars held <input type="number" id="cu-ex-maxbars-val" value="30" step="1"></label>
+<label class="exit-check"><input type="checkbox" id="cu-ex-time"> Exit time <input type="text" id="cu-ex-time-val" value="15:50" style="width:60px"> SGT</label>
+</div>
+<div class="form-row three">
+<div class="form-group"><label>Symbol</label><input type="text" id="cu-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('cu')"><div class="sym-result" id="cu-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('cu','700.HK')">700.HK</span><span class="quick-sym" onclick="fillSym('cu','TQQQ.US')">TQQQ.US</span><span class="quick-sym" onclick="fillSym('cu','SPY.US')">SPY.US</span><span class="quick-sym" onclick="fillSym('cu','AAPL.US')">AAPL.US</span></div></div>
+<div class="form-group"><label>Arena</label><select id="cu-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
+<div class="form-group"><label>Timeframe</label><select id="cu-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option></select></div>
+</div>
+<div class="form-group"><label>Lots</label><input type="number" id="cu-lots" value="1" step="1" style="width:120px"></div>
+<div style="display:flex;gap:12px;margin-top:8px">
+<button class="btn btn-primary" onclick="saveCustom()">SAVE STRATEGY</button>
+<button class="btn btn-danger btn-sm" onclick="closeAllForms()">CANCEL</button>
+</div>
+<div class="msg" id="cu-msg"></div>
+</div>
+
+<!-- SCRIPT FORM -->
+<div class="form-panel" id="form-script">
+<h3>SCRIPT STRATEGY</h3>
+<div class="form-row">
+<div class="form-group"><label>Strategy ID</label><input type="text" id="sc-id" placeholder="my-script-strat"></div>
+<div class="form-group"><label>Strategy Name</label><input type="text" id="sc-name" placeholder="My Script Strategy"></div>
+</div>
+<div class="form-row three">
+<div class="form-group"><label>Symbol</label><input type="text" id="sc-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('sc')"><div class="sym-result" id="sc-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('sc','700.HK')">700.HK</span><span class="quick-sym" onclick="fillSym('sc','TQQQ.US')">TQQQ.US</span><span class="quick-sym" onclick="fillSym('sc','SPY.US')">SPY.US</span></div></div>
+<div class="form-group"><label>Arena</label><select id="sc-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
+<div class="form-group"><label>Timeframe</label><select id="sc-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select></div>
+</div>
+<h3 style="margin-top:8px">RISK</h3>
+<div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+<div class="form-group"><label>TP %</label><input type="number" id="sc-tp" value="0.5" step="0.1"></div>
+<div class="form-group"><label>SL %</label><input type="number" id="sc-sl" value="0.3" step="0.1"></div>
+<div class="form-group"><label>Trail %</label><input type="number" id="sc-trail" value="0" step="0.1"></div>
+<div class="form-group"><label>Lots</label><input type="number" id="sc-lots" value="1" step="1"></div>
+</div>
+<h3 style="margin-top:8px">SIGNAL SCRIPT</h3>
+<div class="code-editor"><textarea id="sc-code" spellcheck="false"></textarea></div>
+<div class="validation-box" id="sc-validation"></div>
+<div style="display:flex;gap:12px;margin-top:8px">
+<button class="btn btn-primary btn-sm" onclick="validateScript()">VALIDATE SCRIPT</button>
+<button class="btn btn-success" id="sc-save-btn" onclick="saveScript()" disabled>SAVE STRATEGY</button>
+<button class="btn btn-danger btn-sm" onclick="closeAllForms()">CANCEL</button>
+</div>
+<div class="msg" id="sc-msg"></div>
+</div>
+</div>
+
+<!-- TAB: DEPLOY -->
+<div class="tab-content" id="tab-deploy">
+<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:16px">DEPLOY MASTER BOT</h2>
+<!-- Market hours info -->
+<div id="deploy-market-info" style="padding:8px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--dim);margin-bottom:12px;display:flex;justify-content:space-between"></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--cyan);margin-bottom:12px">Active Strategies to Deploy</h3>
+<div id="deploy-strat-list"><p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.8rem">Loading...</p></div>
+</div>
+<div style="display:flex;gap:12px">
+<button class="btn btn-success" id="deploy-btn" onclick="doDeploy()">DEPLOY MASTER BOT</button>
+<button class="btn btn-danger" onclick="doStop()">STOP BOT</button>
+<button class="btn btn-magenta" onclick="doRestart()">RESTART</button>
+</div>
+<div class="msg" id="deploy-msg"></div>
+<div style="margin-top:16px;display:flex;gap:16px;align-items:center">
+<span id="deploy-dot" style="width:12px;height:12px;border-radius:50%;background:var(--dim);display:inline-block"></span>
+<div class="card" style="min-width:200px"><div class="label">Bot Status</div><div class="value" id="deploy-status" style="font-size:1rem">STOPPED</div></div>
+<div class="card" style="min-width:200px"><div class="label">PID</div><div class="value" id="deploy-pid" style="font-size:1rem">—</div></div>
+</div>
+</div>
+
+<!-- TAB: DASHBOARD -->
+<div class="tab-content" id="tab-dashboard">
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+<button class="btn btn-primary btn-sm" onclick="testConnection()">TEST CONNECTION</button>
+<button class="btn btn-danger btn-sm" onclick="doStop()">STOP ALL</button>
+<button class="btn btn-magenta btn-sm" onclick="doRestart()">RESTART</button>
+<button class="btn btn-sm" style="background:var(--surface);color:var(--dim);border:1px solid var(--border)" onclick="refreshDashboard()">REFRESH</button>
+<span style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--dim);margin-left:auto" id="dash-last-update">—</span>
+</div>
+<div id="conn-result" style="display:none;padding:10px 14px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:.8rem;margin-bottom:12px"></div>
+<!-- Combined summary -->
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+<span id="dash-status-dot" style="width:12px;height:12px;border-radius:50%;background:var(--dim);display:inline-block"></span>
+<span id="dash-status-text" style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--dim)">STOPPED</span>
+<span id="dash-pid-text" style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--dim)"></span>
+</div>
+<div class="cards" id="dash-summary-cards"></div>
+<!-- Per-strategy cards -->
+<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--magenta);margin:8px 0 12px">STRATEGY STATUS</h3>
+<div class="strat-cards" id="dash-strat-cards"></div>
+<!-- Trades -->
+<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--magenta);margin:20px 0 8px">TRADE HISTORY</h3>
+<div class="table-wrap"><table><thead><tr><th>Time</th><th>Strategy</th><th>Symbol</th><th>Side</th><th>Price</th><th>Qty</th><th>PnL</th></tr></thead><tbody id="trades-tbody"></tbody></table></div>
+<!-- Master log -->
+<h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--magenta);margin:20px 0 8px">MASTER LOG</h3>
+<div class="log-terminal" id="log-terminal"></div>
+<!-- Strategy log modal -->
+<div class="modal-overlay" id="strat-log-modal">
+<div class="modal" style="max-width:900px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h2 id="strat-log-title" style="font-size:.9rem">STRATEGY LOG</h2>
+<button class="btn btn-danger btn-sm" onclick="closeStratLog()">CLOSE</button>
+</div>
+<div class="log-terminal" id="strat-log-content" style="max-height:500px;min-height:200px"></div>
+</div>
+</div>
+</div>
+
+<!-- TAB: SETTINGS -->
+<div class="tab-content" id="tab-settings">
+<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:16px">SETTINGS</h2>
+<div style="max-width:500px">
+<div class="form-group"><label>Central API URL</label><input type="url" id="set-central" placeholder="https://quantx-central.up.railway.app"></div>
+<button class="btn btn-primary btn-sm" onclick="saveSettings()">SAVE</button>
+<div class="msg" id="set-msg"></div>
+</div>
+</div>
+
+<script>
+const API='';
+let EMAIL=localStorage.getItem('qx_email')||'';
+let CENTRAL=localStorage.getItem('qx_central_url')||localStorage.getItem('qx_central')||'';
+let LIB_CACHE=null;
+let selectedLib=null;
+let scriptValidated=false;
+let condCounter=0;
+
+if(EMAIL)document.getElementById('hdr-email').textContent=EMAIL;
+
+/* ── Tabs ─────────────────────────────────────────────────────────────── */
+function switchTab(n){
+  const tabs=['register','strategies','deploy','dashboard','settings'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===n));
+  document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  if(n==='strategies')loadStrategies();
+  if(n==='deploy')loadDeploySummary();
+  if(n==='dashboard')refreshDashboard();
+}
+function closeAllForms(){
+  ['form-library','form-custom','form-script'].forEach(id=>document.getElementById(id).classList.remove('open'));
+  document.getElementById('mode-modal').classList.remove('open');
+}
+function openStratForm(mode){
+  closeAllForms();
+  document.getElementById('form-'+mode).classList.add('open');
+  if(mode==='library')loadLibrary();
+  if(mode==='custom'&&document.getElementById('cu-conditions').children.length===0)addConditionRow();
+}
+
+/* ── Register ─────────────────────────────────────────────────────────── */
+async function doRegister(){
+  const msg=document.getElementById('reg-msg');
+  const email=document.getElementById('reg-email').value.trim();
+  if(!email){msg.textContent='Email required';msg.className='msg err';return;}
+  try{
+    const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name:document.getElementById('reg-name').value.trim(),app_key:document.getElementById('reg-appkey').value,app_secret:document.getElementById('reg-appsecret').value,access_token:document.getElementById('reg-token').value,central_api_url:document.getElementById('reg-central').value.trim()})});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    EMAIL=email;CENTRAL=document.getElementById('reg-central').value.trim();
+    localStorage.setItem('qx_email',email);localStorage.setItem('qx_central',CENTRAL);localStorage.setItem('qx_central_url',CENTRAL);
+    // Also persist central URL to backend
+    if(CENTRAL){try{await fetch(API+'/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,central_api_url:CENTRAL})});}catch(e){}}
+    LIB_CACHE=null;
+    document.getElementById('hdr-email').textContent=email;msg.textContent='Registered: '+d.name;msg.className='msg ok';
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+
+/* ── Strategy list ────────────────────────────────────────────────────── */
+async function loadStrategies(){
+  if(!EMAIL){document.getElementById('strat-list').innerHTML='';document.getElementById('strat-list-empty').style.display='block';return;}
+  try{
+    const r=await fetch(API+'/api/strategies/'+encodeURIComponent(EMAIL));const d=await r.json();
+    renderStrategies(d.strategies||[]);
+  }catch(e){console.error(e);}
+}
+function renderStrategies(strats){
+  const c=document.getElementById('strat-list'),empty=document.getElementById('strat-list-empty');
+  if(!strats.length){c.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  c.innerHTML=strats.map(s=>{
+    const modeBadge=`<span class="badge ${s.mode||'library'}">${(s.mode||'library').toUpperCase()}</span>`;
+    const activeBadge=`<span class="badge ${s.is_active?'active':'inactive'}">${s.is_active?'ACTIVE':'INACTIVE'}</span>`;
+    const r=s.risk||{};
+    return `<div class="strat-card">
+      <div class="sc-top"><span class="sc-name">${s.strategy_name||s.strategy_id}</span><div>${modeBadge} ${activeBadge}</div></div>
+      <div class="sc-symbol">${s.symbol} — ${s.arena}</div>
+      <div class="sc-meta">TF: ${s.timeframe} | TP: ${r.tp_pct||r.take_profit_pct||0}% | SL: ${r.sl_pct||r.stop_loss_pct||0}% | Lots: ${r.lots||r.qty||1}</div>
+      <div class="sc-actions">
+        <button class="btn btn-primary btn-sm" onclick="toggleStrat('${s.strategy_id}',${!s.is_active})">${s.is_active?'DISABLE':'ENABLE'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStrat('${s.strategy_id}')">DELETE</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteStrat(sid){if(!confirm('Delete '+sid+'?'))return;await fetch(API+'/api/strategy/'+encodeURIComponent(sid),{method:'DELETE'});loadStrategies();}
+async function toggleStrat(sid,active){await fetch(API+'/api/strategy/'+encodeURIComponent(sid)+'/toggle?active='+active,{method:'PUT'});loadStrategies();}
+
+/* ── Symbol Search ────────────────────────────────────────────────────── */
+let _symTimers={};
+function debounceSymSearch(prefix){
+  clearTimeout(_symTimers[prefix]);
+  _symTimers[prefix]=setTimeout(()=>doSymSearch(prefix),600);
+}
+function fillSym(prefix,sym){
+  document.getElementById(prefix+'-symbol').value=sym;
+  doSymSearch(prefix);
+}
+async function doSymSearch(prefix){
+  const input=document.getElementById(prefix+'-symbol');
+  const box=document.getElementById(prefix+'-sym-result');
+  const val=input.value.trim();
+  if(!val){box.className='sym-result';return;}
+  if(!EMAIL){box.className='sym-result not-found';box.textContent='Register first to search symbols';return;}
+  box.className='sym-result searching';box.textContent='Searching...';
+  try{
+    const r=await fetch(API+'/api/symbol-search?query='+encodeURIComponent(val)+'&email='+encodeURIComponent(EMAIL));
+    const d=await r.json();
+    if(d.found){
+      box.className='sym-result found';
+      box.textContent=d.symbol+' — '+(d.name||'')+(d.exchange?' | '+d.exchange:'')+(d.currency?' | '+d.currency:'');
+      input.value=d.symbol;
+      // Auto-detect arena
+      const arenaEl=document.getElementById(prefix+'-arena');
+      if(arenaEl){
+        if(d.symbol.endsWith('.HK'))arenaEl.value='HK';
+        else if(d.symbol.endsWith('.US'))arenaEl.value='US';
+        else if(d.symbol.endsWith('.SH')||d.symbol.endsWith('.SZ'))arenaEl.value='CN';
+      }
+      // Lot size hint
+      const lotHint=document.getElementById(prefix+'-lot-hint');
+      if(lotHint){
+        const ls=d.lot_size||0;
+        if(ls>0)lotHint.textContent='Lot size: '+ls+' shares per lot';
+        else lotHint.textContent='';
+      }
+    }else{
+      box.className='sym-result not-found';box.textContent='Not found: '+(d.error||val)+'. Try: 700.HK, TQQQ.US, SPY.US';
+    }
+  }catch(e){box.className='sym-result not-found';box.textContent='Search error: '+e.message;}
+}
+
+/* ── Library ──────────────────────────────────────────────────────────── */
+function getCentralUrl(){
+  return CENTRAL||localStorage.getItem('qx_central_url')||localStorage.getItem('qx_central')||document.getElementById('reg-central').value.trim()||'http://localhost:8001';
+}
+async function loadLibrary(){
+  if(LIB_CACHE){renderLibrary(LIB_CACHE);return;}
+  try{
+    const r=await fetch(API+'/api/strategies-library');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();LIB_CACHE=d.strategies||[];renderLibrary(LIB_CACHE);
+  }catch(e){document.getElementById('lib-grid').innerHTML='<p style="color:var(--red);font-family:Share Tech Mono,monospace;font-size:.8rem">Failed to load strategy library: '+e.message+'</p>';}
+}
+const CAT_COLORS={'Trend Following':'var(--cyan)','Mean Reversion':'#b066ff','Grid Trading':'var(--yellow)','Breakout':'#ff8833','Momentum':'var(--green)','VWAP':'#ff66aa'};
+function catColor(cat){return CAT_COLORS[cat]||'var(--dim)';}
+function renderLibrary(libs){
+  document.getElementById('lib-grid').innerHTML=libs.map(s=>{
+    const stars='\u2605'.repeat(s.stars||3)+'\u2606'.repeat(5-(s.stars||3));
+    const diff='\u25A0'.repeat(s.difficulty)+'\u25A1'.repeat(5-s.difficulty);
+    const cc=catColor(s.category);
+    const syms=(s.recommended_symbols||[]).map(sym=>`<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:.6rem;background:rgba(255,255,255,.06);color:var(--dim);margin-right:4px;margin-top:4px">${sym}</span>`).join('');
+    return `<div class="lib-card" data-id="${s.id}" onclick="selectLib('${s.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:'Share Tech Mono',monospace;background:${cc}22;color:${cc};border:1px solid ${cc}44">${s.category}</span>
+        <span style="color:var(--yellow);font-size:.7rem">${stars}</span>
+      </div>
+      <div class="lc-name">${s.name}</div>
+      <div class="lc-desc" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${s.description}</div>
+      <div style="margin-top:6px">${syms}</div>
+      <div class="lc-diff">Difficulty: ${diff}</div>
+    </div>`;
+  }).join('');
+}
+function selectLib(id){
+  selectedLib=LIB_CACHE.find(s=>s.id===id);if(!selectedLib)return;
+  document.querySelectorAll('.lib-card').forEach(c=>{
+    c.classList.toggle('selected',c.dataset.id===id);
+    // Add checkmark
+    let ck=c.querySelector('.lc-check');
+    if(c.dataset.id===id){if(!ck){ck=document.createElement('div');ck.className='lc-check';ck.style.cssText='position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--green);color:#000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700';ck.textContent='\u2713';c.style.position='relative';c.appendChild(ck);}}
+    else{if(ck)ck.remove();}
+  });
+  // Build detail section
+  const pp=document.getElementById('library-params');
+  const cc=catColor(selectedLib.category);
+  let html=`<div style="margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px">`;
+  html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-family:'Orbitron',monospace;font-size:.9rem;color:var(--cyan)">${selectedLib.name}</span><span style="padding:1px 8px;border-radius:10px;font-size:.55rem;font-weight:700;text-transform:uppercase;font-family:'Share Tech Mono',monospace;background:${cc}22;color:${cc};border:1px solid ${cc}44">${selectedLib.category}</span></div>`;
+  html+=`<p style="font-family:'Rajdhani',sans-serif;font-size:.88rem;color:var(--text);line-height:1.5;margin-bottom:10px">${selectedLib.description}</p>`;
+  html+=`<div style="background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.15);border-radius:6px;padding:10px 14px;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--cyan);line-height:1.5">${selectedLib.signal_logic}</div></div>`;
+  // Params
+  html+='<h3 style="margin-bottom:10px">PARAMETERS</h3><div class="form-row" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">';
+  (selectedLib.params||[]).forEach(p=>{
+    html+=`<div class="form-group"><label>${p.label}</label><input type="number" id="pm-p-${p.key}" value="${p.default}" min="${p.min}" max="${p.max}" step="${p.type==='float'?0.1:1}"><div class="hint">Range: ${p.min}–${p.max}. ${p.hint||''}</div></div>`;
+  });
+  html+='</div>';
+  pp.innerHTML=html;
+  // Auto-generate strategy ID
+  const ts4=Date.now().toString(36).slice(-4).toUpperCase();
+  document.getElementById('pm-sid').value=selectedLib.id+'_'+ts4;
+  document.getElementById('pm-sname').value=selectedLib.name;
+  // Show recommended symbols as clickable tags
+  const recSyms=selectedLib.recommended_symbols||[];
+  const recEl=document.getElementById('pm-rec-syms');
+  recEl.innerHTML=recSyms.map(s=>`<span class="quick-sym" onclick="fillSym('pm','${s}')" style="border-color:var(--magenta);color:var(--magenta)">${s}</span>`).join('');
+  // Pre-fill with first recommended and trigger search
+  const recSym=recSyms[0]||'';
+  document.getElementById('pm-symbol').value=recSym;
+  if(recSym){fillSym('pm',recSym);}
+  // Arena set by search callback
+  // Populate timeframe dropdown (only allowed)
+  const tf=document.getElementById('pm-tf');
+  tf.innerHTML=(selectedLib.allowed_timeframes||['5m']).map(t=>`<option>${t}</option>`).join('');
+  tf.value=selectedLib.default_timeframe||'5m';
+  // Set default risk
+  const dr=selectedLib.default_risk||{};
+  document.getElementById('pm-tp').value=dr.tp_pct||0.5;
+  document.getElementById('pm-sl').value=dr.sl_pct||0.3;
+  document.getElementById('pm-trail').value=dr.trail_pct||0;
+  document.getElementById('pm-lots').value=dr.lots||1;
+}
+async function savePremade(){
+  const msg=document.getElementById('pm-msg');
+  if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}
+  if(!selectedLib){msg.textContent='Select a strategy first';msg.className='msg err';return;}
+  const sym=document.getElementById('pm-symbol').value.trim();
+  if(!sym){msg.textContent='Symbol required';msg.className='msg err';return;}
+  const params={};
+  (selectedLib.params||[]).forEach(p=>{const el=document.getElementById('pm-p-'+p.key);if(el)params[p.key]=parseFloat(el.value);});
+  const sid=document.getElementById('pm-sid').value.trim()||selectedLib.id+'_'+Date.now().toString(36).slice(-4).toUpperCase();
+  const sname=document.getElementById('pm-sname').value.trim()||selectedLib.name;
+  const payload={email:EMAIL,strategy_id:sid,strategy_name:sname+' ('+sym+')',symbol:sym,arena:document.getElementById('pm-arena').value,timeframe:document.getElementById('pm-tf').value,conditions:{type:selectedLib.indicator,params:params},exit_rules:{},risk:{tp_pct:parseFloat(document.getElementById('pm-tp').value),sl_pct:parseFloat(document.getElementById('pm-sl').value),trail_pct:parseFloat(document.getElementById('pm-trail').value),lots:parseInt(document.getElementById('pm-lots').value)},is_active:true,mode:'library',library_id:selectedLib.id};
+  try{
+    const r=await fetch(API+'/api/strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    msg.textContent='Saved!';msg.className='msg ok';closeAllForms();loadStrategies();
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+
+/* ── Custom conditions ────────────────────────────────────────────────── */
+const INDICATORS=[
+  {id:'EMA_CROSS',label:'EMA Crossover',params:[{key:'fast_period',label:'Fast',def:5,min:2,max:50},{key:'slow_period',label:'Slow',def:20,min:5,max:200}]},
+  {id:'RSI',label:'RSI',params:[{key:'period',label:'Period',def:14,min:2,max:50},{key:'oversold',label:'Oversold',def:30,min:10,max:45},{key:'overbought',label:'Overbought',def:70,min:55,max:90}]},
+  {id:'MACD_SIGNAL',label:'MACD',params:[{key:'fast_period',label:'Fast',def:12,min:5,max:30},{key:'slow_period',label:'Slow',def:26,min:15,max:60},{key:'signal_period',label:'Signal',def:9,min:3,max:20}]},
+  {id:'BB_BREAKOUT',label:'Bollinger Bands',params:[{key:'period',label:'Period',def:20,min:10,max:50},{key:'num_std',label:'StdDev',def:2,min:1,max:3.5}]},
+  {id:'SUPERTREND',label:'SuperTrend',params:[{key:'atr_period',label:'ATR Period',def:10,min:5,max:30},{key:'multiplier',label:'Multiplier',def:3,min:1,max:6}]},
+  {id:'MOMENTUM',label:'Momentum',params:[{key:'lookback',label:'Lookback',def:10,min:3,max:60},{key:'threshold_pct',label:'Threshold%',def:0.5,min:0.1,max:5}]},
+  {id:'PRICE_CROSS',label:'Price Cross',params:[{key:'threshold',label:'Price',def:0,min:0,max:999999}]}
+];
+function addConditionRow(){
+  if(document.querySelectorAll('.cond-row').length>=5)return;
+  const idx=condCounter++;
+  const div=document.createElement('div');div.className='cond-row';div.id='cond-'+idx;
+  const logicSel=idx>0?`<select class="cond-logic"><option>AND</option><option>OR</option></select>`:'';
+  let opts=INDICATORS.map(i=>`<option value="${i.id}">${i.label}</option>`).join('');
+  div.innerHTML=`${logicSel}<select class="cond-indicator" onchange="updateCondParams(${idx})">${opts}</select><button class="btn btn-danger btn-sm" onclick="document.getElementById('cond-${idx}').remove()" style="margin-left:auto">X</button><div class="cond-params" id="cond-params-${idx}"></div>`;
+  document.getElementById('cu-conditions').appendChild(div);
+  updateCondParams(idx);
+}
+function updateCondParams(idx){
+  const row=document.getElementById('cond-'+idx);if(!row)return;
+  const sel=row.querySelector('.cond-indicator');
+  const ind=INDICATORS.find(i=>i.id===sel.value);if(!ind)return;
+  const pp=document.getElementById('cond-params-'+idx);
+  pp.innerHTML=ind.params.map(p=>`<div><label>${p.label}</label><input type="number" data-key="${p.key}" value="${p.def}" min="${p.min}" max="${p.max}" step="${typeof p.def==='number'&&p.def%1!==0?0.1:1}"></div>`).join('');
+}
+async function saveCustom(){
+  const msg=document.getElementById('cu-msg');
+  if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}
+  const sid=document.getElementById('cu-id').value.trim();
+  const sym=document.getElementById('cu-symbol').value.trim();
+  if(!sid||!sym){msg.textContent='Strategy ID and Symbol required';msg.className='msg err';return;}
+  // Gather conditions
+  const conditions=[];
+  document.querySelectorAll('.cond-row').forEach(row=>{
+    const logic=row.querySelector('.cond-logic');
+    const ind=row.querySelector('.cond-indicator');
+    const params={};
+    row.querySelectorAll('.cond-params input').forEach(inp=>{params[inp.dataset.key]=parseFloat(inp.value);});
+    conditions.push({logic:logic?logic.value:'AND',indicator:ind.value,params});
+  });
+  // Exit rules
+  const exit_rules={opposite:document.getElementById('cu-ex-opposite').checked};
+  if(document.getElementById('cu-ex-tp').checked)exit_rules.tp_pct=parseFloat(document.getElementById('cu-ex-tp-val').value);
+  if(document.getElementById('cu-ex-sl').checked)exit_rules.sl_pct=parseFloat(document.getElementById('cu-ex-sl-val').value);
+  if(document.getElementById('cu-ex-trail').checked)exit_rules.trail_pct=parseFloat(document.getElementById('cu-ex-trail-val').value);
+  if(document.getElementById('cu-ex-maxbars').checked)exit_rules.max_bars=parseInt(document.getElementById('cu-ex-maxbars-val').value);
+  if(document.getElementById('cu-ex-time').checked)exit_rules.exit_time=document.getElementById('cu-ex-time-val').value;
+  const risk={tp_pct:exit_rules.tp_pct||0.5,sl_pct:exit_rules.sl_pct||0.3,trail_pct:exit_rules.trail_pct||0,lots:parseInt(document.getElementById('cu-lots').value)||1};
+  const payload={email:EMAIL,strategy_id:sid,strategy_name:document.getElementById('cu-name').value.trim()||sid,symbol:sym,arena:document.getElementById('cu-arena').value,timeframe:document.getElementById('cu-tf').value,conditions:{type:'custom',entries:conditions},exit_rules,risk,is_active:true,mode:'custom'};
+  try{
+    const r=await fetch(API+'/api/strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    msg.textContent='Saved!';msg.className='msg ok';closeAllForms();loadStrategies();
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+
+/* ── Script mode ─────���────────────────────────────────────────────────── */
+async function validateScript(){
+  const vbox=document.getElementById('sc-validation');
+  const code=document.getElementById('sc-code').value;
+  vbox.className='validation-box loading';vbox.textContent='Validating...';
+  scriptValidated=false;document.getElementById('sc-save-btn').disabled=true;
+  try{
+    const r=await fetch(API+'/api/validate-script',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({script:code})});
+    const d=await r.json();
+    if(d.valid){
+      vbox.className='validation-box ok';
+      vbox.textContent='Syntax OK | Sandbox passed | Signals: ['+d.signals_sample.map(s=>s===null?'None':("'"+s+"'")).join(', ')+']';
+      scriptValidated=true;document.getElementById('sc-save-btn').disabled=false;
+    }else{
+      vbox.className='validation-box err';
+      vbox.textContent='FAILED ('+d.stage+'): '+d.error;
+    }
+  }catch(e){vbox.className='validation-box err';vbox.textContent='Error: '+e.message;}
+}
+document.getElementById('sc-code').addEventListener('input',()=>{scriptValidated=false;document.getElementById('sc-save-btn').disabled=true;document.getElementById('sc-validation').className='validation-box';});
+async function saveScript(){
+  const msg=document.getElementById('sc-msg');
+  if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}
+  if(!scriptValidated){msg.textContent='Validate script first';msg.className='msg err';return;}
+  const sid=document.getElementById('sc-id').value.trim();
+  const sym=document.getElementById('sc-symbol').value.trim();
+  if(!sid||!sym){msg.textContent='Strategy ID and Symbol required';msg.className='msg err';return;}
+  const payload={email:EMAIL,strategy_id:sid,strategy_name:document.getElementById('sc-name').value.trim()||sid,symbol:sym,arena:document.getElementById('sc-arena').value,timeframe:document.getElementById('sc-tf').value,conditions:{type:'script'},exit_rules:{},risk:{tp_pct:parseFloat(document.getElementById('sc-tp').value),sl_pct:parseFloat(document.getElementById('sc-sl').value),trail_pct:parseFloat(document.getElementById('sc-trail').value),lots:parseInt(document.getElementById('sc-lots').value)||1},is_active:true,mode:'script',custom_script:document.getElementById('sc-code').value};
+  try{
+    const r=await fetch(API+'/api/strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    msg.textContent='Saved!';msg.className='msg ok';closeAllForms();loadStrategies();
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+
+/* ── Deploy ────────────────────────────────────────────────────────────── */
+function getMarketInfo(symbol){
+  const now=new Date();const sgt=new Date(now.getTime()+8*3600000);
+  const h=sgt.getUTCHours(),m=sgt.getUTCMinutes();
+  const timeStr=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+' SGT';
+  if(symbol&&symbol.endsWith('.HK')){
+    const isOpen=(h>9||(h===9&&m>=30))&&h<16;
+    return {schedule:'HK Market: 9:30am - 4:00pm SGT',time:timeStr,isOpen};
+  }
+  if(symbol&&(symbol.endsWith('.US'))){
+    const isOpen=(h>21||(h===21&&m>=30)||h<4);
+    return {schedule:'US Market: 9:30pm - 4:00am SGT',time:timeStr,isOpen};
+  }
+  return {schedule:'Market hours unknown',time:timeStr,isOpen:true};
+}
+async function loadDeploySummary(){
+  if(!EMAIL)return;
+  try{
+    const r=await fetch(API+'/api/strategies/'+encodeURIComponent(EMAIL));const d=await r.json();
+    const active=(d.strategies||[]).filter(s=>s.is_active);
+    const list=document.getElementById('deploy-strat-list');
+    if(!active.length){list.innerHTML='<p style="color:var(--dim)">No active strategies.</p>';return;}
+    list.innerHTML=active.map(s=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ffffff08;font-family:'Share Tech Mono',monospace;font-size:.8rem"><span>${s.strategy_name||s.strategy_id} <span class="badge ${s.mode||'library'}" style="margin-left:6px">${(s.mode||'library').toUpperCase()}</span></span><span style="color:var(--cyan)">${s.symbol}</span></div>`).join('');
+
+    // Market hours
+    const primarySymbol=active[0]?active[0].symbol:'';
+    const mi=getMarketInfo(primarySymbol);
+    document.getElementById('deploy-market-info').innerHTML=`<span>${mi.schedule}</span><span>Now: ${mi.time}</span><span style="color:${mi.isOpen?'var(--green)':'var(--yellow)'};font-weight:700">${mi.isOpen?'OPEN':'CLOSED'}</span>`;
+
+    // Bot status
+    const sr=await fetch(API+'/api/status/'+encodeURIComponent(EMAIL));const sd=await sr.json();
+    const bs=sd.bot_status||'stopped';
+    const dot=document.getElementById('deploy-dot');
+    const stEl=document.getElementById('deploy-status');
+    if(bs==='running'){dot.style.background='var(--green)';dot.style.animation='pulse 1.5s infinite';stEl.textContent='RUNNING';stEl.style.color='var(--green)';}
+    else if(bs==='error'){dot.style.background='var(--red)';dot.style.animation='pulse 1.5s infinite';stEl.textContent='ERROR';stEl.style.color='var(--red)';}
+    else{dot.style.background='var(--dim)';dot.style.animation='none';stEl.textContent='STOPPED';stEl.style.color='var(--dim)';}
+    document.getElementById('deploy-pid').textContent=sd.pid||'—';
+  }catch(e){console.error(e);}
+}
+async function doDeploy(){
+  const msg=document.getElementById('deploy-msg');if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}
+  msg.textContent='Deploying... (checking for 3s)';msg.className='msg';msg.style.color='var(--cyan)';
+  try{
+    const r=await fetch(API+'/api/deploy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json();
+    if(d.status==='error'){
+      msg.className='msg err';msg.textContent='Bot crashed: '+d.error;
+      if(d.log_excerpt&&d.log_excerpt.length){msg.textContent+='\n'+d.log_excerpt.slice(-5).join('\n');}
+    }else if(!r.ok){throw new Error(d.detail||'Failed');}
+    else{msg.textContent='Deployed! PID: '+d.pid+', Strategies: '+d.strategies_count+(d.central_api_url?' | Central: '+d.central_api_url:'');msg.className='msg ok';}
+    loadDeploySummary();
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+async function doStop(){
+  const msg=document.getElementById('deploy-msg');
+  try{const r=await fetch(API+'/api/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');msg.textContent='Bot stopped';msg.className='msg ok';setTimeout(loadDeploySummary,1000);}catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+async function doRestart(){
+  const msg=document.getElementById('deploy-msg');if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}
+  msg.textContent='Restarting... (checking for 3s)';msg.className='msg';msg.style.color='var(--cyan)';
+  try{
+    const r=await fetch(API+'/api/restart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json();
+    if(d.status==='error'){msg.className='msg err';msg.textContent='Bot crashed: '+d.error;if(d.log_excerpt&&d.log_excerpt.length)msg.textContent+='\n'+d.log_excerpt.slice(-3).join('\n');}
+    else if(!r.ok){throw new Error(d.detail||'Failed');}
+    else{msg.textContent='Restarted! PID: '+d.pid;msg.className='msg ok';}
+    setTimeout(loadDeploySummary,1000);
+  }catch(e){msg.textContent=e.message;msg.className='msg err';}
+}
+
+/* ── Dashboard ─────────────────────────────────────────────────────────── */
+async function testConnection(){
+  if(!EMAIL){alert('Register first');return;}
+  const box=document.getElementById('conn-result');
+  box.style.display='block';box.style.background='rgba(0,240,255,.05)';box.style.border='1px solid var(--border)';box.style.color='var(--cyan)';box.textContent='Testing connection...';
+  try{
+    const r=await fetch(API+'/api/test-connection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json();
+    if(d.ok){
+      box.style.background='rgba(0,255,136,.08)';box.style.border='1px solid rgba(0,255,136,.3)';box.style.color='var(--green)';
+      box.textContent='LongPort Connected'+(d.test_quote?' | 700.HK: $'+d.test_quote.price:'');
+    }else{
+      box.style.background='rgba(255,51,102,.08)';box.style.border='1px solid rgba(255,51,102,.3)';box.style.color='var(--red)';
+      box.textContent=d.message;
+    }
+  }catch(e){box.style.background='rgba(255,51,102,.08)';box.style.border='1px solid rgba(255,51,102,.3)';box.style.color='var(--red)';box.textContent='Error: '+e.message;}
+}
+let _stratLogInterval=null;
+function openStratLog(sid){
+  document.getElementById('strat-log-title').textContent='LOG: '+sid;
+  document.getElementById('strat-log-modal').classList.add('open');
+  loadStratLog(sid);
+  _stratLogInterval=setInterval(()=>loadStratLog(sid),3000);
+}
+function closeStratLog(){
+  document.getElementById('strat-log-modal').classList.remove('open');
+  if(_stratLogInterval){clearInterval(_stratLogInterval);_stratLogInterval=null;}
+}
+async function loadStratLog(sid){
+  try{
+    const r=await fetch(API+'/api/logs/'+encodeURIComponent(EMAIL)+'/'+encodeURIComponent(sid)+'?lines=50');
+    const d=await r.json();
+    const el=document.getElementById('strat-log-content');
+    el.innerHTML=(d.lines||[]).map(l=>{let c='';if(l.includes('WARNING')||l.includes('CONFLICT'))c=' log-warn';else if(l.includes('ERROR'))c=' log-err';return `<div class="${c}">${l.replace(/</g,'&lt;')}</div>`;}).join('');
+    el.scrollTop=el.scrollHeight;
+  }catch(e){console.error(e);}
+}
+async function refreshDashboard(){
+  if(!EMAIL)return;
+  try{
+    const [sr,tr,lr]=await Promise.all([
+      fetch(API+'/api/status/'+encodeURIComponent(EMAIL)),
+      fetch(API+'/api/trades/'+encodeURIComponent(EMAIL)),
+      fetch(API+'/api/logs/'+encodeURIComponent(EMAIL)+'?lines=80')
+    ]);
+    const status=await sr.json(),trades=await tr.json(),logs=await lr.json();
+
+    // Master status
+    const dot=document.getElementById('dash-status-dot'),stxt=document.getElementById('dash-status-text');
+    const bs=status.bot_status||'stopped';
+    if(bs==='running'){dot.style.background='var(--green)';dot.style.animation='pulse 1.5s infinite';stxt.textContent='RUNNING';stxt.style.color='var(--green)';}
+    else if(bs==='error'){dot.style.background='var(--red)';dot.style.animation='pulse 1.5s infinite';stxt.textContent='ERROR';stxt.style.color='var(--red)';}
+    else{dot.style.background='var(--dim)';dot.style.animation='none';stxt.textContent='STOPPED';stxt.style.color='var(--dim)';}
+    document.getElementById('dash-pid-text').textContent=status.pid?'PID: '+status.pid:'';
+    document.getElementById('dash-last-update').textContent='Updated '+new Date().toLocaleTimeString();
+
+    // Summary cards
+    const sc=document.getElementById('dash-summary-cards');
+    const pc=status.total_pnl>=0?'green':'red';
+    const runCount=(status.strategies||[]).filter(s=>s.is_active).length;
+    sc.innerHTML=`<div class="card"><div class="label">Combined PnL</div><div class="value ${pc}">$${(status.total_pnl||0).toFixed(2)}</div></div>
+      <div class="card"><div class="label">Running Strategies</div><div class="value">${runCount}</div></div>
+      <div class="card"><div class="label">Total Trades</div><div class="value">${status.total_trades||0}</div></div>`;
+
+    // Per-strategy cards
+    const stc=document.getElementById('dash-strat-cards');
+    stc.innerHTML=(status.strategies||[]).map(s=>{
+      const pnlC=(s.total_pnl||0)>=0?'var(--green)':'var(--red)';
+      const st=s.status||'unknown';
+      const stColor=st==='running'?'var(--green)':st==='waiting'?'var(--yellow)':'var(--dim)';
+      const isGrid=s.library_id==='SYMMETRIC_GRID';
+      const det=s.details||{};
+      let extra='';
+      if(isGrid){extra=`<div style="margin-top:6px;font-size:.7rem;color:var(--dim)">Orders: ${det.buy_orders_active||0} active | Held: ${det.positions_held||0} | Cycles: ${det.completed_cycles||0}</div>`;}
+      return `<div class="strat-card">
+        <div class="sc-top">
+          <span class="sc-name">${s.strategy_name||s.strategy_id}</span>
+          <div><span class="badge ${s.mode||'library'}">${(s.mode||'library').toUpperCase()}</span>
+               <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:700;color:${stColor};border:1px solid ${stColor}44;background:${stColor}15;margin-left:4px">${st.toUpperCase()}</span></div>
+        </div>
+        <div class="sc-symbol">${s.symbol}</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:.8rem">
+          <span>PnL: <span style="color:${pnlC}">$${(s.total_pnl||0).toFixed(2)}</span></span>
+          <span>Pos: ${s.position||0}</span>
+        </div>
+        ${extra}
+        <div style="margin-top:10px">
+          <button class="btn btn-sm" style="background:var(--surface2);color:var(--cyan);border:1px solid var(--border)" onclick="openStratLog('${s.strategy_id}')">VIEW LOG</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Trades table
+    document.getElementById('trades-tbody').innerHTML=(trades.trades||[]).slice(0,50).map(t=>{const c=(t.pnl||0)>=0?'pnl-pos':'pnl-neg';return `<tr><td>${t.timestamp||''}</td><td>${t.strategy_id||''}</td><td>${t.symbol||''}</td><td>${t.side||''}</td><td>${t.price||0}</td><td>${t.qty||0}</td><td class="${c}">$${(t.pnl||0).toFixed(2)}</td></tr>`;}).join('');
+
+    // Master log
+    const le=document.getElementById('log-terminal');
+    le.innerHTML=(logs.lines||[]).map(l=>{let c='';if(l.includes('WARNING')||l.includes('CONFLICT'))c=' log-warn';else if(l.includes('ERROR'))c=' log-err';return `<div class="${c}">${l.replace(/</g,'&lt;')}</div>`;}).join('');le.scrollTop=le.scrollHeight;
+  }catch(e){console.error('Dashboard error:',e);}
+}
+
+/* ── Settings ──────────────────────────────────────────────────────────── */
+async function saveSettings(){
+  const u=document.getElementById('set-central').value.trim();
+  localStorage.setItem('qx_central',u);localStorage.setItem('qx_central_url',u);CENTRAL=u;LIB_CACHE=null;
+  const msg=document.getElementById('set-msg');
+  if(EMAIL){
+    try{await fetch(API+'/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,central_api_url:u})});msg.textContent='Saved (local + server)';msg.className='msg ok';}
+    catch(e){msg.textContent='Saved locally. Server update failed: '+e.message;msg.className='msg err';}
+  }else{msg.textContent='Saved locally';msg.className='msg ok';}
+}
+
+setInterval(()=>{
+  if(document.getElementById('tab-dashboard').classList.contains('active'))refreshDashboard();
+  if(document.getElementById('tab-deploy').classList.contains('active'))loadDeploySummary();
+},5000);
+document.getElementById('set-central').value=CENTRAL;document.getElementById('reg-central').value=CENTRAL;
+if(EMAIL)document.getElementById('reg-email').value=EMAIL;
+
+// Fix 3: Set script template via JS to preserve exact indentation
+document.getElementById('sc-code').value = [
+  'def get_signal(self, closes, highs, lows, vols):',
+  '    """',
+  '    Custom signal logic.',
+  '    Helpers: self.ema(data, period), self.sma(data, period),',
+  '             self.rsi(data, period), self.atr(highs, lows, closes, period)',
+  '    Returns: \'buy\', \'sell\', or None',
+  '    """',
+  '    r = self.rsi(closes, 14)',
+  '    if r is None:',
+  '        return None',
+  '    if r < 30:',
+  '        return \'buy\'',
+  '    if r > 70:',
+  '        return \'sell\'',
+  '    return None',
+].join('\n');
+
+// Auto-load server config (for Railway hosted mode)
+(async function loadServerConfig(){
+  try{
+    const r=await fetch(API+'/api/config');
+    const cfg=await r.json();
+    if(cfg.central_api_url&&cfg.central_api_url!=='http://localhost:8001'){
+      CENTRAL=cfg.central_api_url;
+      localStorage.setItem('qx_central_url',cfg.central_api_url);
+      document.getElementById('set-central').value=cfg.central_api_url;
+      document.getElementById('reg-central').value=cfg.central_api_url;
+    }
+    if(cfg.hosting==='railway'){
+      // Lock the central URL field on Railway
+      const regC=document.getElementById('reg-central');
+      if(regC){regC.readOnly=true;regC.style.opacity='0.6';}
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

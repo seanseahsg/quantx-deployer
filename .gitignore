@@ -1,0 +1,23 @@
+# Database (contains encrypted credentials)
+*.db
+*.db-shm
+*.db-wal
+.fernet.key
+
+# Generated bot scripts (contain credentials)
+bots/
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Local config
+config.json
+
+# Test files
+test_grid.py
