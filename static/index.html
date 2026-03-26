@@ -96,19 +96,19 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 /* Symbol search */
-.sym-result{padding:6px 12px;margin-top:4px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.78rem;display:none;border:1px solid}
-.sym-result.found{display:block;border-color:var(--green);background:rgba(0,255,136,.05);color:var(--green)}
-.sym-result.not-found{display:block;border-color:var(--red);background:rgba(255,51,102,.05);color:var(--red)}
-.sym-result.searching{display:block;border-color:var(--border);color:var(--dim)}
+.symbol-field{position:relative}
+.symbol-confirm{font-family:'Share Tech Mono',monospace;font-size:.76rem;padding:5px 10px;margin-top:3px;border-radius:4px;border:1px solid}
+.symbol-confirm.found{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.04)}
+.symbol-confirm.not-found{border-color:var(--red);color:var(--red);background:rgba(255,51,102,.04)}
+.hidden{display:none!important}
+.symbol-dropdown{position:absolute;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:0 0 6px 6px;z-index:1000;list-style:none;padding:0;margin:2px 0 0;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.suggestion-item{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:.78rem;border-bottom:1px solid #ffffff06;transition:background .1s}
+.suggestion-item:hover,.suggestion-item.selected{background:rgba(0,240,255,.08)}
+.suggestion-symbol{color:var(--cyan);font-weight:700;min-width:80px}
+.suggestion-name{color:var(--dim);font-size:.7rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
 .quick-syms{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .quick-sym{background:var(--surface2);border:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all .15s}
 .quick-sym:hover{border-color:var(--cyan);color:var(--cyan)}
-.sym-suggestions{position:absolute;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:0 0 6px 6px;max-height:180px;overflow-y:auto;z-index:100;display:none}
-.sym-suggestions.open{display:block}
-.sug-item{padding:6px 12px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:.78rem;display:flex;justify-content:space-between;border-bottom:1px solid #ffffff06}
-.sug-item:hover{background:var(--surface2);color:var(--cyan)}
-.sug-sym{color:var(--cyan);font-weight:700}
-.sug-name{color:var(--dim);font-size:.7rem}
 /* Condition row */
 .cond-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px}
 .cond-row select,.cond-row input{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.82rem;padding:6px 10px;border-radius:4px}
@@ -189,7 +189,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-group"><label>Strategy Name</label><input type="text" id="pm-sname" placeholder="Strategy Name"></div>
 </div>
 <div class="form-row three">
-<div class="form-group"><label>Symbol</label><input type="text" id="pm-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('pm')"><div class="sym-result" id="pm-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK, 2800.HK</div><div id="pm-rec-syms" class="quick-syms"></div><div id="pm-quick-all"></div></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="pm-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="pm-confirm"></div><ul class="symbol-dropdown hidden" id="pm-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK, 2800.HK</div><div id="pm-rec-syms" class="quick-syms"></div><div id="pm-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="pm-arena"><option>US</option><option>HK</option><option>SG</option></select><div class="hint" id="pm-lot-hint"></div></div>
 <div class="form-group"><label>Timeframe</label><select id="pm-tf"></select></div>
 </div>
@@ -227,7 +227,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <label class="exit-check"><input type="checkbox" id="cu-ex-time"> Exit time <input type="text" id="cu-ex-time-val" value="15:50" style="width:60px"> SGT</label>
 </div>
 <div class="form-row three">
-<div class="form-group"><label>Symbol</label><input type="text" id="cu-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('cu')"><div class="sym-result" id="cu-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="cu-quick-all"></div></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="cu-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="cu-confirm"></div><ul class="symbol-dropdown hidden" id="cu-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="cu-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="cu-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
 <div class="form-group"><label>Timeframe</label><select id="cu-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option></select></div>
 </div>
@@ -247,7 +247,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-group"><label>Strategy Name</label><input type="text" id="sc-name" placeholder="My Script Strategy"></div>
 </div>
 <div class="form-row three">
-<div class="form-group"><label>Symbol</label><input type="text" id="sc-symbol" placeholder="e.g. 700.HK or TQQQ" autocomplete="off" oninput="debounceSymSearch('sc')"><div class="sym-result" id="sc-sym-result"></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="sc-quick-all"></div></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="sc-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="sc-confirm"></div><ul class="symbol-dropdown hidden" id="sc-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="sc-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="sc-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
 <div class="form-group"><label>Timeframe</label><select id="sc-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select></div>
 </div>
@@ -437,76 +437,119 @@ function renderStrategies(strats){
 async function deleteStrat(sid){if(!confirm('Delete '+sid+'?'))return;await fetch(API+'/api/strategy/'+encodeURIComponent(sid),{method:'DELETE'});loadStrategies();}
 async function toggleStrat(sid,active){await fetch(API+'/api/strategy/'+encodeURIComponent(sid)+'/toggle?active='+active,{method:'PUT'});loadStrategies();}
 
-/* ── Symbol Search (client-side, instant) ─────────────────────────────── */
+/* ── Symbol Search (client-side, debounced, clean UX) ─────────────────── */
 let symbolDB={};
-(async function loadSymbolDB(){
+(async function(){
   try{const r=await fetch('/static/symbols.json');const d=await r.json();symbolDB=d.symbols||{};}catch(e){console.warn('symbols.json load failed:',e);}
 })();
-function searchSymbolLocal(query){
-  const q=query.trim().toUpperCase().replace(/\s/g,'');
-  if(!q)return null;
-  if(symbolDB[q])return symbolDB[q];
-  // Fuzzy: starts with or name contains
-  const matches=Object.entries(symbolDB).filter(([k,v])=>k.startsWith(q)||v.name.toUpperCase().includes(q)||v.symbol.startsWith(q));
-  return matches.length?matches[0][1]:null;
-}
-function getSuggestions(query){
-  const q=query.trim().toUpperCase();
+
+function _symGetSuggestions(q){
   if(!q||q.length<1)return[];
   const seen=new Set();const results=[];
   for(const [k,v] of Object.entries(symbolDB)){
     if(seen.has(v.symbol))continue;
-    if(k.startsWith(q)||v.name.toUpperCase().includes(q)||v.symbol.startsWith(q)){
+    if(k.startsWith(q)||v.symbol.startsWith(q)||v.name.toUpperCase().includes(q)){
       seen.add(v.symbol);results.push(v);if(results.length>=6)break;
     }
   }
   return results;
 }
-function debounceSymSearch(prefix){
-  const input=document.getElementById(prefix+'-symbol');
-  const val=input.value.trim();
-  showSuggestions(prefix,val);
-  applySymResult(prefix,val);
-}
-function showSuggestions(prefix,query){
-  let sugEl=document.getElementById(prefix+'-suggestions');
-  if(!sugEl){
-    sugEl=document.createElement('div');sugEl.id=prefix+'-suggestions';sugEl.className='sym-suggestions';
-    document.getElementById(prefix+'-symbol').parentNode.style.position='relative';
-    document.getElementById(prefix+'-symbol').parentNode.appendChild(sugEl);
+
+function initSymbolInput(inputEl, onSelect){
+  let timer=null, selIdx=-1;
+  const confirm=inputEl.parentElement.querySelector('.symbol-confirm');
+  const dropdown=inputEl.parentElement.querySelector('.symbol-dropdown');
+
+  function search(q){
+    q=q.trim().toUpperCase();
+    if(!q){dropdown.classList.add('hidden');confirm.classList.add('hidden');return;}
+    // Exact match
+    const exact=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK'];
+    if(exact){showConfirm(exact);dropdown.classList.add('hidden');onSelect(exact);return;}
+    // Fuzzy
+    const matches=_symGetSuggestions(q);
+    if(matches.length>0){showDropdown(matches);confirm.classList.add('hidden');}
+    else{dropdown.classList.add('hidden');showNotFound(q);}
   }
-  const sugs=getSuggestions(query);
-  if(!sugs.length||!query){sugEl.classList.remove('open');return;}
-  sugEl.classList.add('open');
-  sugEl.innerHTML=sugs.map(s=>`<div class="sug-item" onclick="fillSym('${prefix}','${s.symbol}');document.getElementById('${prefix}-suggestions').classList.remove('open')"><span class="sug-sym">${s.symbol}</span><span class="sug-name">${s.name}</span></div>`).join('');
-}
-function fillSym(prefix,sym){
-  document.getElementById(prefix+'-symbol').value=sym;
-  const sugEl=document.getElementById(prefix+'-suggestions');
-  if(sugEl)sugEl.classList.remove('open');
-  applySymResult(prefix,sym);
-}
-function applySymResult(prefix,val){
-  const box=document.getElementById(prefix+'-sym-result');
-  if(!val){box.className='sym-result';return;}
-  const d=searchSymbolLocal(val);
-  if(d&&d.symbol){
-    box.className='sym-result found';
-    box.textContent=d.symbol+' — '+d.name+' | '+d.exchange+' | '+d.currency;
-    document.getElementById(prefix+'-symbol').value=d.symbol;
-    const arenaEl=document.getElementById(prefix+'-arena');
-    if(arenaEl){
-      if(d.symbol.endsWith('.HK'))arenaEl.value='HK';
-      else if(d.symbol.endsWith('.US'))arenaEl.value='US';
+
+  function showConfirm(sym){
+    confirm.textContent=sym.symbol+' — '+sym.name+' | '+sym.exchange+' | '+sym.currency;
+    confirm.className='symbol-confirm found';
+  }
+  function showNotFound(q){
+    confirm.textContent='Not found: "'+q+'". Try: NVDA, SPY.US, 700.HK';
+    confirm.className='symbol-confirm not-found';
+  }
+  function showDropdown(matches){
+    dropdown.innerHTML='';selIdx=-1;
+    matches.forEach(function(sym){
+      const li=document.createElement('li');li.className='suggestion-item';
+      li.innerHTML='<span class="suggestion-symbol">'+sym.symbol+'</span><span class="suggestion-name">'+sym.name+'</span>';
+      li.addEventListener('mousedown',function(e){e.preventDefault();selectSym(sym);});
+      dropdown.appendChild(li);
+    });
+    dropdown.classList.remove('hidden');
+  }
+  function selectSym(sym){
+    inputEl.value=sym.symbol;
+    showConfirm(sym);dropdown.classList.add('hidden');
+    onSelect(sym);inputEl.focus();
+  }
+
+  inputEl.addEventListener('keydown',function(e){
+    const items=dropdown.querySelectorAll('.suggestion-item');
+    if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,items.length-1);items.forEach(function(it,i){it.classList.toggle('selected',i===selIdx);});}
+    else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,-1);items.forEach(function(it,i){it.classList.toggle('selected',i===selIdx);});}
+    else if(e.key==='Enter'||e.key==='Tab'){
+      if(selIdx>=0&&items[selIdx]){e.preventDefault();items[selIdx].dispatchEvent(new MouseEvent('mousedown'));}
+      else if(items.length===1){e.preventDefault();items[0].dispatchEvent(new MouseEvent('mousedown'));}
     }
-    const lotHint=document.getElementById(prefix+'-lot-hint');
-    if(lotHint&&d.lot_size)lotHint.textContent='Lot size: '+d.lot_size+' shares per lot';
-  }else{
-    box.className='sym-result not-found';box.textContent='Not in local database. Type exact symbol e.g. AAPL.US or 700.HK';
+    else if(e.key==='Escape'){dropdown.classList.add('hidden');}
+  });
+
+  inputEl.addEventListener('input',function(){
+    clearTimeout(timer);
+    if(!inputEl.value.trim()){confirm.classList.add('hidden');dropdown.classList.add('hidden');return;}
+    timer=setTimeout(function(){search(inputEl.value);},300);
+  });
+
+  document.addEventListener('click',function(e){
+    if(!inputEl.parentElement.contains(e.target))dropdown.classList.add('hidden');
+  });
+}
+
+// onSelect callback: auto-set arena + lot hint
+function _onSymSelect(prefix,sym){
+  const a=document.getElementById(prefix+'-arena');
+  if(a){if(sym.symbol.endsWith('.HK'))a.value='HK';else if(sym.symbol.endsWith('.US'))a.value='US';}
+  const lh=document.getElementById(prefix+'-lot-hint');
+  if(lh&&sym.lot_size)lh.textContent='Lot size: '+sym.lot_size+' shares/lot';
+}
+
+// fillSym: for quick-select buttons and programmatic fill
+function fillSym(prefix,sym){
+  const input=document.getElementById(prefix+'-symbol');
+  input.value=sym;
+  input.dispatchEvent(new Event('input'));
+  // Force immediate search (bypass debounce for quick-select)
+  const q=sym.toUpperCase();
+  const d=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK'];
+  if(d){
+    const confirm=input.parentElement.querySelector('.symbol-confirm');
+    confirm.textContent=d.symbol+' — '+d.name+' | '+d.exchange+' | '+d.currency;
+    confirm.className='symbol-confirm found';
+    input.value=d.symbol;
+    _onSymSelect(prefix,d);
   }
 }
-// Close suggestions on click outside
-document.addEventListener('click',e=>{document.querySelectorAll('.sym-suggestions').forEach(s=>{if(!s.contains(e.target))s.classList.remove('open');});});
+
+// Initialize all symbol inputs after DOM ready
+setTimeout(function(){
+  ['pm','cu','sc'].forEach(function(p){
+    const el=document.getElementById(p+'-symbol');
+    if(el)initSymbolInput(el,function(sym){_onSymSelect(p,sym);});
+  });
+},100);
 
 function buildQuickSyms(prefix){
   const el=document.getElementById(prefix+'-quick-all');
