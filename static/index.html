@@ -109,6 +109,8 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 .quick-syms{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .quick-sym{background:var(--surface2);border:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all .15s}
 .quick-sym:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.55rem;padding:3px 8px;border-radius:4px;cursor:pointer;transition:all .15s}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
 /* Condition row */
 .cond-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px}
 .cond-row select,.cond-row input{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.82rem;padding:6px 10px;border-radius:4px}
@@ -154,7 +156,8 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 </div>
 <div id="learn-body" style="font-family:'Rajdhani',sans-serif;line-height:1.7;font-size:.9rem;color:var(--text)"></div>
 <div style="display:flex;gap:12px;margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-<button onclick="document.getElementById('learn-modal').classList.remove('open');selectLib(document.getElementById('learn-modal').dataset.sid)" class="btn btn-primary btn-sm">USE THIS STRATEGY</button>
+<button onclick="document.getElementById('learn-modal').classList.remove('open');selectLib(document.getElementById('learn-modal').dataset.sid)" class="btn btn-success btn-sm" style="flex:1">USE THIS STRATEGY</button>
+<button onclick="downloadFromModal()" class="btn btn-primary btn-sm" style="flex:1">DOWNLOAD .py</button>
 </div>
 </div>
 </div>
@@ -779,6 +782,7 @@ function renderLibrary(libs){
       <div style="display:flex;gap:6px;margin-top:8px">
         <button onclick="event.stopPropagation();selectLib('${s.id}')" style="background:var(--cyan);color:#000;border:none;padding:3px 10px;border-radius:4px;font-family:'Orbitron',monospace;font-size:.55rem;cursor:pointer">USE</button>
         <button onclick="event.stopPropagation();openLearnModal('${s.id}')" style="background:transparent;color:var(--magenta);border:1px solid var(--magenta);padding:3px 10px;border-radius:4px;font-family:'Orbitron',monospace;font-size:.55rem;cursor:pointer">LEARN</button>
+        <button onclick="event.stopPropagation();downloadStratScript('${s.id}')" class="btn-ghost">.py</button>
       </div>
     </div>`;
   }).join('');
@@ -802,6 +806,31 @@ function openLearnModal(id){
   if(L.risk_warning){h+=sec('Risk Warning','<div style="background:rgba(255,51,102,.06);border:1px solid rgba(255,51,102,.2);border-radius:6px;padding:12px;color:var(--red);font-size:.85rem">'+L.risk_warning+'</div>');}
   document.getElementById('learn-body').innerHTML=h;
   document.getElementById('learn-modal').classList.add('open');
+}
+
+function downloadFromModal(){
+  const sid=document.getElementById('learn-modal').dataset.sid;
+  downloadStratScript(sid);
+}
+async function downloadStratScript(id){
+  const s=LIB_CACHE?LIB_CACHE.find(x=>x.id===id):null;
+  if(!s){alert('Strategy not found');return;}
+  if(!EMAIL){alert('Please register first');return;}
+  const sym=(s.recommended_symbols||[])[0]||'TQQQ.US';
+  const arena=sym.endsWith('.HK')?'HK':'US';
+  const params={};
+  (s.params||[]).forEach(p=>{params[p.key]=p.default;});
+  try{
+    const r=await fetch(API+'/api/download-script',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:EMAIL,library_id:s.id,symbol:sym,arena:arena,
+        timeframe:s.default_timeframe||'5m',params:params,risk:s.default_risk||{}})});
+    if(!r.ok){const d=await r.json();alert(d.detail||'Download failed');return;}
+    const blob=await r.blob();
+    const cd=r.headers.get('content-disposition')||'';
+    const fn=cd.match(/filename="(.+)"/)?.[1]||'quantx_bot.py';
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){alert('Download error: '+e.message);}
 }
 
 function selectLib(id){
