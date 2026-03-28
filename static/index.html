@@ -584,10 +584,15 @@ function renderStrategies(strats){
 async function deleteStrat(sid){if(!confirm('Delete '+sid+'?'))return;await fetch(API+'/api/strategy/'+encodeURIComponent(sid),{method:'DELETE'});loadStrategies();}
 async function toggleStrat(sid,active){await fetch(API+'/api/strategy/'+encodeURIComponent(sid)+'/toggle?active='+active,{method:'PUT'});loadStrategies();}
 
-/* ── Symbol Search (client-side, debounced, clean UX) ─────────────────── */
+/* ── Symbol Search (3-tier: local → central cache → LongPort) ─────────── */
 let symbolDB={};
 (async function(){
   try{const r=await fetch('/static/symbols.json');const d=await r.json();symbolDB=d.symbols||{};}catch(e){console.warn('symbols.json load failed:',e);}
+  // Sync central cache in background
+  try{
+    const cu=localStorage.getItem('qx_central_url')||'';
+    if(cu){const r=await fetch(cu+'/api/symbol-cache/all',{signal:AbortSignal.timeout(3000)});if(r.ok){const d=await r.json();let c=0;for(const[k,v]of Object.entries(d.symbols||{})){if(!symbolDB[k]){symbolDB[k]=v;c++;}}if(c)console.log('[CACHE] Synced '+c+' from central');}}
+  }catch(e){}
 })();
 
 function _symGetSuggestions(q){
@@ -602,25 +607,42 @@ function _symGetSuggestions(q){
   return results;
 }
 
+async function _cacheToCentral(sym){
+  try{const cu=localStorage.getItem('qx_central_url')||'';if(!cu)return;
+    await fetch(cu+'/api/symbol-cache',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...sym,added_by:localStorage.getItem('qx_email')||''}),signal:AbortSignal.timeout(3000)});
+  }catch(e){}}
+
 function initSymbolInput(inputEl, onSelect){
   let timer=null, selIdx=-1;
   const confirm=inputEl.parentElement.querySelector('.symbol-confirm');
   const dropdown=inputEl.parentElement.querySelector('.symbol-dropdown');
 
-  function search(q){
+  async function search(q){
     q=q.trim().toUpperCase();
     if(!q){dropdown.classList.add('hidden');confirm.classList.add('hidden');return;}
-    // Exact match
+    // TIER 1: local (instant)
     const exact=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK'];
-    if(exact){showConfirm(exact);dropdown.classList.add('hidden');onSelect(exact);return;}
-    // Fuzzy
+    if(exact){showConfirm(exact,'');dropdown.classList.add('hidden');onSelect(exact);return;}
     const matches=_symGetSuggestions(q);
-    if(matches.length>0){showDropdown(matches);confirm.classList.add('hidden');}
-    else{dropdown.classList.add('hidden');showNotFound(q);}
+    if(matches.length>0){showDropdown(matches);confirm.classList.add('hidden');return;}
+    // TIER 2: central cache
+    try{const cu=localStorage.getItem('qx_central_url')||'';
+      if(cu){const r=await fetch(cu+'/api/symbol-cache?symbol='+encodeURIComponent(q),{signal:AbortSignal.timeout(2000)});
+        if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showConfirm(d,'cached');dropdown.classList.add('hidden');onSelect(d);return;}}}}catch(e){}
+    // TIER 3: LongPort API
+    try{const em=localStorage.getItem('qx_email')||'';
+      confirm.textContent='Searching LongPort...';confirm.className='symbol-confirm not-found';confirm.classList.remove('hidden');
+      const r=await fetch(API+'/api/symbol-search?query='+encodeURIComponent(q)+'&email='+encodeURIComponent(em),{signal:AbortSignal.timeout(8000)});
+      if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showConfirm(d,'live');dropdown.classList.add('hidden');onSelect(d);_cacheToCentral(d);return;}}}catch(e){}
+    showNotFound(q);
   }
 
-  function showConfirm(sym){
-    confirm.textContent=sym.symbol+' — '+sym.name+' | '+sym.exchange+' | '+sym.currency;
+  function showConfirm(sym,tier){
+    let badge='';
+    if(tier==='cached')badge=' <span style="font-size:.6rem;color:var(--cyan)">cached</span>';
+    if(tier==='live')badge=' <span style="font-size:.6rem;color:var(--green)">live</span>';
+    confirm.innerHTML=sym.symbol+' — '+sym.name+' | '+sym.exchange+' | '+sym.currency+badge;
     confirm.className='symbol-confirm found';
   }
   function showNotFound(q){
