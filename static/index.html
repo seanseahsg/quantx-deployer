@@ -350,6 +350,18 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:var(--cyan);margin-bottom:12px">Active Strategies to Deploy</h3>
 <div id="deploy-strat-list"><p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.8rem">Loading...</p></div>
 </div>
+<!-- Screener panel (for famous investor bots) -->
+<div id="screener-panel" style="display:none;background:rgba(0,30,60,.3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<span style="font-family:'Orbitron',monospace;font-size:.75rem;color:var(--cyan);letter-spacing:2px">STOCK SCREENER</span>
+<span id="screener-last-run" style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim)">Not yet run</span>
+</div>
+<div id="screener-shortlist" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;min-height:32px">
+<span style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--yellow)">Click SCREEN NOW to find stocks for your bot</span>
+</div>
+<button id="btn-screen-now" onclick="runScreener()" style="background:linear-gradient(135deg,#1a3a5c,#0d2540);border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',monospace;font-size:.65rem;letter-spacing:2px;padding:10px 20px;cursor:pointer;width:100%;border-radius:4px">SCREEN NOW</button>
+</div>
+
 <div style="display:flex;gap:12px">
 <button class="btn btn-success" id="deploy-btn" onclick="doDeploy()">DEPLOY MASTER BOT</button>
 <button class="btn btn-danger" onclick="doStop()">STOP BOT</button>
@@ -1066,6 +1078,12 @@ async function loadDeploySummary(){
     const mi=getMarketInfo(primarySymbol);
     document.getElementById('deploy-market-info').innerHTML=`<span>${mi.schedule}</span><span>Now: ${mi.time}</span><span style="color:${mi.isOpen?'var(--green)':'var(--yellow)'};font-weight:700">${mi.isOpen?'OPEN':'CLOSED'}</span>`;
 
+    // Show screener panel if any famous bot is active
+    const FAMOUS_IDS=['BUFFETT_BOT','GRAHAM_BOT','LIVERMORE_BOT','DALIO_BOT','SIMONS_BOT','TURTLE_TRADER','SOROS_BOT'];
+    const hasFamous=active.some(s=>FAMOUS_IDS.includes(s.library_id)||FAMOUS_IDS.includes((s.conditions||{}).type));
+    document.getElementById('screener-panel').style.display=hasFamous?'block':'none';
+    if(hasFamous){loadScreenerResults(active);}
+
     // Bot status
     const sr=await fetch(API+'/api/status/'+encodeURIComponent(EMAIL));const sd=await sr.json();
     const bs=sd.bot_status||'stopped';
@@ -1076,6 +1094,51 @@ async function loadDeploySummary(){
     else{dot.style.background='var(--dim)';dot.style.animation='none';stEl.textContent='STOPPED';stEl.style.color='var(--dim)';}
     document.getElementById('deploy-pid').textContent=sd.pid||'—';
   }catch(e){console.error(e);}
+}
+const FAMOUS_IDS_ALL=['BUFFETT_BOT','GRAHAM_BOT','LIVERMORE_BOT','DALIO_BOT','SIMONS_BOT','TURTLE_TRADER','SOROS_BOT'];
+async function loadScreenerResults(strats){
+  if(!strats)return;
+  for(const s of strats){
+    const botType=s.library_id||(s.conditions||{}).type||'';
+    if(!FAMOUS_IDS_ALL.includes(botType))continue;
+    try{
+      const r=await fetch(API+'/api/screener-results?email='+encodeURIComponent(EMAIL)+'&strategy_id='+encodeURIComponent(s.strategy_id));
+      if(!r.ok)continue;
+      const d=await r.json();
+      if(d.shortlisted>0){
+        const grid=document.getElementById('screener-shortlist');
+        grid.innerHTML=d.results.filter(x=>x.shortlisted).map(x=>`<div style="background:rgba(0,240,255,.06);border:1px solid var(--border);border-radius:4px;padding:6px 10px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:.75rem" title="${x.reasons}"><span style="color:var(--cyan);font-weight:700">${x.symbol}</span> <span style="color:${x.score>=5?'var(--green)':'var(--dim)'}">${x.score}/${x.max_score}</span></div>`).join('');
+        document.getElementById('screener-last-run').textContent='Last: '+(d.results[0]?.run_at||'');
+        return;
+      }
+    }catch(e){}
+  }
+}
+async function runScreener(){
+  if(!EMAIL){alert('Register first');return;}
+  const btn=document.getElementById('btn-screen-now');
+  btn.textContent='Screening...';btn.disabled=true;btn.style.opacity='.6';
+  const grid=document.getElementById('screener-shortlist');
+  grid.innerHTML='<span style="color:var(--dim);font-size:.75rem">Fetching history for each stock...</span>';
+  try{
+    const sr=await fetch(API+'/api/strategies/'+encodeURIComponent(EMAIL));
+    const sd=await sr.json();
+    const active=(sd.strategies||[]).filter(s=>s.is_active&&FAMOUS_IDS_ALL.includes(s.library_id||(s.conditions||{}).type||''));
+    if(!active.length){grid.innerHTML='<span style="color:var(--yellow)">No famous investor bot strategies active</span>';btn.textContent='SCREEN NOW';btn.disabled=false;btn.style.opacity='1';return;}
+    let allShort=[];
+    for(const s of active){
+      const bt=s.library_id||(s.conditions||{}).type;
+      const arena=(s.conditions?.params?.arena)||'US';
+      const ct=(s.conditions?.params?.custom_tickers||'').split?.(',')||[];
+      const r=await fetch(API+'/api/screen-now',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,strategy_id:s.strategy_id,bot_type:bt,arena:arena,custom_tickers:ct.map(t=>t.trim()).filter(Boolean)})});
+      if(r.ok){const d=await r.json();allShort.push(...(d.shortlisted||[]));}
+    }
+    if(allShort.length){
+      grid.innerHTML=allShort.map(x=>`<div style="background:rgba(0,240,255,.06);border:1px solid var(--border);border-radius:4px;padding:6px 10px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:.75rem" title="${(x.reasons||[]).join(', ')}"><span style="color:var(--cyan);font-weight:700">${x.symbol}</span> <span style="color:${x.score>=5?'var(--green)':'var(--dim)'}">${x.score}/${x.max_score}</span></div>`).join('');
+    }else{grid.innerHTML='<span style="color:var(--dim)">No stocks passed criteria today</span>';}
+    document.getElementById('screener-last-run').textContent='Last: '+new Date().toLocaleTimeString();
+  }catch(e){grid.innerHTML='<span style="color:var(--red)">Screener error: '+e.message+'</span>';}
+  btn.textContent='SCREEN NOW';btn.disabled=false;btn.style.opacity='1';
 }
 async function doDeploy(){
   const msg=document.getElementById('deploy-msg');if(!EMAIL){msg.textContent='Register first';msg.className='msg err';return;}

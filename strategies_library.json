@@ -682,6 +682,38 @@
           "max": 3.0,
           "type": "float",
           "hint": "Only buy in calm conditions."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -787,6 +819,38 @@
           "max": 50,
           "type": "float",
           "hint": "Graham expected 15-30% gains."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -892,6 +956,38 @@
           "max": 5.0,
           "type": "float",
           "hint": "Stop at 2x ATR below."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -988,6 +1084,38 @@
           "max": 2.0,
           "type": "float",
           "hint": "ATR must be below avg x this."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -1101,6 +1229,38 @@
           "max": 1.0,
           "type": "float",
           "hint": "Exit at this Z level. 0=mean."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -1197,6 +1357,38 @@
           "max": 30,
           "type": "int",
           "hint": "For position sizing."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
@@ -1330,6 +1522,38 @@
           "max": 3.0,
           "type": "float",
           "hint": "Volume above avg x this."
+        },
+        {
+          "key": "capital_budget",
+          "label": "Capital Budget",
+          "default": 10000,
+          "min": 1000,
+          "max": 1000000,
+          "type": "int",
+          "hint": "Total capital for this bot. Auto-sizes positions."
+        },
+        {
+          "key": "max_positions",
+          "label": "Max Positions",
+          "default": 5,
+          "min": 1,
+          "max": 20,
+          "type": "int",
+          "hint": "Max stocks held. Budget / positions = size per stock."
+        },
+        {
+          "key": "arena",
+          "label": "Stock Universe",
+          "default": "US",
+          "min": 0,
+          "max": 0,
+          "type": "select",
+          "options": [
+            "US",
+            "HK",
+            "BOTH"
+          ],
+          "hint": "Which market to screen."
         }
       ],
       "default_risk": {
