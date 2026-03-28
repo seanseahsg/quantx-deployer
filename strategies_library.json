@@ -120,14 +120,15 @@
       "category": "Grid Trading",
       "difficulty": 3,
       "stars": 5,
-      "description": "Places buy limit orders below current price. When each buy fills, immediately places a sell limit above at take-profit distance. When the sell fills, the buy level is automatically replenished. Profits from price oscillation. Works immediately on deployment — 4 buy orders placed within seconds.",
-      "signal_logic": "STARTUP: Places N buy limits below CMP. ON BUY FILL: Places sell limit at fill_price + TP%. ON SELL FILL: Re-places buy limit (replenish). Repeats indefinitely.",
+      "description": "Dynamically spaces grid levels using ATR(14) to adapt to each stock's actual volatility. Restarts fresh every trading day at market open. All orders cancelled at market close. Profits from price oscillation within the grid.",
+      "signal_logic": "DAILY OPEN: Calculates ATR(14), sets grid spacing = ATR x multiplier, places N buy limits below CMP. ON BUY FILL: Places sell TP above. ON TP FILL: Replenishes buy. AT CLOSE: Cancels all, closes positions. NEXT OPEN: Rebuilds with fresh ATR.",
       "indicator": "SYMMETRIC_GRID",
       "default_timeframe": "tick",
       "allowed_timeframes": ["tick"],
       "params": [
         {"key": "grid_levels", "label": "Grid Levels (each side)", "default": 4, "min": 1, "max": 10, "type": "int", "hint": "Number of buy levels below CMP + same number of sell levels above CMP"},
-        {"key": "grid_spacing_pct", "label": "Grid Spacing %", "default": 0.5, "min": 0.1, "max": 5.0, "type": "float", "hint": "Percentage distance between each grid level. 0.5 = 0.5% apart"},
+        {"key": "atr_multiplier", "label": "ATR Multiplier", "default": 0.75, "min": 0.3, "max": 2.0, "type": "float", "hint": "Grid spacing = ATR(14) x this value. 0.75 = 75% of daily range per level. Higher = wider grid."},
+        {"key": "grid_spacing_pct", "label": "Fallback Spacing %", "default": 0.5, "min": 0.1, "max": 5.0, "type": "float", "hint": "Used only if ATR calculation fails"},
         {"key": "tp_pct", "label": "Take Profit % per level", "default": 0.5, "min": 0.1, "max": 5.0, "type": "float", "hint": "TP per grid level. Usually same as grid spacing"},
         {"key": "sl_boundary_pct", "label": "Emergency SL Boundary %", "default": 3.0, "min": 1.0, "max": 20.0, "type": "float", "hint": "If price moves this far from CMP at startup, flatten ALL positions immediately"}
       ],

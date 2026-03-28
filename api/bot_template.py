@@ -322,6 +322,7 @@ class GridRunner(BaseRunner):
         self.grid_spacing_pct = float(params.get("grid_spacing_pct", 0.5))
         self.tp_pct = float(params.get("tp_pct", 0.5))
         self.sl_boundary_pct = float(params.get("sl_boundary_pct", 3.0))
+        self.atr_multiplier = float(params.get("atr_multiplier", 0.75))
         self.lots = int(self.risk.get("lots", 1))
         self.lot_size = ARENA_LOT_SIZE.get(self.arena, 100)
 
@@ -331,7 +332,7 @@ class GridRunner(BaseRunner):
         self.initialized = False
         self._init_lock = threading.Lock()
         self.status = "waiting"
-        self.log(f"Init: {{self.symbol}} levels={{self.grid_levels_n}} spacing={{self.grid_spacing_pct}}% tp={{self.tp_pct}}%")
+        self.log(f"Init: {{self.symbol}} levels={{self.grid_levels_n}} atr_mult={{self.atr_multiplier}} tp={{self.tp_pct}}%")
 
     def on_tick(self, price):
         if not self.initialized:
