@@ -29,44 +29,128 @@ R2_BUCKET = os.environ.get("R2_BACKTEST_BUCKET", "backtest-data")
 
 # ── R2 cache ─────────────────────────────────────────────────────────────────
 
+import threading
+_fetch_locks: dict = {}  # symbol/timeframe -> threading.Lock
+
+INTRADAY_TFS = {"1min", "5min", "15min", "30min", "1hour", "4hour"}
+
+# TTL: daily=23h, intraday=1h
+def _ttl_seconds(timeframe):
+    return 3600 if timeframe in INTRADAY_TFS else 82800  # 1h or 23h
+
+
 def _r2_key(symbol, timeframe):
     return f"{symbol.replace('.','_')}/{timeframe}/full.json"
 
 
-def load_from_r2(symbol, timeframe):
+def _r2_meta_key(symbol, timeframe):
+    return f"{symbol.replace('.','_')}/{timeframe}/meta.json"
+
+
+def _get_r2():
     if not R2_ENDPOINT:
-        return None, None
+        return None
     try:
         import boto3
-        r2 = boto3.client("s3", endpoint_url=R2_ENDPOINT, aws_access_key_id=R2_KEY_ID,
-                          aws_secret_access_key=R2_SECRET, region_name="auto")
+        return boto3.client("s3", endpoint_url=R2_ENDPOINT, aws_access_key_id=R2_KEY_ID,
+                            aws_secret_access_key=R2_SECRET, region_name="auto")
+    except Exception:
+        return None
+
+
+def load_from_r2(symbol, timeframe):
+    r2 = _get_r2()
+    if not r2:
+        return None, None
+    try:
         obj = r2.get_object(Bucket=R2_BUCKET, Key=_r2_key(symbol, timeframe))
         data = json.loads(obj["Body"].read().decode())
         cached_at = data.get("cached_at", "")
         if cached_at:
             age = (datetime.utcnow() - datetime.fromisoformat(cached_at)).total_seconds()
-            if age < 86400:
+            if age < _ttl_seconds(timeframe):
                 return data.get("bars", []), "cache"
+            print(f"[R2] Stale: {symbol}/{timeframe} (age={int(age)}s, ttl={_ttl_seconds(timeframe)}s)")
         return None, None
     except Exception:
         return None, None
 
 
 def save_to_r2(symbol, timeframe, bars):
-    if not R2_ENDPOINT:
+    r2 = _get_r2()
+    if not r2:
         return False
     try:
-        import boto3
-        r2 = boto3.client("s3", endpoint_url=R2_ENDPOINT, aws_access_key_id=R2_KEY_ID,
-                          aws_secret_access_key=R2_SECRET, region_name="auto")
+        now = datetime.utcnow().isoformat()
+        # Save data
         r2.put_object(Bucket=R2_BUCKET, Key=_r2_key(symbol, timeframe),
-                       Body=json.dumps({"cached_at": datetime.utcnow().isoformat(),
-                                        "symbol": symbol, "bars": bars}).encode(),
+                       Body=json.dumps({"cached_at": now, "symbol": symbol, "bars": bars}).encode(),
                        ContentType="application/json")
+        # Save meta
+        r2.put_object(Bucket=R2_BUCKET, Key=_r2_meta_key(symbol, timeframe),
+                       Body=json.dumps({"cached_at": now, "symbol": symbol, "timeframe": timeframe,
+                                        "bar_count": len(bars), "source": "fmp",
+                                        "ttl_hours": _ttl_seconds(timeframe) / 3600}).encode(),
+                       ContentType="application/json")
+        print(f"[R2] Saved: {symbol}/{timeframe} ({len(bars)} bars)")
         return True
     except Exception as e:
-        print(f"[BACKTEST] R2 save failed: {e}")
+        print(f"[R2] Save failed: {e}")
         return False
+
+
+def r2_list_keys():
+    """List all cached symbols/timeframes from R2."""
+    r2 = _get_r2()
+    if not r2:
+        return []
+    try:
+        resp = r2.list_objects_v2(Bucket=R2_BUCKET, Prefix="", MaxKeys=1000)
+        return [o["Key"] for o in resp.get("Contents", [])]
+    except Exception:
+        return []
+
+
+# ── Concurrency lock (prevents cache stampede) ───────────────────────────────
+
+def fetch_with_lock(symbol, timeframe, limit=1260):
+    """Thread-safe fetch: only one FMP call per symbol/timeframe combo."""
+    lock_key = f"{symbol}/{timeframe}"
+    if lock_key not in _fetch_locks:
+        _fetch_locks[lock_key] = threading.Lock()
+    with _fetch_locks[lock_key]:
+        # Re-check cache inside lock (another thread may have filled it)
+        bars, source = load_from_r2(symbol, timeframe)
+        if bars:
+            return bars, "cache"
+        # We're the only thread fetching this symbol now
+        return _fetch_from_fmp(symbol, timeframe, limit)
+
+
+# ── Prewarm ──────────────────────────────────────────────────────────────────
+
+PREWARM_SYMBOLS = [
+    "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "NFLX", "AMD",
+    "INTC", "JPM", "BAC", "GS", "V", "MA", "WMT", "KO", "PEP", "JNJ", "PFE",
+    "SPY", "QQQ", "TQQQ", "SQQQ", "SOXL", "GLD", "TLT", "IWM", "XLF", "SOXX",
+    "0700.HK", "0005.HK", "0388.HK", "0941.HK", "1299.HK",
+    "2318.HK", "3690.HK", "0883.HK", "0027.HK", "2800.HK",
+    "D05.SI", "O39.SI", "U11.SI", "Z74.SI", "C6L.SI",
+]
+
+PREWARM_PRIORITY = ["TQQQ", "SPY", "AAPL", "MSFT", "0700.HK", "D05.SI", "QQQ", "NVDA", "TSLA", "GLD"]
+
+
+def prewarm_symbol(symbol, timeframe="1day"):
+    """Prewarm a single symbol. Returns status dict."""
+    bars, source = load_from_r2(symbol, timeframe)
+    if bars:
+        return {"symbol": symbol, "status": "cached", "bars": len(bars), "source": "r2"}
+    try:
+        bars, source = _fetch_from_fmp(symbol, timeframe, 2520)
+        return {"symbol": symbol, "status": "fetched", "bars": len(bars), "source": "fmp"}
+    except Exception as e:
+        return {"symbol": symbol, "status": "error", "error": str(e)[:80]}
 
 
 # ── FMP data fetch ───────────────────────────────────────────────────────────
@@ -104,27 +188,28 @@ def _aggregate_weekly(daily_bars):
 
 
 def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
-    bars, source = load_from_r2(symbol, timeframe)
-    if bars:
-        print(f"[BACKTEST] Cache hit: {symbol} {timeframe} ({len(bars)} bars)")
-        return bars[:limit] if limit and len(bars) > limit else bars, "cache"
+    """Public entry point — uses lock to prevent stampede."""
+    if timeframe == "1week":
+        daily_bars, _ = fetch_ohlcv(symbol, "1day", limit * 5)
+        bars = _aggregate_weekly(daily_bars)
+        save_to_r2(symbol, "1week", bars)
+        return bars[:limit] if limit else bars, "live"
+    bars, source = fetch_with_lock(symbol, timeframe, limit)
+    if limit and len(bars) > limit:
+        bars = bars[:limit]
+    return bars, source
 
+
+def _fetch_from_fmp(symbol, timeframe="1day", limit=1260):
+    """Internal: actually calls FMP. Called inside lock."""
     fmp_key = _get_fmp_key()
     if not fmp_key:
         raise ValueError("FMP_API_KEY not set in environment")
 
     fmp_sym = _fmp_symbol(symbol)
-    print(f"[BACKTEST] Fetching {symbol} ({fmp_sym}) {timeframe} from FMP...")
+    print(f"[R2 MISS] {symbol}/{timeframe} — fetching from FMP...")
 
-    INTRADAY = {"1min", "5min", "15min", "30min", "1hour", "4hour"}
-
-    if timeframe == "1week":
-        # Fetch daily then aggregate
-        daily_bars, _ = fetch_ohlcv(symbol, "1day", limit * 5)
-        bars = _aggregate_weekly(daily_bars)
-        save_to_r2(symbol, "1week", bars)
-        return bars[:limit] if limit else bars, "live"
-    elif timeframe in INTRADAY:
+    if timeframe in INTRADAY_TFS:
         # Try multiple FMP paths — v3, stable, then v3 with /full
         data = None
         for base in [FMP_V3, FMP_BASE]:

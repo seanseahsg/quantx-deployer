@@ -183,10 +183,27 @@ def _auto_restart_bots():
         _log.info("[STARTUP] Re-launched %d bots after restart", restarted)
 
 
+def _startup_prewarm():
+    """Background prewarm top 10 symbols on startup."""
+    try:
+        from api.backtest import prewarm_symbol, PREWARM_PRIORITY
+        for sym in PREWARM_PRIORITY:
+            try:
+                r = prewarm_symbol(sym, "1day")
+                _log.info("[PREWARM] %s: %s", sym, r.get("status", "?"))
+            except Exception as e:
+                _log.warning("[PREWARM] %s failed: %s", sym, e)
+    except Exception as e:
+        _log.warning("[PREWARM] Module import failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     _auto_restart_bots()
+    # Background prewarm (non-blocking)
+    import threading
+    threading.Thread(target=_startup_prewarm, daemon=True).start()
     yield
     for email, proc in _running_processes.items():
         try:
@@ -373,6 +390,50 @@ async def backtest_optimize(body: OptimizeReq):
         return result
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/api/backtest/prewarm-bulk")
+async def prewarm_bulk(request: Request):
+    auth = request.headers.get("X-Instructor-Key", "")
+    expected = os.environ.get("INSTRUCTOR_KEY", "quantx2025")
+    if auth != expected:
+        raise HTTPException(403, "Invalid instructor key")
+    from api.backtest import prewarm_symbol, PREWARM_SYMBOLS
+    import time as _time
+    results = []
+    cached = fetched = errors = 0
+    t0 = _time.time()
+    for sym in PREWARM_SYMBOLS:
+        r = prewarm_symbol(sym, "1day")
+        results.append(r)
+        if r["status"] == "cached": cached += 1
+        elif r["status"] == "fetched": fetched += 1
+        else: errors += 1
+        if r["status"] == "fetched":
+            _time.sleep(0.5)  # Rate limit protection
+    elapsed = round(_time.time() - t0, 1)
+    return {"results": results, "cached": cached, "fetched": fetched, "errors": errors, "elapsed_seconds": elapsed}
+
+
+@app.get("/api/backtest/cache-inventory")
+async def cache_inventory():
+    from api.backtest import r2_list_keys, load_from_r2, PREWARM_SYMBOLS
+    keys = r2_list_keys()
+    by_tf = {}
+    for k in keys:
+        if k.endswith("/meta.json"):
+            continue
+        parts = k.replace("/full.json", "").split("/")
+        if len(parts) >= 2:
+            sym = parts[0].replace("_", ".")
+            tf = parts[1]
+            if tf not in by_tf:
+                by_tf[tf] = []
+            by_tf[tf].append(sym)
+    # Check missing priority
+    cached_daily = set(by_tf.get("1day", []))
+    missing = [s for s in PREWARM_SYMBOLS if s.replace(".", "_") not in {x.replace(".", "_") for x in cached_daily}]
+    return {"total_keys": len(keys), "by_timeframe": {k: {"count": len(v), "symbols": v} for k, v in by_tf.items()}, "missing_priority": missing}
 
 
 @app.post("/api/screen-now")
