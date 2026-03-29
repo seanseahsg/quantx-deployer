@@ -573,7 +573,7 @@ STRATEGY_MAP = {
     "EMA_CROSS": signals_ema_cross,
     "RSI": signals_rsi, "RSI_MEAN_REVERSION": signals_rsi,
     "MACD": signals_macd, "MACD_MOMENTUM": signals_macd,
-    "BB_GRID": signals_bb_grid, "BB_BREAKOUT": signals_bb_grid,
+    "BB_GRID": signals_bb_grid, "BB_BREAKOUT": signals_bb_grid, "SYMMETRIC_GRID": signals_bb_grid,
     "VWAP_REVERSION": signals_vwap_reversion,
     "MOMENTUM_BREAKOUT": signals_momentum_breakout,
     "SUPERTREND": signals_supertrend,

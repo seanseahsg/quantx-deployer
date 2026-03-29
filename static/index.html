@@ -1112,7 +1112,9 @@ function selectLib(id){
   const tf=document.getElementById('pm-tf');
   const tfMap={'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1hour','4h':'4hour','1d':'1day','1w':'1week','1min':'1min','5min':'5min','15min':'15min','30min':'30min','1hour':'1hour','4hour':'4hour','1day':'1day','1week':'1week'};
   const tfLabel={'1min':'1m','5min':'5m','15min':'15min','30min':'30m','1hour':'1h','4hour':'4h','1day':'1d','1week':'1W'};
-  tf.innerHTML=(selectedLib.allowed_timeframes||['5min']).map(t=>{const v=tfMap[t]||t;return `<option value="${v}">${tfLabel[v]||t}</option>`;}).join('');
+  const atf=new Set((selectedLib.allowed_timeframes||[]).map(t=>tfMap[t]||t));atf.add('1hour');atf.add('4hour');atf.add('1day');atf.add('1week');
+  const tfOrder=['1min','5min','15min','30min','1hour','4hour','1day','1week'];
+  tf.innerHTML=tfOrder.filter(t=>atf.has(t)).map(t=>`<option value="${t}"${t==='1day'?' selected':''}>${tfLabel[t]||t}</option>`).join('');
   tf.value=tfMap[selectedLib.default_timeframe]||selectedLib.default_timeframe||'1day';
   // Set default risk
   const dr=selectedLib.default_risk||{};
@@ -1669,11 +1671,9 @@ function selectDevStrategy(id){
   // Recommended symbol — only set if field is empty/default
   const curDevSym=(document.getElementById('dev-symbol').value||'').trim();
   if(s.recommended_symbols&&s.recommended_symbols[0]&&(!curDevSym||['TQQQ.US','SPY.US','AAPL.US','AAPL',''].includes(curDevSym))){document.getElementById('dev-symbol').value=s.recommended_symbols[0];}
-  // Default timeframe
+  // Default timeframe — always 1day for backtesting (user can change)
   const tfSel=document.getElementById('dev-timeframe');
-  const dtf=s.default_timeframe||'1day';
-  const tfMap={'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1hour','4h':'4hour','1d':'1day','1w':'1week'};
-  tfSel.value=tfMap[dtf]||dtf;
+  tfSel.value='1day';
   // Params
   const skip=['capital_budget','max_positions','arena','custom_tickers','direction'];
   const ps=(s.params||[]).filter(p=>!skip.includes(p.key));
