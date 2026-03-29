@@ -392,21 +392,22 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <!-- TAB: OPTIMIZE -->
 <div class="tab-content" id="tab-optimize">
 <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+<!-- Left: Config -->
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px">
-<h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--cyan);margin-bottom:16px">OPTIMIZE CONFIG</h3>
-<div class="form-group"><label>Symbol</label><input type="text" id="opt-symbol" value="AAPL" class="symbol-input" readonly style="opacity:.7"></div>
-<div class="form-group"><label>Strategy</label><input type="text" id="opt-strategy" value="" readonly style="opacity:.7"></div>
+<h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--magenta);margin-bottom:16px">OPTIMIZE</h3>
+<div class="form-group"><label>Symbol</label><input type="text" id="opt-symbol" value="" style="opacity:.8"></div>
+<div class="form-group"><label>Strategy</label><select id="opt-strategy" onchange="renderOptRanges()"></select></div>
+<div class="form-group"><label>Capital ($)</label><input type="number" id="opt-capital" value="10000"></div>
+<div class="form-group"><label>Period</label><div style="display:flex;gap:4px"><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.6rem" onclick="setOptLimit(252,this)">1Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.6rem" onclick="setOptLimit(504,this)">2Y</button><button class="btn-sm" style="background:rgba(0,240,255,.1);border:1px solid var(--cyan);color:var(--cyan);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.6rem" onclick="setOptLimit(1260,this)">5Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.6rem" onclick="setOptLimit(2520,this)">10Y</button></div></div>
+<h3 style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--dim);margin:16px 0 8px">PARAMETER RANGES</h3>
 <div id="opt-param-ranges"></div>
-<button onclick="runOptFromTab()" class="btn btn-magenta" style="width:100%;margin-top:12px">OPTIMIZE</button>
+<div id="opt-combo-count" style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--green);margin:8px 0"></div>
+<button id="btn-run-optimize" onclick="runOptFull()" class="btn btn-magenta" style="width:100%;margin-top:8px">OPTIMIZE</button>
 </div>
+<!-- Right: Results -->
 <div>
-<div id="opt-tab-results" style="display:none">
-<div id="opt-tab-best" style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:6px;padding:12px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--yellow)"></div>
-<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>Sharpe</th><th>Win Rate</th><th>Max DD</th></tr></thead><tbody id="opt-tab-tbody"></tbody></table></div>
-<button onclick="deployBestParams()" class="btn btn-success" style="margin-top:12px;width:100%">DEPLOY BEST PARAMS</button>
-</div>
-<div id="opt-tab-empty" style="text-align:center;padding:60px"><p style="color:var(--dim);font-family:'Share Tech Mono',monospace">Run a backtest first, then optimize from results</p></div>
-<div id="opt-tab-loading" style="display:none;text-align:center;padding:60px"><div class="spinner"></div><p style="color:var(--dim);margin-top:12px;font-family:'Share Tech Mono',monospace" id="opt-tab-loading-msg">Optimizing...</p></div>
+<div id="opt-results"></div>
+<div id="opt-empty" style="text-align:center;padding:60px"><p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.85rem">Configure parameters and click OPTIMIZE</p></div>
 </div>
 </div>
 </div>
@@ -1294,61 +1295,115 @@ function backtestStrat(sid){
     switchTab('backtest');
   });
 }
+const OPT_RANGES={
+  TURTLE_TRADER:[{k:'entry_period',l:'Entry Period',f:10,t:55,s:5},{k:'exit_period',l:'Exit Period',f:5,t:20,s:5}],
+  TURTLE:[{k:'entry_period',l:'Entry Period',f:10,t:50,s:10},{k:'exit_period',l:'Exit Period',f:5,t:25,s:5}],
+  EMA_CROSS:[{k:'fast_period',l:'Fast EMA',f:3,t:20,s:2},{k:'slow_period',l:'Slow EMA',f:10,t:50,s:5}],
+  RSI_MEAN_REVERSION:[{k:'rsi_period',l:'RSI Period',f:7,t:21,s:7},{k:'oversold',l:'Oversold',f:20,t:35,s:5},{k:'overbought',l:'Overbought',f:65,t:80,s:5}],
+  RSI:[{k:'rsi_period',l:'RSI Period',f:7,t:21,s:7},{k:'oversold',l:'Oversold',f:20,t:35,s:5},{k:'overbought',l:'Overbought',f:65,t:80,s:5}],
+  MACD_MOMENTUM:[{k:'fast',l:'Fast',f:8,t:16,s:4},{k:'slow',l:'Slow',f:20,t:32,s:4},{k:'signal_period',l:'Signal',f:7,t:12,s:1}],
+  MACD:[{k:'fast',l:'Fast',f:8,t:16,s:4},{k:'slow',l:'Slow',f:20,t:32,s:4},{k:'signal_period',l:'Signal',f:7,t:12,s:1}],
+  BB_GRID:[{k:'period',l:'Period',f:10,t:30,s:5},{k:'num_std',l:'Std Dev',f:1.5,t:3.0,s:0.5}],
+  VWAP_REVERSION:[{k:'deviation_pct',l:'Deviation %',f:0.05,t:0.5,s:0.05}],
+  MOMENTUM_BREAKOUT:[{k:'lookback',l:'Lookback',f:10,t:50,s:10}],
+  SUPERTREND:[{k:'atr_period',l:'ATR Period',f:7,t:20,s:3},{k:'multiplier',l:'Multiplier',f:2,t:4,s:0.5}],
+  BUFFETT_BOT:[{k:'trend_period',l:'Trend Period',f:50,t:200,s:50},{k:'rsi_min',l:'RSI Min',f:30,t:50,s:5},{k:'rsi_max',l:'RSI Max',f:55,t:75,s:5}],
+  GRAHAM_BOT:[{k:'proximity_pct',l:'Near-Low %',f:10,t:30,s:5},{k:'rsi_threshold',l:'RSI Threshold',f:25,t:45,s:5}],
+  LIVERMORE_BOT:[{k:'breakout_period',l:'Breakout',f:10,t:30,s:5},{k:'volume_mult',l:'Vol Mult',f:1.2,t:2.4,s:0.3}],
+  SIMONS_BOT:[{k:'zscore_period',l:'Z Period',f:10,t:30,s:5},{k:'zscore_threshold',l:'Z Threshold',f:1.5,t:3.0,s:0.5}],
+  SOROS_BOT:[{k:'ema_fast',l:'Fast EMA',f:3,t:10,s:2},{k:'ema_mid',l:'Mid EMA',f:10,t:30,s:5}],
+  DALIO_BOT:[{k:'trend_ema',l:'Trend EMA',f:20,t:100,s:20},{k:'vwap_proximity',l:'VWAP Prox %',f:0.2,t:1.0,s:0.2}],
+};
+let optLimit=1260;
+function setOptLimit(v,el){optLimit=v;el.parentElement.querySelectorAll('button').forEach(b=>{b.style.background='var(--surface2)';b.style.borderColor='var(--border)';b.style.color='var(--dim)';});el.style.background='rgba(0,240,255,.1)';el.style.borderColor='var(--cyan)';el.style.color='var(--cyan)';}
+function populateOptStrategies(){
+  const sel=document.getElementById('opt-strategy');if(!sel)return;
+  const bt=document.getElementById('bt-strategy');
+  if(bt){sel.innerHTML=bt.innerHTML;}
+  else{sel.innerHTML='<option value="TURTLE">Turtle</option><option value="EMA_CROSS">EMA Cross</option>';}
+}
+function renderOptRanges(){
+  const strat=document.getElementById('opt-strategy')?.value||'';
+  const ranges=OPT_RANGES[strat]||[{k:'lookback',l:'Lookback',f:10,t:50,s:10}];
+  const c=document.getElementById('opt-param-ranges');if(!c)return;
+  c.innerHTML=ranges.map(r=>`<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #ffffff08"><div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--cyan);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">${r.l}</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><div><label style="font-size:.55rem;color:var(--dim);display:block">From</label><input type="number" id="opt-${r.k}-from" value="${r.f}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.8rem;padding:4px;border-radius:3px" oninput="updateOptCombos()"></div><div><label style="font-size:.55rem;color:var(--dim);display:block">To</label><input type="number" id="opt-${r.k}-to" value="${r.t}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.8rem;padding:4px;border-radius:3px" oninput="updateOptCombos()"></div><div><label style="font-size:.55rem;color:var(--dim);display:block">Step</label><input type="number" id="opt-${r.k}-step" value="${r.s}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.8rem;padding:4px;border-radius:3px" oninput="updateOptCombos()"></div></div></div>`).join('');
+  updateOptCombos();
+}
+function updateOptCombos(){
+  const strat=document.getElementById('opt-strategy')?.value||'';
+  const ranges=OPT_RANGES[strat]||[];
+  let combos=1;
+  ranges.forEach(r=>{
+    const f=parseFloat(document.getElementById('opt-'+r.k+'-from')?.value||r.f);
+    const t=parseFloat(document.getElementById('opt-'+r.k+'-to')?.value||r.t);
+    const s=parseFloat(document.getElementById('opt-'+r.k+'-step')?.value||r.s);
+    combos*=Math.max(1,Math.floor((t-f)/s)+1);
+  });
+  const el=document.getElementById('opt-combo-count');
+  if(el){el.textContent=combos+' combinations';el.style.color=combos>100?'var(--yellow)':'var(--green)';}
+}
+function buildOptGrid(){
+  const strat=document.getElementById('opt-strategy')?.value||'';
+  const ranges=OPT_RANGES[strat]||[];
+  const grid={};
+  ranges.forEach(r=>{
+    const f=parseFloat(document.getElementById('opt-'+r.k+'-from')?.value||r.f);
+    const t=parseFloat(document.getElementById('opt-'+r.k+'-to')?.value||r.t);
+    const s=parseFloat(document.getElementById('opt-'+r.k+'-step')?.value||r.s);
+    const vals=[];for(let v=f;v<=t+0.001;v+=s)vals.push(parseFloat(v.toFixed(4)));
+    grid[r.k]=vals;
+  });
+  return grid;
+}
 function goToOptimize(){
-  // Transfer from backtest to optimize
   const sym=document.getElementById('bt-symbol')?.value||'';
   const strat=document.getElementById('bt-strategy')?.value||'';
   document.getElementById('opt-symbol').value=sym;
-  document.getElementById('opt-strategy').value=strat;
-  // Build param ranges
-  const ps=getBtParams();
-  const container=document.getElementById('opt-param-ranges');
-  container.innerHTML=Object.entries(ps).map(([k,v])=>{
-    const lo=Math.max(1,Math.round(v*0.5));const hi=Math.round(v*2.5);const step=Math.max(1,Math.round((hi-lo)/5));
-    return `<div style="margin-bottom:8px"><label style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--dim)">${k}</label><div style="display:flex;gap:4px"><input type="number" id="optr-${k}-lo" value="${lo}" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:4px"><span style="color:var(--dim);font-size:.8rem">to</span><input type="number" id="optr-${k}-hi" value="${hi}" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:4px"><span style="color:var(--dim);font-size:.8rem">step</span><input type="number" id="optr-${k}-step" value="${step}" style="width:50px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:4px"></div></div>`;
-  }).join('');
+  populateOptStrategies();
+  setTimeout(()=>{
+    const sel=document.getElementById('opt-strategy');
+    if(sel){sel.value=strat;renderOptRanges();}
+  },100);
   switchTab('optimize');
 }
-async function runOptFromTab(){
-  const sym=document.getElementById('opt-symbol').value;
-  const strat=document.getElementById('opt-strategy').value;
-  if(!sym||!strat){alert('Set symbol and strategy first');return;}
-  document.getElementById('opt-tab-results').style.display='none';
-  document.getElementById('opt-tab-empty').style.display='none';
-  document.getElementById('opt-tab-loading').style.display='block';
-  // Build param grid from range inputs
-  const pg={};
-  document.querySelectorAll('[id^="optr-"]').forEach(el=>{
-    const m=el.id.match(/optr-(.+)-(lo|hi|step)/);
-    if(!m)return;const k=m[1],t=m[2];
-    if(!pg[k])pg[k]={lo:0,hi:0,step:1};
-    pg[k][t]=parseFloat(el.value);
-  });
-  const param_grid={};
-  Object.entries(pg).forEach(([k,v])=>{
-    const vals=[];for(let i=v.lo;i<=v.hi;i+=v.step)vals.push(i);
-    if(vals.length>0)param_grid[k]=vals;
-  });
-  const combos=Object.values(param_grid).reduce((a,b)=>a*b.length,1);
-  document.getElementById('opt-tab-loading-msg').textContent='Testing '+combos+' combinations...';
+async function runOptFull(){
+  const sym=document.getElementById('opt-symbol')?.value;
+  const strat=document.getElementById('opt-strategy')?.value;
+  const capital=parseFloat(document.getElementById('opt-capital')?.value||'10000');
+  if(!sym||!strat){alert('Fill symbol and strategy');return;}
+  const pg=buildOptGrid();
+  const combos=Object.values(pg).reduce((a,b)=>a*b.length,1);
+  const btn=document.getElementById('btn-run-optimize');
+  btn.textContent='Testing '+combos+'...';btn.disabled=true;
+  const re=document.getElementById('opt-results');
+  const em=document.getElementById('opt-empty');
+  re.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div><p style="color:var(--dim);margin-top:12px;font-family:Share Tech Mono,monospace">Testing '+combos+' combinations...</p></div>';
+  em.style.display='none';
   try{
-    const r=await fetch(API+'/api/backtest/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,strategy:strat,param_grid:param_grid,initial_capital:10000,timeframe:'1day',limit:1260})});
+    const r=await fetch(API+'/api/backtest/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,strategy:strat,param_grid:pg,initial_capital:capital,timeframe:'1day',limit:optLimit})});
     const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
-    document.getElementById('opt-tab-loading').style.display='none';
-    if(d.best){
-      document.getElementById('opt-tab-best').innerHTML='BEST: '+JSON.stringify(d.best.params)+' | Return: '+d.best.metrics.total_return_pct+'% | Sharpe: '+d.best.metrics.sharpe_ratio;
-      setIbot('optimize',{best_params:d.best.params,combinations:d.total_combinations,best_sharpe:d.best.metrics.sharpe_ratio});
-    }
-    const tb=document.getElementById('opt-tab-tbody');
-    tb.innerHTML=(d.results||[]).slice(0,20).map((row,i)=>{const m=row.metrics;return `<tr${i===0?' style="background:rgba(255,215,0,.06)"':''}><td style="font-size:.7rem">${JSON.stringify(row.params)}</td><td class="${m.total_return_pct>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct}%</td><td>${m.sharpe_ratio}</td><td>${m.win_rate_pct}%</td><td style="color:var(--red)">${m.max_drawdown_pct}%</td></tr>`;}).join('');
-    document.getElementById('opt-tab-results').style.display='block';
-  }catch(e){document.getElementById('opt-tab-loading').style.display='none';alert('Error: '+e.message);}
+    const best=d.best;
+    if(best)setIbot('optimize',{best_params:best.params,combinations:d.total_combinations,best_sharpe:best.metrics.sharpe_ratio});
+    const bps=best?Object.entries(best.params).map(([k,v])=>k+'='+v).join(', '):'N/A';
+    let h=`<div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.25);border-radius:6px;padding:12px 16px;margin-bottom:16px"><div style="color:var(--yellow);font-family:'Orbitron',monospace;font-size:.75rem;margin-bottom:4px">BEST: ${bps}</div><div style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--dim)">Return: <span style="color:var(--green)">${best?.metrics.total_return_pct}%</span> | Sharpe: ${best?.metrics.sharpe_ratio} | ${d.total_combinations} combos tested</div></div>`;
+    h+=`<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>Sharpe</th><th>Win Rate</th><th>Max DD</th></tr></thead><tbody>`;
+    (d.results||[]).slice(0,25).forEach((row,i)=>{const m=row.metrics;const ps=Object.entries(row.params).map(([k,v])=>k+'='+v).join(' | ');h+=`<tr${i===0?' style="background:rgba(255,215,0,.05);border-left:2px solid gold"':''}><td style="font-size:.7rem;color:var(--dim)">${ps}</td><td class="${m.total_return_pct>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct}%</td><td>${m.sharpe_ratio}</td><td>${m.win_rate_pct}%</td><td style="color:var(--red)">${m.max_drawdown_pct}%</td></tr>`;});
+    h+=`</tbody></table></div>`;
+    h+=`<div style="display:flex;gap:12px;margin-top:16px"><button onclick="deployBestParams()" class="btn btn-success" style="flex:1">DEPLOY BEST PARAMS</button><button onclick="backtestBest()" class="btn btn-primary" style="flex:1">BACKTEST BEST</button></div>`;
+    re.innerHTML=h;
+  }catch(e){re.innerHTML='<p style="color:var(--red)">Error: '+e.message+'</p>';em.style.display='block';}
+  btn.textContent='OPTIMIZE';btn.disabled=false;
 }
 function deployBestParams(){
   const opt=window.ibotState.optimize;
-  if(opt&&opt.best_params){sessionStorage.setItem('deploy_params',JSON.stringify(opt.best_params));}
+  if(opt&&opt.best_params)sessionStorage.setItem('deploy_params',JSON.stringify(opt.best_params));
   setIbot('trade',{deployed:true});
   switchTab('deploy');
+}
+function backtestBest(){
+  const best=window.ibotState?.optimize?.best_params;if(!best)return;
+  switchTab('backtest');
+  setTimeout(()=>{Object.entries(best).forEach(([k,v])=>{const el=document.getElementById('btp-'+k);if(el)el.value=v;});},400);
 }
 
 /* ── Deploy ────────────────────────────────────────────────────────────── */
