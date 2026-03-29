@@ -129,10 +129,16 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 .exit-check{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--dim)}
 .exit-check input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px}
 .exit-check input[type=number],.exit-check input[type=text]{width:70px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:.8rem;padding:4px 8px;border-radius:4px}
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:8px}
+.toast{font-family:'Inter',sans-serif;font-size:12px;padding:12px 18px;border-radius:8px;background:#16162A;border:1px solid;max-width:360px;animation:toastIn .3s ease;cursor:default;transition:opacity .3s}
+.toast.success{border-color:var(--green);color:var(--green)}.toast.error{border-color:var(--red);color:var(--red)}.toast.info{border-color:#7F77DD;color:#9B8FE8}
+.toast.out{opacity:0;transform:translateY(10px)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
 <div class="scanline"></div>
+<div id="toast-container"></div>
 <div class="header"><h1>QUANTX DEPLOYER</h1><div id="hdr-right" style="display:flex;align-items:center;gap:12px"><span class="email-display" id="hdr-email"></span><span id="hdr-logout" style="display:none;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);cursor:pointer;text-decoration:underline" onclick="doLogout()">logout</span></div></div>
 <div class="tabs">
 <div class="tab active" onclick="switchTab('register')">Register</div>
@@ -264,7 +270,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <button onclick="runDevBacktest()" class="btn btn-primary" style="width:100%;margin-top:8px">Run Backtest</button>
 </div>
 <!-- Section 2: Unified results area (always in DOM, one panel visible at a time) -->
-<div id="dev-section2" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<div id="dev-section2" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px;scroll-margin-top:16px">
 <!-- State: idle -->
 <div id="dev-s-idle" style="text-align:center;padding:24px;color:var(--dim);font-family:'Inter',sans-serif;font-size:12px">Configure your strategy above and click Run Backtest</div>
 <!-- State: loading -->
@@ -280,7 +286,13 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="card"><div class="label">WIN RATE</div><div class="value" id="dev-m-wr" style="font-size:1rem">—</div></div>
 </div>
 <div style="background:#0a0a14;border:1px solid var(--border);border-radius:8px;padding:12px"><canvas id="dev-equity-chart" style="width:100%;height:250px"></canvas></div>
-<div style="display:flex;gap:12px;margin-top:12px"><button onclick="showDevOptimize()" class="btn btn-magenta" style="flex:1">Optimize</button><button onclick="saveDevStrategy()" class="btn btn-success" style="flex:1">Save Strategy</button></div>
+<!-- Save panel (hidden until Save clicked) -->
+<div id="dev-save-panel" style="display:none;background:#13132A;border:0.5px solid #7F77DD;border-radius:10px;padding:16px 20px;margin-top:12px">
+<div style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--magenta);margin-bottom:10px;letter-spacing:1px">SAVE STRATEGY</div>
+<div class="form-group" style="margin-bottom:10px"><label style="font-size:.7rem">Strategy Name</label><input type="text" id="dev-save-name" style="width:100%"></div>
+<div style="display:flex;gap:10px"><button onclick="document.getElementById('dev-save-panel').style.display='none'" style="flex:1;background:none;border:1px solid #333;color:#888;padding:8px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">Cancel</button><button onclick="confirmSaveStrategy()" style="flex:1;background:linear-gradient(135deg,#7F77DD,#5B54A8);color:#fff;border:none;padding:8px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600">Confirm Save</button></div>
+</div>
+<div style="display:flex;gap:12px;margin-top:12px"><button onclick="showDevOptimize()" class="btn btn-magenta" style="flex:1">Optimize</button><button onclick="showSavePanel()" class="btn btn-success" style="flex:1">Save Strategy</button></div>
 </div>
 <!-- State: error (no trades / 403 / general) -->
 <div id="dev-s-error" style="display:none;text-align:center;padding:24px">
@@ -1599,6 +1611,8 @@ async function runDevBacktest(){
       devEqChart=new Chart(ctx,{type:'line',data:{labels:d.equity_curve.map(p=>p.date),datasets:[{data:d.equity_curve.map(p=>p.value),borderColor:'#00ff88',borderWidth:2,pointRadius:0,fill:true,backgroundColor:'rgba(0,255,136,0.04)',tension:0.1}]},options:{responsive:true,animation:{duration:1200},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8,font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#555',callback:v=>'$'+v.toLocaleString(),font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}}}}})}
     }
     window._lastDevBt=d;
+    // Auto-scroll to results
+    setTimeout(()=>{document.getElementById('dev-section2').scrollIntoView({behavior:'smooth',block:'start'});},300);
   }catch(e){
     const msg=e.message||'';
     if(msg.includes('403')||msg.includes('unavailable')||msg.includes('Intraday')){
@@ -1645,32 +1659,66 @@ async function runDevOptimize(){
     let h='';
     if(best){const bps=Object.entries(best.params).map(([k,v])=>k+'='+v).join(', ');
       h+=`<div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.25);border-radius:6px;padding:10px;margin-bottom:10px"><div style="color:var(--yellow);font-size:.75rem">BEST: ${bps}</div><div style="font-size:.7rem;color:var(--dim)">Return: ${best.metrics.total_return_pct}% | Sharpe: ${best.metrics.sharpe_ratio}</div></div>`;}
-    h+=`<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>Sharpe</th><th>Win%</th><th>DD</th></tr></thead><tbody>`;
-    (d.results||[]).slice(0,10).forEach((row,i)=>{const m=row.metrics;const ps=Object.entries(row.params).map(([k,v])=>k+'='+v).join(' ');
-      h+=`<tr${i===0?' style="background:rgba(255,215,0,.04);border-left:2px solid gold"':''}><td style="font-size:.65rem;color:var(--dim)">${ps}</td><td class="${m.total_return_pct>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct}%</td><td>${m.sharpe_ratio}</td><td>${m.win_rate_pct}%</td><td style="color:var(--red)">${m.max_drawdown_pct}%</td></tr>`;});
+    h+=`<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>Sharpe</th><th>Win%</th><th>DD</th><th>Action</th></tr></thead><tbody>`;
+    (d.results||[]).slice(0,10).forEach((row,i)=>{const m=row.metrics;const ps=Object.entries(row.params).map(([k,v])=>k+'='+v).join(' ');const pj=JSON.stringify(row.params).replace(/"/g,'&quot;');
+      h+=`<tr${i===0?' style="background:rgba(255,215,0,.04);border-left:2px solid gold"':''}><td style="font-size:.65rem;color:var(--dim)">${ps}</td><td class="${m.total_return_pct>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct}%</td><td>${m.sharpe_ratio}</td><td>${m.win_rate_pct}%</td><td style="color:var(--red)">${m.max_drawdown_pct}%</td><td><button onclick="retestParams('${pj}')" style="font-size:11px;padding:4px 10px;border-radius:5px;border:.5px solid #7F77DD;color:#9B8FE8;background:transparent;cursor:pointer">\u21BA Re-test</button></td></tr>`;});
     h+=`</tbody></table></div>`;
     re.innerHTML=h;
-  }catch(e){alert('Optimize error: '+e.message);}
+    // Auto-scroll to optimize results
+    setTimeout(()=>{document.getElementById('dev-opt-panel').scrollIntoView({behavior:'smooth',block:'start'});},300);
+  }catch(e){showToast('Optimize error: '+(e.message||''),'error');}
   btn.textContent='Run Sweep';btn.disabled=false;
 }
 
-function saveDevStrategy(){
-  if(!devSelectedStrat||!EMAIL){alert('Select strategy and register first');return;}
-  // Save via existing strategy endpoint
+// ── Toast system ──────────────────────────────────────────────────────────
+function showToast(msg,type='success',dur=3000,onClick=null){
+  const c=document.getElementById('toast-container');if(!c)return;
+  const t=document.createElement('div');t.className='toast '+type;t.innerHTML=msg;
+  if(onClick){t.style.cursor='pointer';t.onclick=()=>{onClick();t.remove();};}
+  c.appendChild(t);
+  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300);},dur);
+}
+
+// ── Save panel ─��─────────────────────────────────────────────────────────
+function showSavePanel(){
+  if(!devSelectedStrat||!EMAIL){showToast('Select a strategy and register first','error');return;}
+  const sym=document.getElementById('dev-symbol').value.trim();
+  const pl={252:'1Y',504:'2Y',756:'3Y',1260:'5Y',2520:'10Y'}[devLimit]||'';
+  document.getElementById('dev-save-name').value=devSelectedStrat.name+' - '+sym+' '+pl;
+  document.getElementById('dev-save-panel').style.display='block';
+}
+function confirmSaveStrategy(){
+  const name=document.getElementById('dev-save-name').value.trim();
+  if(!name){showToast('Enter a name','error');return;}
   const sym=document.getElementById('dev-symbol').value.trim();
   const tf=document.getElementById('dev-timeframe').value;
   const params=getDevParams();
   const sid=devSelectedStrat.id+'_'+Date.now().toString(36).slice(-4).toUpperCase();
+  document.getElementById('dev-save-panel').style.display='none';
   fetch(API+'/api/strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    email:EMAIL,strategy_id:sid,strategy_name:devSelectedStrat.name+' ('+sym+')',symbol:sym,
+    email:EMAIL,strategy_id:sid,strategy_name:name,symbol:sym,
     arena:sym.endsWith('.HK')?'HK':'US',timeframe:tf,
     conditions:{type:devSelectedStrat.indicator||devSelectedStrat.id,params:params},
     exit_rules:{},risk:devSelectedStrat.default_risk||{tp_pct:0.5,sl_pct:0.3,lots:1},
     is_active:true,mode:'library',library_id:devSelectedStrat.id,
   })}).then(r=>r.json()).then(d=>{
-    if(d.status==='saved')alert('Strategy saved! Go to Deploy tab to run it live.');
-    else alert(d.detail||'Save failed');
-  }).catch(e=>alert('Error: '+e.message));
+    if(d.status==='saved'){
+      showToast('\u2713 '+name+' saved. <u>View in Deploy tab \u2192</u>','success',4000,()=>switchTab('deploy'));
+    }else{showToast(d.detail||'Save failed','error');}
+  }).catch(e=>showToast('Error: '+e.message,'error'));
+}
+
+// ── Re-test from optimize row ────────────────────────────────────────────
+function retestParams(paramsJson){
+  try{
+    const p=JSON.parse(paramsJson);
+    Object.entries(p).forEach(([k,v])=>{const el=document.getElementById('devp-'+k);if(el)el.value=v;});
+    document.getElementById('dev-config').scrollIntoView({behavior:'smooth',block:'start'});
+    // Pulse the run button
+    const btn=document.querySelector('#dev-config .btn-primary');
+    if(btn){btn.style.boxShadow='0 0 20px rgba(0,240,255,.4)';setTimeout(()=>{btn.style.boxShadow='';},600);}
+    showToast('Params loaded \u2014 click Run Backtest','info',2000);
+  }catch(e){}
 }
 
 // Init symbol input for develop tab
