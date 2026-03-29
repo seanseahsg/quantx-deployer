@@ -349,8 +349,8 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <!-- Config panel -->
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px">
 <h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--cyan);margin-bottom:16px">BACKTEST CONFIG</h3>
-<div class="form-group"><label>Symbol</label><input type="text" id="bt-symbol" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK"></div>
-<div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"><option value="TURTLE">Turtle Trader</option><option value="EMA_CROSS">EMA Crossover</option><option value="RSI">RSI Reversion</option><option value="MACD">MACD Momentum</option></select></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span></div></div>
+<div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"></select></div>
 <div class="form-group"><label>Capital ($)</label><input type="number" id="bt-capital" value="10000"></div>
 <div id="bt-params-container"></div>
 <button onclick="runBt()" class="btn btn-primary" style="width:100%;margin-top:12px">BACKTEST</button>
@@ -784,7 +784,7 @@ function fillSym(prefix,sym){
 
 // Initialize all symbol inputs after DOM ready
 setTimeout(function(){
-  ['pm','cu','sc'].forEach(function(p){
+  ['pm','cu','sc','bt'].forEach(function(p){
     const el=document.getElementById(p+'-symbol');
     if(el)initSymbolInput(el,function(sym){_onSymSelect(p,sym);});
   });
@@ -812,7 +812,7 @@ async function loadLibrary(){
   try{
     const r=await fetch(API+'/api/strategies-library');
     if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();LIB_CACHE=d.strategies||[];LIB_SECTIONS=d.sections||[];renderLibrary(LIB_CACHE);
+    const d=await r.json();LIB_CACHE=d.strategies||[];LIB_SECTIONS=d.sections||[];renderLibrary(LIB_CACHE);populateBtStrategies();
   }catch(e){document.getElementById('lib-grid').innerHTML='<p style="color:var(--red);font-family:Share Tech Mono,monospace;font-size:.8rem">Failed to load strategy library: '+e.message+'</p>';}
 }
 const CAT_COLORS={'Trend Following':'var(--cyan)','Mean Reversion':'#b066ff','Grid Trading':'var(--yellow)','Breakout':'#ff8833','Momentum':'var(--green)','VWAP':'#ff66aa'};
@@ -1091,20 +1091,49 @@ async function saveScript(){
 }
 
 /* ── Backtest ──────────────────────────────────────────────────────────── */
-const BT_PARAMS={TURTLE:[{k:'entry_period',l:'Entry Period',d:20},{k:'exit_period',l:'Exit Period',d:10}],EMA_CROSS:[{k:'fast_period',l:'Fast EMA',d:10},{k:'slow_period',l:'Slow EMA',d:30}],RSI:[{k:'rsi_period',l:'RSI Period',d:14},{k:'oversold',l:'Oversold',d:30},{k:'overbought',l:'Overbought',d:70}],MACD:[{k:'fast',l:'Fast',d:12},{k:'slow',l:'Slow',d:26},{k:'signal_period',l:'Signal',d:9}]};
-function updateBtParams(){
-  const s=document.getElementById('bt-strategy').value;
-  const c=document.getElementById('bt-params-container');
-  const ps=BT_PARAMS[s]||[];
-  c.innerHTML=ps.map(p=>`<div class="form-group"><label>${p.l}</label><input type="number" id="btp-${p.k}" value="${p.d}"></div>`).join('');
+function populateBtStrategies(){
+  const sel=document.getElementById('bt-strategy');if(!sel)return;
+  const libs=LIB_CACHE||[];
+  if(!libs.length){
+    sel.innerHTML='<option value="TURTLE">Turtle Trader</option><option value="EMA_CROSS">EMA Cross</option><option value="RSI">RSI</option><option value="MACD">MACD</option><option value="BUFFETT_BOT">Buffett Bot</option><option value="GRAHAM_BOT">Graham Bot</option><option value="SOROS_BOT">Soros Bot</option>';
+    updateBtParams();return;
+  }
+  const secNames={famous_investors:'Famous Investor Bots',trend_following:'Trend Following',mean_reversion:'Mean Reversion',breakout:'Breakout',grid_trading:'Grid Trading'};
+  const bySec={};libs.forEach(s=>{const sec=s.section||'other';if(!bySec[sec])bySec[sec]=[];bySec[sec].push(s);});
+  sel.innerHTML='';
+  Object.entries(secNames).forEach(([sid,sn])=>{
+    const strats=bySec[sid];if(!strats)return;
+    const og=document.createElement('optgroup');og.label=sn;
+    strats.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;og.appendChild(o);});
+    sel.appendChild(og);
+  });
+  updateBtParams();
 }
-updateBtParams();
+function updateBtParams(){
+  const sid=document.getElementById('bt-strategy')?.value;
+  const c=document.getElementById('bt-params-container');if(!c)return;
+  const strat=(LIB_CACHE||[]).find(s=>s.id===sid);
+  const skip=['capital_budget','max_positions','arena','custom_tickers','direction'];
+  const ps=strat?(strat.params||[]).filter(p=>!skip.includes(p.key)):[];
+  if(!ps.length){
+    // Fallback for when library not loaded
+    const fb={TURTLE:[{key:'entry_period',label:'Entry',default:20},{key:'exit_period',label:'Exit',default:10}],EMA_CROSS:[{key:'fast_period',label:'Fast',default:10},{key:'slow_period',label:'Slow',default:30}],RSI:[{key:'rsi_period',label:'Period',default:14},{key:'oversold',label:'Oversold',default:30},{key:'overbought',label:'Overbought',default:70}],MACD:[{key:'fast',label:'Fast',default:12},{key:'slow',label:'Slow',default:26},{key:'signal_period',label:'Signal',default:9}]};
+    const fbp=fb[sid]||[];
+    c.innerHTML=fbp.map(p=>`<div class="form-group"><label>${p.label}</label><input type="number" id="btp-${p.key}" value="${p.default}"></div>`).join('');
+    return;
+  }
+  c.innerHTML=ps.map(p=>`<div class="form-group"><label>${p.label}</label><input type="number" id="btp-${p.key}" value="${p.default}" min="${p.min||0}" max="${p.max||9999}" step="${p.type==='float'?0.1:1}"><div class="hint" style="font-size:.6rem;color:var(--dim)">${p.hint||''}</div></div>`).join('');
+}
 function getBtParams(){
-  const s=document.getElementById('bt-strategy').value;
-  const ps=BT_PARAMS[s]||[];const r={};
-  ps.forEach(p=>{const el=document.getElementById('btp-'+p.k);if(el)r[p.k]=parseFloat(el.value);});
+  const sid=document.getElementById('bt-strategy')?.value;
+  const strat=(LIB_CACHE||[]).find(s=>s.id===sid);
+  const r={};
+  if(strat){(strat.params||[]).forEach(p=>{const el=document.getElementById('btp-'+p.key);if(el)r[p.key]=p.type==='int'?parseInt(el.value):parseFloat(el.value);});}
+  else{document.querySelectorAll('[id^="btp-"]').forEach(el=>{r[el.id.replace('btp-','')]=parseFloat(el.value);});}
   return r;
 }
+// Init after library loads
+setTimeout(()=>{populateBtStrategies();},500);
 let eqChart=null;
 function animM(id,target,suf){
   const el=document.getElementById(id);if(!el)return;

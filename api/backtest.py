@@ -148,60 +148,228 @@ def calc_rsi(closes, period=14):
     return result
 
 
-# ── Signal generators ────────────────────────────────────────────────────────
+# ── Signal generators (all 14 strategies) ────────────────────────────────────
 
-def signals_ema_cross(bars, fast=10, slow=30):
+def calc_sma(closes, period):
+    if len(closes) < period:
+        return [None] * len(closes)
+    result = [None] * (period - 1)
+    for i in range(period - 1, len(closes)):
+        result.append(sum(closes[i - period + 1:i + 1]) / period)
+    return result
+
+
+def calc_atr(highs, lows, closes, period=14):
+    if len(closes) < period + 1:
+        return [None] * len(closes)
+    trs = [None]
+    for i in range(1, len(closes)):
+        trs.append(max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1])))
+    result = [None] * period
+    atr = sum(t for t in trs[1:period + 1] if t) / period
+    result.append(atr)
+    for i in range(period + 1, len(closes)):
+        atr = (atr * (period - 1) + (trs[i] or 0)) / period
+        result.append(atr)
+    return result
+
+
+def signals_ema_cross(bars, fast_period=10, slow_period=30, **kw):
     closes = [b["close"] for b in bars]
-    fe, se = calc_ema(closes, fast), calc_ema(closes, slow)
+    fe, se = calc_ema(closes, int(kw.get("fast", fast_period))), calc_ema(closes, int(kw.get("slow", slow_period)))
     sigs = [None] * len(bars)
     for i in range(1, len(bars)):
         if fe[i] and se[i] and fe[i - 1] and se[i - 1]:
-            if fe[i] > se[i] and fe[i - 1] <= se[i - 1]:
-                sigs[i] = "buy"
-            elif fe[i] < se[i] and fe[i - 1] >= se[i - 1]:
-                sigs[i] = "sell"
+            if fe[i] > se[i] and fe[i - 1] <= se[i - 1]: sigs[i] = "buy"
+            elif fe[i] < se[i] and fe[i - 1] >= se[i - 1]: sigs[i] = "sell"
     return sigs
 
 
-def signals_turtle(bars, entry_period=20, exit_period=10):
-    highs = [b["high"] for b in bars]
-    lows = [b["low"] for b in bars]
-    closes = [b["close"] for b in bars]
+def signals_turtle(bars, entry_period=20, exit_period=10, **kw):
+    h, l, c = [b["high"] for b in bars], [b["low"] for b in bars], [b["close"] for b in bars]
+    ep, xp = int(entry_period), int(exit_period)
     sigs = [None] * len(bars)
-    for i in range(entry_period, len(bars)):
-        ph = max(highs[i - entry_period:i])
-        pl = min(lows[max(0, i - exit_period):i])
-        if closes[i] > ph:
-            sigs[i] = "buy"
-        elif closes[i] < pl:
-            sigs[i] = "sell"
+    for i in range(ep, len(bars)):
+        if c[i] > max(h[i - ep:i]): sigs[i] = "buy"
+        elif i >= xp and c[i] < min(l[i - xp:i]): sigs[i] = "sell"
     return sigs
 
 
-def signals_rsi(bars, period=14, oversold=30, overbought=70):
+def signals_rsi(bars, rsi_period=14, oversold=30, overbought=70, **kw):
+    p = int(kw.get("period", rsi_period))
     closes = [b["close"] for b in bars]
-    rsi = calc_rsi(closes, period)
+    rsi = calc_rsi(closes, p)
     return [("buy" if r and r < oversold else "sell" if r and r > overbought else None) for r in rsi]
 
 
-def signals_macd(bars, fast=12, slow=26, signal_period=9):
+def signals_macd(bars, fast=12, slow=26, signal_period=9, **kw):
     closes = [b["close"] for b in bars]
-    fe, se = calc_ema(closes, fast), calc_ema(closes, slow)
-    macd_line = [(f - s) if (f and s) else None for f, s in zip(fe, se)]
-    valid = [m for m in macd_line if m is not None]
-    if len(valid) < signal_period:
-        return [None] * len(bars)
-    sig_ema = calc_ema(valid, signal_period)
-    offset = len(macd_line) - len(valid)
-    hist = [None] * offset + [(m - s) if (m is not None and s is not None) else None for m, s in zip(valid, sig_ema)]
+    fe, se = calc_ema(closes, int(fast)), calc_ema(closes, int(slow))
+    ml = [(f - s) if (f and s) else None for f, s in zip(fe, se)]
+    valid = [m for m in ml if m is not None]
+    if len(valid) < int(signal_period): return [None] * len(bars)
+    sig_e = calc_ema(valid, int(signal_period))
+    off = len(ml) - len(valid)
+    hist = [None] * off + [(m - s) if (m is not None and s is not None) else None for m, s in zip(valid, sig_e)]
     sigs = [None] * len(bars)
     for i in range(1, len(bars)):
         if hist[i] is not None and hist[i - 1] is not None:
-            if hist[i] > 0 and hist[i - 1] <= 0:
-                sigs[i] = "buy"
-            elif hist[i] < 0 and hist[i - 1] >= 0:
-                sigs[i] = "sell"
+            if hist[i] > 0 and hist[i - 1] <= 0: sigs[i] = "buy"
+            elif hist[i] < 0 and hist[i - 1] >= 0: sigs[i] = "sell"
     return sigs
+
+
+def signals_bb_grid(bars, period=20, num_std=2.0, **kw):
+    closes = [b["close"] for b in bars]
+    sma = calc_sma(closes, int(period))
+    sigs = [None] * len(bars)
+    p = int(period)
+    for i in range(p, len(bars)):
+        if sma[i] is None: continue
+        std = (sum((closes[i - j] - sma[i]) ** 2 for j in range(p)) / p) ** 0.5
+        if closes[i] < sma[i] - float(num_std) * std: sigs[i] = "buy"
+        elif closes[i] > sma[i] + float(num_std) * std: sigs[i] = "sell"
+    return sigs
+
+
+def signals_vwap_reversion(bars, deviation_pct=0.1, **kw):
+    sigs = [None] * len(bars)
+    for i in range(1, len(bars)):
+        w = bars[max(0, i - 20):i + 1]
+        tv = sum(b["volume"] for b in w)
+        if tv == 0: continue
+        vwap = sum(b["close"] * b["volume"] for b in w) / tv
+        dev = (bars[i]["close"] - vwap) / vwap * 100
+        if dev < -float(deviation_pct): sigs[i] = "buy"
+        elif dev > float(deviation_pct): sigs[i] = "sell"
+    return sigs
+
+
+def signals_momentum_breakout(bars, lookback=20, **kw):
+    h, l, c = [b["high"] for b in bars], [b["low"] for b in bars], [b["close"] for b in bars]
+    lb = int(lookback)
+    sigs = [None] * len(bars)
+    for i in range(lb, len(bars)):
+        if c[i] > max(h[i - lb:i]): sigs[i] = "buy"
+        elif c[i] < min(l[i - lb:i]): sigs[i] = "sell"
+    return sigs
+
+
+def signals_supertrend(bars, atr_period=10, multiplier=3.0, **kw):
+    h, l, c = [b["high"] for b in bars], [b["low"] for b in bars], [b["close"] for b in bars]
+    atr = calc_atr(h, l, c, int(atr_period))
+    sigs = [None] * len(bars)
+    trend = [1] * len(bars)
+    ap = int(atr_period)
+    for i in range(ap + 1, len(bars)):
+        if atr[i] is None: continue
+        hl2 = (h[i] + l[i]) / 2
+        if c[i] > hl2 + float(multiplier) * atr[i]: trend[i] = 1
+        elif c[i] < hl2 - float(multiplier) * atr[i]: trend[i] = -1
+        else: trend[i] = trend[i - 1]
+        if trend[i] == 1 and trend[i - 1] == -1: sigs[i] = "buy"
+        elif trend[i] == -1 and trend[i - 1] == 1: sigs[i] = "sell"
+    return sigs
+
+
+def signals_buffett_bot(bars, trend_period=50, rsi_min=40, rsi_max=65, **kw):
+    closes = [b["close"] for b in bars]
+    sma = calc_sma(closes, min(int(trend_period), len(closes)))
+    rsi = calc_rsi(closes, 14)
+    sigs = [None] * len(bars)
+    tp = int(trend_period)
+    for i in range(tp, len(bars)):
+        if sma[i] is None or rsi[i] is None: continue
+        if closes[i] > sma[i] and float(rsi_min) < rsi[i] < float(rsi_max): sigs[i] = "buy"
+        elif closes[i] < sma[i]: sigs[i] = "sell"
+    return sigs
+
+
+def signals_graham_bot(bars, proximity_pct=20, rsi_threshold=40, **kw):
+    c, l = [b["close"] for b in bars], [b["low"] for b in bars]
+    rsi = calc_rsi(c, 14)
+    sigs = [None] * len(bars)
+    for i in range(50, len(bars)):
+        if rsi[i] is None: continue
+        lo = min(l[max(0, i - 252):i]) if i > 0 else l[0]
+        prox = (c[i] - lo) / lo * 100 if lo > 0 else 100
+        if prox <= float(proximity_pct) and rsi[i] < float(rsi_threshold): sigs[i] = "buy"
+        elif rsi[i] > 60: sigs[i] = "sell"
+    return sigs
+
+
+def signals_livermore_bot(bars, breakout_period=20, volume_mult=1.5, **kw):
+    c, h, v = [b["close"] for b in bars], [b["high"] for b in bars], [b["volume"] for b in bars]
+    bp = int(breakout_period)
+    sigs = [None] * len(bars)
+    for i in range(bp + 1, len(bars)):
+        ph = max(h[i - bp - 1:i - 1])
+        av = sum(v[max(0, i - 20):i]) / min(20, i) if i > 0 else 1
+        if c[i] > ph and (av > 0 and v[i] > av * float(volume_mult)): sigs[i] = "buy"
+        if i >= 10 and c[i] < min(c[i - 10:i]): sigs[i] = "sell"
+    return sigs
+
+
+def signals_dalio_bot(bars, trend_ema=50, vwap_proximity=0.5, **kw):
+    c, v = [b["close"] for b in bars], [b["volume"] for b in bars]
+    ema = calc_ema(c, min(int(trend_ema), len(c)))
+    sigs = [None] * len(bars)
+    te = int(trend_ema)
+    for i in range(te + 1, len(bars)):
+        if ema[i] is None: continue
+        wc, wv = c[max(0, i - 20):i + 1], v[max(0, i - 20):i + 1]
+        tv = sum(wv)
+        vwap = sum(a * b for a, b in zip(wc, wv)) / tv if tv > 0 else c[i]
+        if c[i] > ema[i] and abs(c[i] - vwap) / vwap * 100 < float(vwap_proximity): sigs[i] = "buy"
+        elif c[i] < ema[i]: sigs[i] = "sell"
+    return sigs
+
+
+def signals_simons_bot(bars, zscore_period=20, zscore_threshold=2.0, rsi_threshold=35, **kw):
+    c = [b["close"] for b in bars]
+    rsi = calc_rsi(c, 14)
+    zp = int(zscore_period)
+    sigs = [None] * len(bars)
+    for i in range(zp + 14, len(bars)):
+        if rsi[i] is None: continue
+        w = c[i - zp:i]
+        m = sum(w) / zp
+        s = (sum((x - m) ** 2 for x in w) / zp) ** 0.5
+        z = (c[i] - m) / s if s > 0 else 0
+        if z < -float(zscore_threshold) and rsi[i] < float(rsi_threshold): sigs[i] = "buy"
+        elif z > 0: sigs[i] = "sell"
+    return sigs
+
+
+def signals_soros_bot(bars, ema_fast=5, ema_mid=20, ema_slow=50, **kw):
+    c = [b["close"] for b in bars]
+    ef, em, es = calc_ema(c, int(ema_fast)), calc_ema(c, int(ema_mid)), calc_ema(c, int(ema_slow))
+    sigs = [None] * len(bars)
+    for i in range(int(ema_slow), len(bars)):
+        if None in [ef[i], em[i], es[i]]: continue
+        if ef[i] > em[i] > es[i]: sigs[i] = "buy"
+        elif ef[i] < em[i] < es[i]: sigs[i] = "sell"
+    return sigs
+
+
+# ── Strategy map ─────────────────────────────────────────────────────────────
+
+STRATEGY_MAP = {
+    "TURTLE": signals_turtle, "TURTLE_TRADER": signals_turtle,
+    "EMA_CROSS": signals_ema_cross,
+    "RSI": signals_rsi, "RSI_MEAN_REVERSION": signals_rsi,
+    "MACD": signals_macd, "MACD_MOMENTUM": signals_macd,
+    "BB_GRID": signals_bb_grid, "BB_BREAKOUT": signals_bb_grid,
+    "VWAP_REVERSION": signals_vwap_reversion,
+    "MOMENTUM_BREAKOUT": signals_momentum_breakout,
+    "SUPERTREND": signals_supertrend,
+    "BUFFETT_BOT": signals_buffett_bot,
+    "GRAHAM_BOT": signals_graham_bot,
+    "LIVERMORE_BOT": signals_livermore_bot,
+    "DALIO_BOT": signals_dalio_bot,
+    "SIMONS_BOT": signals_simons_bot,
+    "SOROS_BOT": signals_soros_bot,
+}
 
 
 # ── Backtest engine ──────────────────────────────────────────────────────────
@@ -210,11 +378,17 @@ def run_backtest(bars, strategy, params, initial_capital=10000):
     if len(bars) < 50:
         raise ValueError(f"Need 50+ bars, got {len(bars)}")
 
-    sig_map = {"TURTLE": signals_turtle, "EMA_CROSS": signals_ema_cross, "RSI": signals_rsi, "MACD": signals_macd}
-    fn = sig_map.get(strategy)
+    fn = STRATEGY_MAP.get(strategy.upper())
     if not fn:
-        raise ValueError(f"Unknown strategy: {strategy}")
-    signals = fn(bars, **{k: (int(v) if isinstance(v, float) and v == int(v) else v) for k, v in params.items()})
+        raise ValueError(f"Unknown strategy: {strategy}. Available: {list(STRATEGY_MAP.keys())}")
+    # Convert float ints and filter non-signal params
+    clean = {}
+    skip = {"initial_capital", "capital_budget", "max_positions", "arena", "custom_tickers", "direction"}
+    for k, v in params.items():
+        if k in skip: continue
+        if isinstance(v, float) and v == int(v): v = int(v)
+        clean[k] = v
+    signals = fn(bars, **clean)
 
     capital, position, entry_px = initial_capital, 0, 0.0
     trades, equity = [], []
