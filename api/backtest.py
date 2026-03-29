@@ -70,6 +70,13 @@ def save_to_r2(symbol, timeframe, bars):
 
 # ── FMP data fetch ───────────────────────────────────────────────────────────
 
+def _fmp_symbol(symbol):
+    """Convert our format to FMP: strip .US (US stocks don't need suffix), keep .HK/.SI."""
+    if symbol.endswith(".US"):
+        return symbol[:-3]
+    return symbol
+
+
 def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
     bars, source = load_from_r2(symbol, timeframe)
     if bars:
@@ -80,17 +87,18 @@ def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
     if not fmp_key:
         raise ValueError("FMP_API_KEY not set in environment")
 
-    print(f"[BACKTEST] Fetching {symbol} {timeframe} from FMP...")
+    fmp_sym = _fmp_symbol(symbol)
+    print(f"[BACKTEST] Fetching {symbol} ({fmp_sym}) {timeframe} from FMP...")
     if timeframe == "1day":
-        url = f"{FMP_BASE}/historical-price-eod/full?symbol={symbol}&limit={limit}&apikey={fmp_key}"
+        url = f"{FMP_BASE}/historical-price-eod/full?symbol={fmp_sym}&limit={limit}&apikey={fmp_key}"
     else:
-        url = f"{FMP_BASE}/historical-chart/{timeframe}?symbol={symbol}&apikey={fmp_key}"
+        url = f"{FMP_BASE}/historical-chart/{timeframe}?symbol={fmp_sym}&apikey={fmp_key}"
 
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     data = r.json()
     if not data or not isinstance(data, list):
-        raise ValueError(f"No data for {symbol}")
+        raise ValueError(f"No data for {symbol} (FMP: {fmp_sym}). Check symbol is valid.")
 
     bars = []
     for b in data:

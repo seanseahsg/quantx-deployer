@@ -353,6 +353,8 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span></div></div>
 <div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"></select></div>
 <div class="form-group"><label>Capital ($)</label><input type="number" id="bt-capital" value="10000"></div>
+<div class="form-group"><label>Period</label><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(252,this)">1Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(504,this)">2Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(756,this)">3Y</button><button class="btn-sm" style="background:rgba(0,240,255,.1);border:1px solid var(--cyan);color:var(--cyan);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" id="bt-period-active" onclick="setBtLimit(1260,this)">5Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(2520,this)">10Y</button></div></div>
+<div id="bt-from-ideation" style="display:none;background:rgba(0,240,255,.06);border:1px solid var(--cyan);border-radius:4px;padding:6px 10px;margin-bottom:8px;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--cyan);align-items:center;gap:6px"><span id="bt-loaded-name"></span><button onclick="document.getElementById('bt-from-ideation').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:.8rem;margin-left:auto">x</button></div>
 <div id="bt-params-container"></div>
 <button onclick="runBt()" class="btn btn-primary" style="width:100%;margin-top:12px">BACKTEST</button>
 <button onclick="runOpt()" class="btn btn-magenta" style="width:100%;margin-top:8px;font-size:.6rem">OPTIMIZE</button>
@@ -1180,6 +1182,12 @@ function getBtParams(){
   else{document.querySelectorAll('[id^="btp-"]').forEach(el=>{r[el.id.replace('btp-','')]=parseFloat(el.value);});}
   return r;
 }
+let btLimit=1260;
+function setBtLimit(v,el){
+  btLimit=v;
+  el.parentElement.querySelectorAll('button').forEach(b=>{b.style.background='var(--surface2)';b.style.borderColor='var(--border)';b.style.color='var(--dim)';});
+  el.style.background='rgba(0,240,255,.1)';el.style.borderColor='var(--cyan)';el.style.color='var(--cyan)';
+}
 // Init after library loads
 setTimeout(()=>{populateBtStrategies();},500);
 let eqChart=null;
@@ -1202,7 +1210,7 @@ async function runBt(){
   document.getElementById('bt-loading').style.display='block';
   document.getElementById('bt-loading-msg').textContent='Running backtest...';
   try{
-    const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:document.getElementById('bt-strategy').value,params:getBtParams(),initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:'1day',limit:1260})});
+    const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:document.getElementById('bt-strategy').value,params:getBtParams(),initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:'1day',limit:btLimit})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.detail||'Failed');
     document.getElementById('bt-loading').style.display='none';
@@ -1260,19 +1268,29 @@ function updateIbotBreadcrumb(){
   });
 }
 function backtestStrat(sid){
-  // Load strategy into backtest tab
-  const strats=document.querySelectorAll?null:null; // need to fetch
   fetch(API+'/api/strategies/'+encodeURIComponent(EMAIL)).then(r=>r.json()).then(d=>{
     const s=(d.strategies||[]).find(x=>x.strategy_id===sid);
     if(!s)return;
-    setIbot('ideation',{strategy_id:s.strategy_id,symbol:s.symbol,indicator:s.library_id||(s.conditions||{}).type||'EMA_CROSS'});
-    // Pre-fill backtest
-    document.getElementById('bt-symbol').value=s.symbol;
+    const indicator=s.library_id||(s.conditions||{}).type||'EMA_CROSS';
+    setIbot('ideation',{strategy_id:s.strategy_id,symbol:s.symbol,indicator:indicator,strategy_name:s.strategy_name});
+    // Pre-fill symbol
+    const si=document.getElementById('bt-symbol');
+    if(si)si.value=s.symbol;
+    // Pre-fill strategy dropdown
     const sel=document.getElementById('bt-strategy');
-    if(sel){sel.value=s.library_id||(s.conditions||{}).type||'EMA_CROSS';updateBtParams();}
-    // Fill params from strategy
+    if(sel){sel.value=indicator;updateBtParams();}
+    // Fill params from strategy conditions
     const cp=(s.conditions||{}).params||{};
-    setTimeout(()=>{Object.entries(cp).forEach(([k,v])=>{const el=document.getElementById('btp-'+k);if(el)el.value=v;});},200);
+    const rk=s.risk||{};
+    setTimeout(()=>{
+      Object.entries({...cp,...rk}).forEach(([k,v])=>{
+        if(v===undefined||v===null)return;
+        const el=document.getElementById('btp-'+k);if(el)el.value=v;
+      });
+      // Show "from ideation" banner
+      const banner=document.getElementById('bt-from-ideation');
+      if(banner){banner.style.display='flex';document.getElementById('bt-loaded-name').textContent=s.strategy_name||indicator;}
+    },300);
     switchTab('backtest');
   });
 }
