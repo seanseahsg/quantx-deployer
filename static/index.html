@@ -352,6 +352,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--cyan);margin-bottom:16px">BACKTEST CONFIG</h3>
 <div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span></div></div>
 <div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"></select></div>
+<div class="form-group"><label>Timeframe</label><select id="bt-timeframe" onchange="onBtTimeframeChange()"><option value="1min">1 Min</option><option value="5min">5 Min</option><option value="15min">15 Min</option><option value="1hour">1 Hour</option><option value="4hour">4 Hour</option><option value="1day" selected>1 Day</option><option value="1week">1 Week</option></select></div>
 <div class="form-group"><label>Capital ($)</label><input type="number" id="bt-capital" value="10000"></div>
 <div class="form-group"><label>Period</label><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(252,this)">1Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(504,this)">2Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(756,this)">3Y</button><button class="btn-sm" style="background:rgba(0,240,255,.1);border:1px solid var(--cyan);color:var(--cyan);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" id="bt-period-active" onclick="setBtLimit(1260,this)">5Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(2520,this)">10Y</button></div></div>
 <div id="bt-from-ideation" style="display:none;background:rgba(0,240,255,.06);border:1px solid var(--cyan);border-radius:4px;padding:6px 10px;margin-bottom:8px;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--cyan);align-items:center;gap:6px"><span id="bt-loaded-name"></span><button onclick="document.getElementById('bt-from-ideation').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:.8rem;margin-left:auto">x</button></div>
@@ -1185,10 +1186,18 @@ function getBtParams(){
   return r;
 }
 let btLimit=1260;
+let btTimeframe='1day';
 function setBtLimit(v,el){
   btLimit=v;
   el.parentElement.querySelectorAll('button').forEach(b=>{b.style.background='var(--surface2)';b.style.borderColor='var(--border)';b.style.color='var(--dim)';});
   el.style.background='rgba(0,240,255,.1)';el.style.borderColor='var(--cyan)';el.style.color='var(--cyan)';
+}
+function onBtTimeframeChange(){
+  btTimeframe=document.getElementById('bt-timeframe')?.value||'1day';
+  // Cap limits for intraday
+  const caps={'1min':5850,'5min':4680,'15min':4680,'1hour':6552,'4hour':3276,'1day':99999,'1week':99999};
+  const cap=caps[btTimeframe]||99999;
+  if(btLimit>cap)btLimit=cap;
 }
 // Init after library loads
 setTimeout(()=>{populateBtStrategies();},500);
@@ -1212,7 +1221,7 @@ async function runBt(){
   document.getElementById('bt-loading').style.display='block';
   document.getElementById('bt-loading-msg').textContent='Running backtest...';
   try{
-    const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:document.getElementById('bt-strategy').value,params:getBtParams(),initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:'1day',limit:btLimit})});
+    const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:document.getElementById('bt-strategy').value,params:getBtParams(),initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:btTimeframe||'1day',limit:btLimit})});
     const d=await r.json();
     if(!r.ok)throw new Error(d.detail||'Failed');
     document.getElementById('bt-loading').style.display='none';
@@ -1248,7 +1257,7 @@ async function runOpt(){
   const combos=Object.values(pg).reduce((a,b)=>a*b.length,1);
   document.getElementById('bt-loading-msg').textContent='Testing '+combos+' combinations...';
   try{
-    const r=await fetch(API+'/api/backtest/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:s,param_grid:pg,initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:'1day',limit:btLimit})});
+    const r=await fetch(API+'/api/backtest/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:document.getElementById('bt-symbol').value.trim(),strategy:s,param_grid:pg,initial_capital:parseFloat(document.getElementById('bt-capital').value)||10000,timeframe:btTimeframe||'1day',limit:btLimit})});
     const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
     document.getElementById('bt-loading').style.display='none';
     if(d.best){document.getElementById('opt-best').innerHTML='BEST: '+JSON.stringify(d.best.params)+' | Return: '+d.best.metrics.total_return_pct+'% | Sharpe: '+d.best.metrics.sharpe_ratio;}

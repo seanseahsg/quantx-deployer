@@ -77,11 +77,36 @@ def _fmp_symbol(symbol):
     return symbol
 
 
+def _aggregate_weekly(daily_bars):
+    """Aggregate daily bars into weekly (Mon-Fri) bars."""
+    if not daily_bars:
+        return []
+    from datetime import datetime as _dt
+    weeks = {}
+    for b in daily_bars:
+        try:
+            d = _dt.strptime(b["date"][:10], "%Y-%m-%d")
+            # ISO week key
+            wk = d.strftime("%G-W%V")
+        except Exception:
+            continue
+        if wk not in weeks:
+            weeks[wk] = {"date": b["date"][:10], "open": b["open"], "high": b["high"],
+                         "low": b["low"], "close": b["close"], "volume": b["volume"]}
+        else:
+            w = weeks[wk]
+            w["high"] = max(w["high"], b["high"])
+            w["low"] = min(w["low"], b["low"])
+            w["close"] = b["close"]
+            w["volume"] += b["volume"]
+    return list(weeks.values())
+
+
 def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
     bars, source = load_from_r2(symbol, timeframe)
     if bars:
-        print(f"[BACKTEST] Cache hit: {symbol} ({len(bars)} bars)")
-        return bars, "cache"
+        print(f"[BACKTEST] Cache hit: {symbol} {timeframe} ({len(bars)} bars)")
+        return bars[:limit] if limit and len(bars) > limit else bars, "cache"
 
     fmp_key = _get_fmp_key()
     if not fmp_key:
@@ -89,10 +114,20 @@ def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
 
     fmp_sym = _fmp_symbol(symbol)
     print(f"[BACKTEST] Fetching {symbol} ({fmp_sym}) {timeframe} from FMP...")
-    if timeframe == "1day":
-        url = f"{FMP_BASE}/historical-price-eod/full?symbol={fmp_sym}&limit={limit}&apikey={fmp_key}"
+
+    INTRADAY = {"1min", "5min", "15min", "1hour", "4hour"}
+
+    if timeframe == "1week":
+        # Fetch daily then aggregate
+        daily_bars, _ = fetch_ohlcv(symbol, "1day", limit * 5)
+        bars = _aggregate_weekly(daily_bars)
+        save_to_r2(symbol, "1week", bars)
+        return bars[:limit] if limit else bars, "live"
+    elif timeframe in INTRADAY:
+        url = f"{FMP_BASE}/historical-chart/{timeframe}/{fmp_sym}?apikey={fmp_key}"
     else:
-        url = f"{FMP_BASE}/historical-chart/{timeframe}?symbol={fmp_sym}&apikey={fmp_key}"
+        # 1day (default)
+        url = f"{FMP_BASE}/historical-price-eod/full?symbol={fmp_sym}&limit={limit}&apikey={fmp_key}"
 
     r = requests.get(url, timeout=30)
     r.raise_for_status()
