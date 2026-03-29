@@ -344,7 +344,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-group"><label>Strategy Name</label><input type="text" id="pm-sname" placeholder="Strategy Name"></div>
 </div>
 <div class="form-row three">
-<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="pm-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="pm-confirm"></div><ul class="symbol-dropdown hidden" id="pm-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK, 2800.HK</div><div id="pm-rec-syms" class="quick-syms"></div><div id="pm-quick-all"></div></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="pm-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="pm-confirm"></div><ul class="symbol-dropdown hidden" id="pm-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK | SGX: D05.SI</div><div id="pm-rec-syms" class="quick-syms"></div><div id="pm-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="pm-arena"><option>US</option><option>HK</option><option>SG</option></select><div class="hint" id="pm-lot-hint"></div></div>
 <div class="form-group"><label>Timeframe</label><select id="pm-tf"></select></div>
 </div>
@@ -432,7 +432,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <!-- Config panel -->
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px">
 <h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--cyan);margin-bottom:16px">BACKTEST CONFIG</h3>
-<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span></div></div>
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span><span class="quick-sym" onclick="fillSym('bt','D05.SI')">D05.SI</span></div></div>
 <div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"></select></div>
 <div class="form-group"><label>Timeframe</label><select id="bt-timeframe" onchange="onBtTimeframeChange()"><option value="1min">1m</option><option value="5min">5m</option><option value="15min">15min</option><option value="30min">30m</option><option value="1hour">1h</option><option value="4hour">4h</option><option value="1day" selected>1d</option><option value="1week">1W</option></select></div>
 <div class="form-group"><label>Capital ($)</label><input type="number" id="bt-capital" value="10000"></div>
@@ -772,8 +772,23 @@ async function toggleStrat(sid,active){await fetch(API+'/api/strategy/'+encodeUR
 
 /* ── Symbol Search (3-tier: local → central cache → LongPort) ─────────── */
 let symbolDB={};
+// Inline SGX fallbacks — guaranteed to exist even if symbols.json is cached/stale
+const _SGX_FALLBACK={
+'D05':   {symbol:'D05.SI',name:'DBS Group Holdings',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'D05.SI':{symbol:'D05.SI',name:'DBS Group Holdings',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'O39':   {symbol:'O39.SI',name:'OCBC Bank',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'O39.SI':{symbol:'O39.SI',name:'OCBC Bank',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'U11':   {symbol:'U11.SI',name:'United Overseas Bank',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'U11.SI':{symbol:'U11.SI',name:'United Overseas Bank',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'Z74':   {symbol:'Z74.SI',name:'Singapore Telecom',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'Z74.SI':{symbol:'Z74.SI',name:'Singapore Telecom',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'C6L':   {symbol:'C6L.SI',name:'Singapore Airlines',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+'C6L.SI':{symbol:'C6L.SI',name:'Singapore Airlines',exchange:'SGX',type:'Stock',currency:'SGD',lot_size:100},
+};
 (async function(){
-  try{const r=await fetch('/static/symbols.json');const d=await r.json();symbolDB=d.symbols||{};}catch(e){console.warn('symbols.json load failed:',e);}
+  try{const r=await fetch('/static/symbols.json?v='+Date.now());const d=await r.json();symbolDB=d.symbols||{};console.log('[SYM] Loaded '+Object.keys(symbolDB).length+' symbols');}catch(e){console.warn('symbols.json load failed:',e);}
+  // Inject SGX fallbacks (overwrites stale entries if any)
+  for(const[k,v]of Object.entries(_SGX_FALLBACK)){symbolDB[k]=v;}
   // Sync central cache in background
   try{
     const cu=localStorage.getItem('qx_central_url')||'';
@@ -807,6 +822,8 @@ function initSymbolInput(inputEl, onSelect){
   async function search(q){
     q=q.trim().toUpperCase();
     if(!q){dropdown.classList.add('hidden');confirm.classList.add('hidden');return;}
+    // If symbolDB is still empty (async load not finished), inject fallbacks now
+    if(Object.keys(symbolDB).length===0){console.warn('[SYM] symbolDB empty during search, injecting fallbacks');for(const[k,v]of Object.entries(_SGX_FALLBACK)){symbolDB[k]=v;}}
     // Build matches: exact first, then fuzzy
     const exact=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK']||symbolDB[q+'.SI'];
     const matches=[];const seen=new Set();
@@ -814,8 +831,8 @@ function initSymbolInput(inputEl, onSelect){
     for(const [key,val] of Object.entries(symbolDB)){
       if(matches.length>=6)break;
       if(seen.has(val.symbol))continue;
-      if(key!==val.symbol&&key!==val.symbol.replace('.US','')&&key!==val.symbol.replace('.HK',''))continue;
-      if(key.startsWith(q)||val.symbol.startsWith(q)||val.name.toUpperCase().includes(q)){
+      if(key!==val.symbol&&key!==val.symbol.replace('.US','')&&key!==val.symbol.replace('.HK','')&&key!==val.symbol.replace('.SI',''))continue;
+      if(key.startsWith(q)||val.symbol.startsWith(q)||(val.name||'').toUpperCase().includes(q)){
         matches.push(val);seen.add(val.symbol);
       }
     }
@@ -839,7 +856,7 @@ function initSymbolInput(inputEl, onSelect){
     confirm.className='symbol-confirm found';
   }
   function showNotFound(q){
-    confirm.textContent='Not found: "'+q+'". Try: NVDA, SPY.US, 700.HK';
+    confirm.textContent='Not found: "'+q+'". Try: NVDA, SPY.US, 700.HK, D05.SI';
     confirm.className='symbol-confirm not-found';
   }
   function showDropdown(matches){
@@ -884,7 +901,7 @@ function initSymbolInput(inputEl, onSelect){
 // onSelect callback: auto-set arena + lot hint
 function _onSymSelect(prefix,sym){
   const a=document.getElementById(prefix+'-arena');
-  if(a){if(sym.symbol.endsWith('.HK'))a.value='HK';else if(sym.symbol.endsWith('.US'))a.value='US';}
+  if(a){if(sym.symbol.endsWith('.HK'))a.value='HK';else if(sym.symbol.endsWith('.SI'))a.value='SG';else if(sym.symbol.endsWith('.US'))a.value='US';}
   const lh=document.getElementById(prefix+'-lot-hint');
   if(lh&&sym.lot_size)lh.textContent='Lot size: '+sym.lot_size+' shares/lot';
 }
@@ -896,7 +913,7 @@ function fillSym(prefix,sym){
   input.dispatchEvent(new Event('input'));
   // Force immediate search (bypass debounce for quick-select)
   const q=sym.toUpperCase();
-  const d=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK'];
+  const d=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK']||symbolDB[q+'.SI'];
   if(d){
     const confirm=input.parentElement.querySelector('.symbol-confirm');
     confirm.textContent=d.symbol+' — '+d.name+' | '+d.exchange+' | '+d.currency;
@@ -922,6 +939,7 @@ function buildQuickSyms(prefix){
     {label:'US ETFs',syms:['SPY.US','QQQ.US','TQQQ.US','SOXL.US','GLD.US','SQQQ.US']},
     {label:'HK Stocks',syms:['700.HK','9988.HK','0005.HK','1299.HK']},
     {label:'HK ETFs',syms:['2800.HK']},
+    {label:'SGX',syms:['D05.SI','O39.SI','U11.SI','Z74.SI','C6L.SI']},
   ];
   el.innerHTML=groups.map(g=>`<div style="margin-top:6px"><span style="font-size:.6rem;color:var(--dim);font-family:'Share Tech Mono',monospace;margin-right:6px">${g.label}:</span>${g.syms.map(s=>`<span class="quick-sym" onclick="fillSym('${prefix}','${s}')">${s}</span>`).join('')}</div>`).join('');
 }

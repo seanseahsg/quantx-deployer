@@ -40,11 +40,11 @@ def _ttl_seconds(timeframe):
 
 
 def _r2_key(symbol, timeframe):
-    return f"{symbol.replace('.','_')}/{timeframe}/full.json"
+    return f"{symbol}/{timeframe}/full.json"
 
 
 def _r2_meta_key(symbol, timeframe):
-    return f"{symbol.replace('.','_')}/{timeframe}/meta.json"
+    return f"{symbol}/{timeframe}/meta.json"
 
 
 def _get_r2():
