@@ -302,7 +302,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-row three">
 <div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="cu-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="cu-confirm"></div><ul class="symbol-dropdown hidden" id="cu-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="cu-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="cu-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
-<div class="form-group"><label>Timeframe</label><select id="cu-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option></select></div>
+<div class="form-group"><label>Timeframe</label><select id="cu-tf"><option value="1min">1m</option><option value="5min">5m</option><option value="15min">15min</option><option value="30min">30m</option><option value="1hour">1h</option><option value="4hour">4h</option><option value="1day" selected>1d</option><option value="1week">1W</option></select></div>
 </div>
 <div class="form-group"><label>Lots</label><input type="number" id="cu-lots" value="1" step="1" style="width:120px"></div>
 <div style="display:flex;gap:12px;margin-top:8px">
@@ -322,7 +322,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-row three">
 <div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="sc-symbol" class="symbol-input" placeholder="e.g. NVDA, 700.HK, SPY" autocomplete="off" autocorrect="off" spellcheck="false"><div class="symbol-confirm hidden" id="sc-confirm"></div><ul class="symbol-dropdown hidden" id="sc-dropdown"></ul></div><div class="hint">US: SPY, TQQQ | HK: 700.HK</div><div id="sc-quick-all"></div></div>
 <div class="form-group"><label>Arena</label><select id="sc-arena"><option>US</option><option>HK</option><option>SG</option></select></div>
-<div class="form-group"><label>Timeframe</label><select id="sc-tf"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select></div>
+<div class="form-group"><label>Timeframe</label><select id="sc-tf"><option value="1min">1m</option><option value="5min">5m</option><option value="15min">15min</option><option value="30min">30m</option><option value="1hour">1h</option><option value="4hour">4h</option><option value="1day" selected>1d</option><option value="1week">1W</option></select></div>
 </div>
 <h3 style="margin-top:8px">RISK</h3>
 <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
@@ -352,7 +352,7 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <h3 style="font-family:'Orbitron',monospace;font-size:.8rem;color:var(--cyan);margin-bottom:16px">BACKTEST CONFIG</h3>
 <div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="bt-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="bt-confirm"></div><ul class="symbol-dropdown hidden" id="bt-dropdown"></ul></div><div class="quick-syms" style="margin-top:4px"><span class="quick-sym" onclick="fillSym('bt','TQQQ.US')">TQQQ</span><span class="quick-sym" onclick="fillSym('bt','SPY.US')">SPY</span><span class="quick-sym" onclick="fillSym('bt','AAPL')">AAPL</span><span class="quick-sym" onclick="fillSym('bt','700.HK')">700.HK</span></div></div>
 <div class="form-group"><label>Strategy</label><select id="bt-strategy" onchange="updateBtParams()"></select></div>
-<div class="form-group"><label>Timeframe</label><select id="bt-timeframe" onchange="onBtTimeframeChange()"><option value="1min">1 Min</option><option value="5min">5 Min</option><option value="15min">15 Min</option><option value="1hour">1 Hour</option><option value="4hour">4 Hour</option><option value="1day" selected>1 Day</option><option value="1week">1 Week</option></select></div>
+<div class="form-group"><label>Timeframe</label><select id="bt-timeframe" onchange="onBtTimeframeChange()"><option value="1min">1m</option><option value="5min">5m</option><option value="15min">15min</option><option value="30min">30m</option><option value="1hour">1h</option><option value="4hour">4h</option><option value="1day" selected>1d</option><option value="1week">1W</option></select></div>
 <div class="form-group"><label>Capital ($)</label><input type="number" id="bt-capital" value="10000"></div>
 <div class="form-group"><label>Period</label><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(252,this)">1Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(504,this)">2Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(756,this)">3Y</button><button class="btn-sm" style="background:rgba(0,240,255,.1);border:1px solid var(--cyan);color:var(--cyan);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" id="bt-period-active" onclick="setBtLimit(1260,this)">5Y</button><button class="btn-sm" style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setBtLimit(2520,this)">10Y</button></div></div>
 <div id="bt-from-ideation" style="display:none;background:rgba(0,240,255,.06);border:1px solid var(--cyan);border-radius:4px;padding:6px 10px;margin-bottom:8px;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--cyan);align-items:center;gap:6px"><span id="bt-loaded-name"></span><button onclick="document.getElementById('bt-from-ideation').style.display='none'" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:.8rem;margin-left:auto">x</button></div>
@@ -994,8 +994,10 @@ function selectLib(id){
   // Arena set by search callback
   // Populate timeframe dropdown (only allowed)
   const tf=document.getElementById('pm-tf');
-  tf.innerHTML=(selectedLib.allowed_timeframes||['5m']).map(t=>`<option>${t}</option>`).join('');
-  tf.value=selectedLib.default_timeframe||'5m';
+  const tfMap={'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1hour','4h':'4hour','1d':'1day','1w':'1week','1min':'1min','5min':'5min','15min':'15min','30min':'30min','1hour':'1hour','4hour':'4hour','1day':'1day','1week':'1week'};
+  const tfLabel={'1min':'1m','5min':'5m','15min':'15min','30min':'30m','1hour':'1h','4hour':'4h','1day':'1d','1week':'1W'};
+  tf.innerHTML=(selectedLib.allowed_timeframes||['5min']).map(t=>{const v=tfMap[t]||t;return `<option value="${v}">${tfLabel[v]||t}</option>`;}).join('');
+  tf.value=tfMap[selectedLib.default_timeframe]||selectedLib.default_timeframe||'1day';
   // Set default risk
   const dr=selectedLib.default_risk||{};
   document.getElementById('pm-tp').value=dr.tp_pct||0.5;
@@ -1195,7 +1197,7 @@ function setBtLimit(v,el){
 function onBtTimeframeChange(){
   btTimeframe=document.getElementById('bt-timeframe')?.value||'1day';
   // Cap limits for intraday
-  const caps={'1min':5850,'5min':4680,'15min':4680,'1hour':6552,'4hour':3276,'1day':99999,'1week':99999};
+  const caps={'1min':5850,'5min':4680,'15min':4680,'30min':2880,'1hour':6552,'4hour':3276,'1day':99999,'1week':99999};
   const cap=caps[btTimeframe]||99999;
   if(btLimit>cap)btLimit=cap;
 }

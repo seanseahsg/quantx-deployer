@@ -98,7 +98,7 @@
       "indicator": "RSI",
       "default_timeframe": "5m",
       "allowed_timeframes": [
-        "tick",
+        "1min",
         "1m",
         "5m",
         "15m"
@@ -448,9 +448,9 @@
       "description": "Trades mean reversion back to VWAP (Volume Weighted Average Price) \u2014 the fair value benchmark used by institutional traders. Buys when price drops significantly below VWAP, sells when it rises significantly above. Excellent intraday strategy for liquid stocks like Tencent and TQQQ.",
       "signal_logic": "BUY when price deviates below VWAP by more than deviation_pct%. SELL when price deviates above VWAP by more than deviation_pct%.",
       "indicator": "VWAP_DEV",
-      "default_timeframe": "tick",
+      "default_timeframe": "1min",
       "allowed_timeframes": [
-        "tick",
+        "1min",
         "1m",
         "5m"
       ],
@@ -477,7 +477,7 @@
         "2800.HK"
       ],
       "recommended_timeframes": [
-        "tick",
+        "1min",
         "1m"
       ],
       "learn": {
@@ -525,9 +525,9 @@
       "description": "Dynamically spaces grid levels using ATR(14) to adapt to each stock's actual volatility. Restarts fresh every trading day at market open. All orders cancelled at market close. Profits from price oscillation within the grid.",
       "signal_logic": "DAILY OPEN: Calculates ATR(14), sets grid spacing = ATR x multiplier, places N buy limits below CMP. ON BUY FILL: Places sell TP above. ON TP FILL: Replenishes buy. AT CLOSE: Cancels all, closes positions. NEXT OPEN: Rebuilds with fresh ATR.",
       "indicator": "SYMMETRIC_GRID",
-      "default_timeframe": "tick",
+      "default_timeframe": "1min",
       "allowed_timeframes": [
-        "tick"
+        "1min"
       ],
       "params": [
         {
@@ -588,7 +588,7 @@
         "2800.HK"
       ],
       "recommended_timeframes": [
-        "tick"
+        "1min"
       ],
       "learn": {
         "what_it_is": "Automated market-making strategy. Profits from price oscillation without predicting direction. Buy below, sell above, repeat.",
@@ -1180,7 +1180,7 @@
       "indicator": "SIMONS_BOT",
       "default_timeframe": "1m",
       "allowed_timeframes": [
-        "tick",
+        "1min",
         "1m",
         "5m"
       ],
@@ -1275,7 +1275,7 @@
         "SPY.US"
       ],
       "recommended_timeframes": [
-        "tick",
+        "1min",
         "1m"
       ],
       "learn": {

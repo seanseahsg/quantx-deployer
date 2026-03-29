@@ -115,7 +115,7 @@ def fetch_ohlcv(symbol, timeframe="1day", limit=1260):
     fmp_sym = _fmp_symbol(symbol)
     print(f"[BACKTEST] Fetching {symbol} ({fmp_sym}) {timeframe} from FMP...")
 
-    INTRADAY = {"1min", "5min", "15min", "1hour", "4hour"}
+    INTRADAY = {"1min", "5min", "15min", "30min", "1hour", "4hour"}
 
     if timeframe == "1week":
         # Fetch daily then aggregate
