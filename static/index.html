@@ -136,10 +136,8 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="header"><h1>QUANTX DEPLOYER</h1><div id="hdr-right" style="display:flex;align-items:center;gap:12px"><span class="email-display" id="hdr-email"></span><span id="hdr-logout" style="display:none;font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--dim);cursor:pointer;text-decoration:underline" onclick="doLogout()">logout</span></div></div>
 <div class="tabs">
 <div class="tab active" onclick="switchTab('register')">Register</div>
-<div class="tab" onclick="switchTab('strategies')"><span>Ideation</span><span style="display:block;font-size:.45rem;color:var(--cyan);letter-spacing:3px">I</span></div>
-<div class="tab" onclick="switchTab('backtest')"><span>Backtest</span><span style="display:block;font-size:.45rem;color:var(--cyan);letter-spacing:3px">B</span></div>
-<div class="tab" onclick="switchTab('optimize')"><span>Optimize</span><span style="display:block;font-size:.45rem;color:var(--cyan);letter-spacing:3px">O</span></div>
-<div class="tab" onclick="switchTab('deploy')"><span>Trade</span><span style="display:block;font-size:.45rem;color:var(--cyan);letter-spacing:3px">T</span></div>
+<div class="tab" onclick="switchTab('develop')">Develop</div>
+<div class="tab" onclick="switchTab('deploy')">Deploy</div>
 <div class="tab" onclick="switchTab('dashboard')">Monitor</div>
 <div class="tab" onclick="switchTab('options')" style="position:relative">Options <span style="position:absolute;top:-2px;right:-4px;font-size:.45rem;background:var(--magenta);color:#fff;padding:1px 4px;border-radius:3px;font-family:'Share Tech Mono',monospace">SOON</span></div>
 <div class="tab" onclick="switchTab('settings')">Settings</div>
@@ -243,8 +241,55 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 </div>
 </div>
 
-<!-- TAB: STRATEGIES -->
-<div class="tab-content" id="tab-strategies">
+<!-- TAB: DEVELOP (merged Ideation + Backtest + Optimize) -->
+<div class="tab-content" id="tab-develop">
+<div style="display:grid;grid-template-columns:320px 1fr;gap:20px;min-height:600px">
+<!-- LEFT: Strategy Library -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;overflow-y:auto;max-height:700px">
+<h3 style="font-family:'Orbitron',monospace;font-size:.7rem;color:var(--cyan);margin-bottom:10px;letter-spacing:2px">STRATEGY LIBRARY</h3>
+<div id="dev-lib-list"></div>
+</div>
+<!-- RIGHT: Config + Results + Optimize -->
+<div>
+<!-- Section 1: Config -->
+<div id="dev-config" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<div id="dev-strat-header" style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-family:'Inter',sans-serif;font-size:15px;font-weight:500;color:#E8E8E8" id="dev-strat-name">Select a strategy</span><span id="dev-strat-badge" style="font-size:10px;padding:2px 8px;border-radius:4px"></span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div class="form-group"><label>Symbol</label><div class="symbol-field"><input type="text" id="dev-symbol" class="symbol-input" value="AAPL" placeholder="AAPL, TQQQ, 0700.HK" autocomplete="off" spellcheck="false"><div class="symbol-confirm hidden" id="dev-confirm"></div><ul class="symbol-dropdown hidden" id="dev-dropdown"></ul></div></div>
+<div class="form-group"><label>Timeframe</label><select id="dev-timeframe"><option value="1min">1m</option><option value="5min">5m</option><option value="15min">15min</option><option value="30min">30m</option><option value="1hour">1h</option><option value="4hour">4h</option><option value="1day" selected>1d</option><option value="1week">1W</option></select></div>
+</div>
+<div id="dev-params-container" style="margin-top:8px"></div>
+<div style="display:flex;gap:4px;margin:12px 0"><button style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setDevLimit(252,this)">1Y</button><button style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setDevLimit(504,this)">2Y</button><button style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setDevLimit(756,this)">3Y</button><button style="background:rgba(0,240,255,.1);border:1px solid var(--cyan);color:var(--cyan);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setDevLimit(1260,this)">5Y</button><button style="background:var(--surface2);border:1px solid var(--border);color:var(--dim);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:.65rem" onclick="setDevLimit(2520,this)">10Y</button></div>
+<div class="form-group"><label>Capital ($)</label><input type="number" id="dev-capital" value="10000" style="width:120px"></div>
+<button onclick="runDevBacktest()" class="btn btn-primary" style="width:100%;margin-top:8px">Run Backtest</button>
+</div>
+<!-- Section 2: Backtest Results (hidden until run) -->
+<div id="dev-bt-results" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span id="dev-bt-badge" style="padding:3px 10px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.65rem"></span><span id="dev-bt-info" style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--dim)"></span></div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
+<div class="card"><div class="label">RETURN</div><div class="value" id="dev-m-ret" style="font-size:1rem">—</div></div>
+<div class="card"><div class="label">CAGR</div><div class="value" id="dev-m-cagr" style="font-size:1rem">—</div></div>
+<div class="card"><div class="label">SHARPE</div><div class="value" id="dev-m-sharpe" style="font-size:1rem">—</div></div>
+<div class="card"><div class="label">MAX DD</div><div class="value" id="dev-m-dd" style="font-size:1rem">—</div></div>
+<div class="card"><div class="label">WIN RATE</div><div class="value" id="dev-m-wr" style="font-size:1rem">—</div></div>
+</div>
+<div style="background:#0a0a14;border:1px solid var(--border);border-radius:8px;padding:12px"><canvas id="dev-equity-chart" style="width:100%;height:250px"></canvas></div>
+<div style="display:flex;gap:12px;margin-top:12px"><button onclick="showDevOptimize()" class="btn btn-magenta" style="flex:1">Optimize</button><button onclick="saveDevStrategy()" class="btn btn-success" style="flex:1">Save Strategy</button></div>
+</div>
+<!-- Section 3: Optimize (hidden until clicked) -->
+<div id="dev-opt-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px">
+<h3 style="font-family:'Orbitron',monospace;font-size:.75rem;color:var(--magenta);margin-bottom:12px">OPTIMIZE</h3>
+<div id="dev-opt-ranges"></div>
+<div id="dev-opt-combos" style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--green);margin:8px 0"></div>
+<button id="dev-opt-btn" onclick="runDevOptimize()" class="btn btn-magenta" style="width:100%">Run Sweep</button>
+<div id="dev-opt-results" style="margin-top:12px"></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Old tabs kept as hidden for backward compat -->
+<div class="tab-content" id="tab-strategies" style="display:none">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
 <h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan)">STRATEGIES</h2>
 <button class="btn btn-magenta btn-sm" onclick="document.getElementById('mode-modal').classList.add('open')">+ ADD STRATEGY</button>
@@ -421,21 +466,9 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 </div>
 </div>
 
-<!-- IBOT Journey Breadcrumb -->
-<div id="ibot-breadcrumb" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;margin-bottom:16px;font-family:'Share Tech Mono',monospace;font-size:.7rem;display:flex;gap:8px;align-items:center">
-<span id="ibot-step-ideation" class="ibot-step">○ IDEATION</span><span style="color:var(--dim)">→</span>
-<span id="ibot-step-backtest" class="ibot-step">○ BACKTEST</span><span style="color:var(--dim)">→</span>
-<span id="ibot-step-optimize" class="ibot-step">○ OPTIMIZE</span><span style="color:var(--dim)">→</span>
-<span id="ibot-step-trade" class="ibot-step">○ TRADE</span>
-</div>
-
 <!-- TAB: DEPLOY -->
 <div class="tab-content" id="tab-deploy">
-<div id="ibot-journey" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:.7rem">
-<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><span id="ij-i" style="color:var(--dim)">○ I</span><span style="color:var(--dim)">→</span><span id="ij-b" style="color:var(--dim)">○ B</span><span style="color:var(--dim)">→</span><span id="ij-o" style="color:var(--dim)">○ O</span><span style="color:var(--dim)">→</span><span id="ij-t" style="color:var(--cyan)">👈 T</span></div>
-<div id="ij-summary" style="color:var(--dim);font-size:.7rem"></div>
-</div>
-<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:16px">TRADE</h2>
+<h2 style="font-family:'Orbitron',monospace;font-size:1rem;color:var(--cyan);margin-bottom:16px">DEPLOY</h2>
 <!-- Market hours info -->
 <div id="deploy-market-info" style="padding:8px 14px;border-radius:6px;background:var(--surface);border:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--dim);margin-bottom:12px;display:flex;justify-content:space-between"></div>
 <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
@@ -547,7 +580,7 @@ function setUser(email,name,central){
   EMAIL=email;UNAME=name||'';if(central)CENTRAL=central;
   localStorage.setItem('qx_email',email);localStorage.setItem('qx_name',name||'');
   if(central){localStorage.setItem('qx_central',central);localStorage.setItem('qx_central_url',central);}
-  localStorage.setItem('qx_last_tab','strategies');
+  localStorage.setItem('qx_last_tab','develop');
   document.getElementById('hdr-email').textContent=email;
   document.getElementById('hdr-logout').style.display=email?'inline':'none';
 }
@@ -560,12 +593,11 @@ function doLogout(){
 
 /* ── Tabs ─────────────────────────────────────────────────────────────── */
 function switchTab(n){
-  const tabs=['register','strategies','backtest','optimize','deploy','dashboard','options','settings'];
+  const tabs=['register','develop','deploy','dashboard','options','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===n));
   document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
-  if(n==='strategies')loadStrategies();
-  if(n==='optimize'){populateOptStrategies();try{var ot=JSON.parse(sessionStorage.getItem('opt_transfer')||'{}');if(ot.symbol)document.getElementById('opt-symbol').value=ot.symbol;if(ot.strategy){document.getElementById('opt-strategy').value=ot.strategy;renderOptRanges();}if(ot.capital)document.getElementById('opt-capital').value=ot.capital;if(ot.limit)optLimit=ot.limit;}catch(e){}}
+  if(n==='develop')loadLibrary();
   if(n==='deploy')loadDeploySummary();
   if(n==='dashboard')refreshDashboard();
   if(n!=='register')localStorage.setItem('qx_last_tab',n);
@@ -627,7 +659,7 @@ async function checkApprovalStatus(){
       if(_pendingPoll){clearInterval(_pendingPoll);_pendingPoll=null;}
       setUser(EMAIL,d.name||UNAME,CENTRAL);
       showWelcome();
-      setTimeout(function(){switchTab('strategies');},1500);
+      setTimeout(function(){switchTab('develop');},1500);
       return;
     }
     if(d.status==='rejected'){
@@ -638,7 +670,7 @@ async function checkApprovalStatus(){
   }catch(e){document.getElementById('pend-poll-msg').textContent='Check failed. Retrying...';}
 }
 function continueAsUser(){
-  switchTab(localStorage.getItem('qx_last_tab')||'strategies');
+  switchTab(localStorage.getItem('qx_last_tab')||'develop');
 }
 
 async function doRegister(){
@@ -655,7 +687,7 @@ async function doRegister(){
     LIB_CACHE=null;
     if(d.status==='registered'||d.status==='approved'){
       msg.textContent='Registered! Redirecting...';msg.className='msg ok';
-      setTimeout(function(){switchTab('strategies');},1000);
+      setTimeout(function(){switchTab('develop');},1000);
     }else if(d.status==='pending'){
       showPending();
     }else if(d.status==='rejected'){
@@ -873,7 +905,7 @@ async function loadLibrary(){
   try{
     const r=await fetch(API+'/api/strategies-library');
     if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();LIB_CACHE=d.strategies||[];LIB_SECTIONS=d.sections||[];renderLibrary(LIB_CACHE);populateBtStrategies();
+    const d=await r.json();LIB_CACHE=d.strategies||[];LIB_SECTIONS=d.sections||[];renderLibrary(LIB_CACHE);populateBtStrategies();loadDevLibrary();
   }catch(e){document.getElementById('lib-grid').innerHTML='<p style="color:var(--red);font-family:Share Tech Mono,monospace;font-size:.8rem">Failed to load strategy library: '+e.message+'</p>';}
 }
 const CAT_COLORS={'Trend Following':'var(--cyan)','Mean Reversion':'#b066ff','Grid Trading':'var(--yellow)','Breakout':'#ff8833','Momentum':'var(--green)','VWAP':'#ff66aa'};
@@ -1437,6 +1469,167 @@ function backtestBest(){
   setTimeout(()=>{Object.entries(best).forEach(([k,v])=>{const el=document.getElementById('btp-'+k);if(el)el.value=v;});},400);
 }
 
+/* ── Develop Tab ───────────────────────────────────────────────────────── */
+let devLimit=1260,devSelectedStrat=null,devEqChart=null;
+function setDevLimit(v,el){devLimit=v;el.parentElement.querySelectorAll('button').forEach(b=>{b.style.background='var(--surface2)';b.style.borderColor='var(--border)';b.style.color='var(--dim)';});el.style.background='rgba(0,240,255,.1)';el.style.borderColor='var(--cyan)';el.style.color='var(--cyan)';}
+
+function loadDevLibrary(){
+  const el=document.getElementById('dev-lib-list');if(!el)return;
+  const libs=LIB_CACHE||[];
+  const sections=LIB_SECTIONS||[];
+  const bySec={};libs.forEach(s=>{const sec=s.section||'other';if(!bySec[sec])bySec[sec]=[];bySec[sec].push(s);});
+  let h='';
+  ['famous_investors','trend_following','mean_reversion','breakout','grid_trading'].forEach(secId=>{
+    const strats=bySec[secId];if(!strats)return;
+    const sec=sections.find(x=>x.id===secId)||{title:secId};
+    const ss=SEC_STYLE[secId]||{icon:'',bg:'#1a1a2e',badge:'#888'};
+    h+=`<div class="lib-section-hdr" style="margin:12px 0 6px">${ss.icon} ${sec.title||secId}</div>`;
+    strats.forEach(s=>{
+      h+=`<div onclick="selectDevStrategy('${s.id}')" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background .15s;border-left:3px solid transparent" class="dev-lib-row" data-sid="${s.id}">
+        <div style="width:28px;height:28px;border-radius:6px;background:${ss.bg};display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">${s.investor?s.name.charAt(0):ss.cardIcon||''}</div>
+        <div style="min-width:0"><div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+        <div style="font-size:9px;color:${ss.badge}">${s.category}</div></div>
+      </div>`;
+    });
+  });
+  el.innerHTML=h;
+}
+
+function selectDevStrategy(id){
+  const s=(LIB_CACHE||[]).find(x=>x.id===id);if(!s)return;
+  devSelectedStrat=s;
+  // Highlight in list
+  document.querySelectorAll('.dev-lib-row').forEach(r=>{r.style.borderLeftColor=r.dataset.sid===id?'var(--cyan)':'transparent';r.style.background=r.dataset.sid===id?'rgba(0,240,255,.05)':'transparent';});
+  // Fill config
+  const ss=SEC_STYLE[s.section]||{badge:'#888',bg:'#1a1a2e'};
+  document.getElementById('dev-strat-name').textContent=s.name;
+  document.getElementById('dev-strat-badge').textContent=s.category;
+  document.getElementById('dev-strat-badge').style.cssText=`font-size:10px;padding:2px 8px;border-radius:4px;background:${ss.bg};color:${ss.badge}`;
+  // Recommended symbol
+  if(s.recommended_symbols&&s.recommended_symbols[0]){document.getElementById('dev-symbol').value=s.recommended_symbols[0];}
+  // Default timeframe
+  const tfSel=document.getElementById('dev-timeframe');
+  const dtf=s.default_timeframe||'1day';
+  const tfMap={'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1hour','4h':'4hour','1d':'1day','1w':'1week'};
+  tfSel.value=tfMap[dtf]||dtf;
+  // Params
+  const skip=['capital_budget','max_positions','arena','custom_tickers','direction'];
+  const ps=(s.params||[]).filter(p=>!skip.includes(p.key));
+  const pc=document.getElementById('dev-params-container');
+  pc.innerHTML=ps.map(p=>`<div class="form-group" style="margin-bottom:8px"><label style="font-size:.7rem">${p.label}</label><input type="number" id="devp-${p.key}" value="${p.default}" min="${p.min||0}" max="${p.max||9999}" step="${p.type==='float'?0.1:1}" style="width:100%"><div style="font-size:.6rem;color:var(--dim)">${p.hint||''}</div></div>`).join('');
+  // Hide previous results
+  document.getElementById('dev-bt-results').style.display='none';
+  document.getElementById('dev-opt-panel').style.display='none';
+}
+
+function getDevParams(){
+  if(!devSelectedStrat)return{};
+  const r={};
+  (devSelectedStrat.params||[]).forEach(p=>{const el=document.getElementById('devp-'+p.key);if(el)r[p.key]=p.type==='int'?parseInt(el.value):parseFloat(el.value);});
+  return r;
+}
+
+async function runDevBacktest(){
+  if(!devSelectedStrat){alert('Select a strategy first');return;}
+  const sym=document.getElementById('dev-symbol').value.trim();
+  const tf=document.getElementById('dev-timeframe').value;
+  const cap=parseFloat(document.getElementById('dev-capital').value)||10000;
+  const params=getDevParams();
+  document.getElementById('dev-bt-results').style.display='none';
+  document.getElementById('dev-opt-panel').style.display='none';
+  try{
+    const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,strategy:devSelectedStrat.id,params:params,initial_capital:cap,timeframe:tf,limit:devLimit})});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    const m=d.metrics;
+    // Metrics
+    animM('dev-m-ret',m.total_return_pct,'%');animM('dev-m-cagr',m.cagr_pct,'%');
+    animM('dev-m-sharpe',m.sharpe_ratio,'');animM('dev-m-dd',-m.max_drawdown_pct,'%');animM('dev-m-wr',m.win_rate_pct,'%');
+    document.getElementById('dev-bt-badge').textContent=d.source==='cache'?'CACHED':'LIVE';
+    document.getElementById('dev-bt-badge').style.cssText='padding:3px 10px;border-radius:4px;font-family:Share Tech Mono,monospace;font-size:.65rem;'+(d.source==='cache'?'background:rgba(0,240,255,.1);color:var(--cyan)':'background:rgba(0,255,136,.1);color:var(--green)');
+    const pl={252:'1Y',504:'2Y',756:'3Y',1260:'5Y',2520:'10Y'}[devLimit]||devLimit;
+    document.getElementById('dev-bt-info').textContent=d.symbol+' | '+m.bars_tested+' bars | '+pl+' | $'+m.initial_capital+' -> $'+m.final_value;
+    // Chart
+    if(typeof Chart!=='undefined'){
+      const ctx=document.getElementById('dev-equity-chart').getContext('2d');
+      if(devEqChart)devEqChart.destroy();
+      devEqChart=new Chart(ctx,{type:'line',data:{labels:d.equity_curve.map(p=>p.date),datasets:[{data:d.equity_curve.map(p=>p.value),borderColor:'#00ff88',borderWidth:2,pointRadius:0,fill:true,backgroundColor:'rgba(0,255,136,0.04)',tension:0.1}]},options:{responsive:true,animation:{duration:1200},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8,font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#555',callback:v=>'$'+v.toLocaleString(),font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}}}}});
+    }
+    document.getElementById('dev-bt-results').style.display='block';
+    // Store for optimize
+    window._lastDevBt=d;
+  }catch(e){alert('Backtest error: '+e.message);}
+}
+
+function showDevOptimize(){
+  const strat=devSelectedStrat;if(!strat)return;
+  const ranges=OPT_RANGES[strat.id]||[{k:'lookback',l:'Lookback',f:10,t:50,s:10}];
+  const c=document.getElementById('dev-opt-ranges');
+  c.innerHTML=ranges.map(r=>`<div style="margin-bottom:8px"><div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--cyan);margin-bottom:4px">${r.l}</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"><div><label style="font-size:.5rem;color:var(--dim)">From</label><input type="number" id="dopt-${r.k}-f" value="${r.f}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">To</label><input type="number" id="dopt-${r.k}-t" value="${r.t}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">Step</label><input type="number" id="dopt-${r.k}-s" value="${r.s}" step="${r.s}" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div></div></div>`).join('');
+  // Count combos
+  let combos=1;ranges.forEach(r=>{const f=parseFloat(document.getElementById('dopt-'+r.k+'-f')?.value||r.f),t=parseFloat(document.getElementById('dopt-'+r.k+'-t')?.value||r.t),s=parseFloat(document.getElementById('dopt-'+r.k+'-s')?.value||r.s);combos*=Math.max(1,Math.floor((t-f)/s)+1);});
+  document.getElementById('dev-opt-combos').textContent=combos+' combinations';
+  document.getElementById('dev-opt-results').innerHTML='';
+  document.getElementById('dev-opt-panel').style.display='block';
+}
+
+async function runDevOptimize(){
+  const strat=devSelectedStrat;if(!strat)return;
+  const sym=document.getElementById('dev-symbol').value.trim();
+  const tf=document.getElementById('dev-timeframe').value;
+  const cap=parseFloat(document.getElementById('dev-capital').value)||10000;
+  const ranges=OPT_RANGES[strat.id]||[];
+  const pg={};
+  ranges.forEach(r=>{
+    const f=parseFloat(document.getElementById('dopt-'+r.k+'-f')?.value||r.f);
+    const t=parseFloat(document.getElementById('dopt-'+r.k+'-t')?.value||r.t);
+    const s=parseFloat(document.getElementById('dopt-'+r.k+'-s')?.value||r.s);
+    const vals=[];for(let v=f;v<=t+0.001;v+=s)vals.push(parseFloat(v.toFixed(4)));
+    pg[r.k]=vals;
+  });
+  const btn=document.getElementById('dev-opt-btn');
+  btn.textContent='Running...';btn.disabled=true;
+  try{
+    const r=await fetch(API+'/api/backtest/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,strategy:strat.id,param_grid:pg,initial_capital:cap,timeframe:tf,limit:devLimit})});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+    const best=d.best;
+    const re=document.getElementById('dev-opt-results');
+    let h='';
+    if(best){const bps=Object.entries(best.params).map(([k,v])=>k+'='+v).join(', ');
+      h+=`<div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.25);border-radius:6px;padding:10px;margin-bottom:10px"><div style="color:var(--yellow);font-size:.75rem">BEST: ${bps}</div><div style="font-size:.7rem;color:var(--dim)">Return: ${best.metrics.total_return_pct}% | Sharpe: ${best.metrics.sharpe_ratio}</div></div>`;}
+    h+=`<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>Sharpe</th><th>Win%</th><th>DD</th></tr></thead><tbody>`;
+    (d.results||[]).slice(0,10).forEach((row,i)=>{const m=row.metrics;const ps=Object.entries(row.params).map(([k,v])=>k+'='+v).join(' ');
+      h+=`<tr${i===0?' style="background:rgba(255,215,0,.04);border-left:2px solid gold"':''}><td style="font-size:.65rem;color:var(--dim)">${ps}</td><td class="${m.total_return_pct>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct}%</td><td>${m.sharpe_ratio}</td><td>${m.win_rate_pct}%</td><td style="color:var(--red)">${m.max_drawdown_pct}%</td></tr>`;});
+    h+=`</tbody></table></div>`;
+    re.innerHTML=h;
+  }catch(e){alert('Optimize error: '+e.message);}
+  btn.textContent='Run Sweep';btn.disabled=false;
+}
+
+function saveDevStrategy(){
+  if(!devSelectedStrat||!EMAIL){alert('Select strategy and register first');return;}
+  // Save via existing strategy endpoint
+  const sym=document.getElementById('dev-symbol').value.trim();
+  const tf=document.getElementById('dev-timeframe').value;
+  const params=getDevParams();
+  const sid=devSelectedStrat.id+'_'+Date.now().toString(36).slice(-4).toUpperCase();
+  fetch(API+'/api/strategy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    email:EMAIL,strategy_id:sid,strategy_name:devSelectedStrat.name+' ('+sym+')',symbol:sym,
+    arena:sym.endsWith('.HK')?'HK':'US',timeframe:tf,
+    conditions:{type:devSelectedStrat.indicator||devSelectedStrat.id,params:params},
+    exit_rules:{},risk:devSelectedStrat.default_risk||{tp_pct:0.5,sl_pct:0.3,lots:1},
+    is_active:true,mode:'library',library_id:devSelectedStrat.id,
+  })}).then(r=>r.json()).then(d=>{
+    if(d.status==='saved')alert('Strategy saved! Go to Deploy tab to run it live.');
+    else alert(d.detail||'Save failed');
+  }).catch(e=>alert('Error: '+e.message));
+}
+
+// Init symbol input for develop tab
+setTimeout(function(){
+  const el=document.getElementById('dev-symbol');
+  if(el)initSymbolInput(el,function(sym){});
+},200);
+
 /* ── Deploy ────────────────────────────────────────────────────────────── */
 function getMarketInfo(symbol){
   const now=new Date();const sgt=new Date(now.getTime()+8*3600000);
@@ -1742,7 +1935,7 @@ document.getElementById('sc-code').value=[
         }catch(e){}
         // Approved — show welcome and auto-advance
         showWelcome();
-        const lastTab=localStorage.getItem('qx_last_tab')||'strategies';
+        const lastTab=localStorage.getItem('qx_last_tab')||'develop';
         setTimeout(function(){switchTab(lastTab);},1500);
         return;
       }
