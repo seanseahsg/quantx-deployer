@@ -6,7 +6,9 @@ import math
 import requests
 from datetime import datetime
 
-FMP_KEY = os.environ.get("FMP_API_KEY", "")
+from .config import FMP_API_KEY as _FMP_CFG
+
+FMP_KEY = _FMP_CFG or os.environ.get("FMP_API_KEY", "")
 FMP_BASE = "https://financialmodelingprep.com/stable"
 
 R2_ENDPOINT = os.environ.get("R2_ENDPOINT_URL", "")
