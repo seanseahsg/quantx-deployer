@@ -691,21 +691,28 @@ function initSymbolInput(inputEl, onSelect){
   async function search(q){
     q=q.trim().toUpperCase();
     if(!q){dropdown.classList.add('hidden');confirm.classList.add('hidden');return;}
-    // TIER 1: local (instant)
-    const exact=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK'];
-    if(exact){showConfirm(exact,'');dropdown.classList.add('hidden');onSelect(exact);return;}
-    const matches=_symGetSuggestions(q);
+    // Build matches: exact first, then fuzzy
+    const exact=symbolDB[q]||symbolDB[q+'.US']||symbolDB[q+'.HK']||symbolDB[q+'.SI'];
+    const matches=[];const seen=new Set();
+    if(exact){matches.push(exact);seen.add(exact.symbol);}
+    for(const [key,val] of Object.entries(symbolDB)){
+      if(matches.length>=6)break;
+      if(seen.has(val.symbol))continue;
+      if(key!==val.symbol&&key!==val.symbol.replace('.US','')&&key!==val.symbol.replace('.HK',''))continue;
+      if(key.startsWith(q)||val.symbol.startsWith(q)||val.name.toUpperCase().includes(q)){
+        matches.push(val);seen.add(val.symbol);
+      }
+    }
+    // Always show dropdown — require click to confirm
     if(matches.length>0){showDropdown(matches);confirm.classList.add('hidden');return;}
-    // TIER 2: central cache
+    // No local matches — try remote
     try{const cu=localStorage.getItem('qx_central_url')||'';
       if(cu){const r=await fetch(cu+'/api/symbol-cache?symbol='+encodeURIComponent(q),{signal:AbortSignal.timeout(2000)});
-        if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showConfirm(d,'cached');dropdown.classList.add('hidden');onSelect(d);return;}}}}catch(e){}
-    // TIER 3: LongPort API
+        if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showDropdown([d]);confirm.classList.add('hidden');return;}}}}catch(e){}
     try{const em=localStorage.getItem('qx_email')||'';
-      confirm.textContent='Searching LongPort...';confirm.className='symbol-confirm not-found';confirm.classList.remove('hidden');
       const r=await fetch(API+'/api/symbol-search?query='+encodeURIComponent(q)+'&email='+encodeURIComponent(em),{signal:AbortSignal.timeout(8000)});
-      if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showConfirm(d,'live');dropdown.classList.add('hidden');onSelect(d);_cacheToCentral(d);return;}}}catch(e){}
-    showNotFound(q);
+      if(r.ok){const d=await r.json();if(d.found){symbolDB[d.symbol]=d;showDropdown([d]);confirm.classList.add('hidden');_cacheToCentral(d);return;}}}catch(e){}
+    dropdown.classList.add('hidden');showNotFound(q);
   }
 
   function showConfirm(sym,tier){
@@ -748,7 +755,8 @@ function initSymbolInput(inputEl, onSelect){
 
   inputEl.addEventListener('input',function(){
     clearTimeout(timer);
-    if(!inputEl.value.trim()){confirm.classList.add('hidden');dropdown.classList.add('hidden');return;}
+    confirm.classList.add('hidden');  // clear green when typing
+    if(!inputEl.value.trim()){dropdown.classList.add('hidden');return;}
     timer=setTimeout(function(){search(inputEl.value);},300);
   });
 
