@@ -263,8 +263,14 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 <div class="form-group"><label>Capital ($)</label><input type="number" id="dev-capital" value="10000" style="width:120px"></div>
 <button onclick="runDevBacktest()" class="btn btn-primary" style="width:100%;margin-top:8px">Run Backtest</button>
 </div>
-<!-- Section 2: Backtest Results (hidden until run) -->
-<div id="dev-bt-results" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<!-- Section 2: Unified results area (always in DOM, one panel visible at a time) -->
+<div id="dev-section2" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px">
+<!-- State: idle -->
+<div id="dev-s-idle" style="text-align:center;padding:24px;color:var(--dim);font-family:'Inter',sans-serif;font-size:12px">Configure your strategy above and click Run Backtest</div>
+<!-- State: loading -->
+<div id="dev-s-loading" style="display:none;text-align:center;padding:30px"><div class="spinner"></div><p style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.8rem;margin-top:10px">Running backtest...</p></div>
+<!-- State: results -->
+<div id="dev-s-results" style="display:none">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span id="dev-bt-badge" style="padding:3px 10px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.65rem"></span><span id="dev-bt-info" style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--dim)"></span></div>
 <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px">
 <div class="card"><div class="label">RETURN</div><div class="value" id="dev-m-ret" style="font-size:1rem">—</div></div>
@@ -275,6 +281,14 @@ td{padding:10px 14px;border-bottom:1px solid #ffffff08;font-family:'Share Tech M
 </div>
 <div style="background:#0a0a14;border:1px solid var(--border);border-radius:8px;padding:12px"><canvas id="dev-equity-chart" style="width:100%;height:250px"></canvas></div>
 <div style="display:flex;gap:12px;margin-top:12px"><button onclick="showDevOptimize()" class="btn btn-magenta" style="flex:1">Optimize</button><button onclick="saveDevStrategy()" class="btn btn-success" style="flex:1">Save Strategy</button></div>
+</div>
+<!-- State: error (no trades / 403 / general) -->
+<div id="dev-s-error" style="display:none;text-align:center;padding:24px">
+<div id="dev-err-icon" style="font-size:2rem;margin-bottom:8px"></div>
+<div id="dev-err-title" style="font-family:'Inter',sans-serif;font-size:14px;color:#E8E8E8;margin-bottom:8px"></div>
+<div id="dev-err-msg" style="font-family:'Inter',sans-serif;font-size:12px;color:#9A9AB0;line-height:1.6;max-width:400px;margin:0 auto;margin-bottom:12px"></div>
+<div id="dev-err-actions"></div>
+</div>
 </div>
 <!-- Section 3: Optimize (hidden until clicked) -->
 <div id="dev-opt-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px">
@@ -1531,8 +1545,8 @@ function selectDevStrategy(id){
   const ps=(s.params||[]).filter(p=>!skip.includes(p.key));
   const pc=document.getElementById('dev-params-container');
   pc.innerHTML=ps.map(p=>`<div class="form-group" style="margin-bottom:8px"><label style="font-size:.7rem">${p.label}</label><input type="number" id="devp-${p.key}" value="${p.default}" min="${p.min||0}" max="${p.max||9999}" step="${p.type==='float'?0.1:1}" style="width:100%"><div style="font-size:.6rem;color:var(--dim)">${p.hint||''}</div></div>`).join('');
-  // Hide previous results
-  document.getElementById('dev-bt-results').style.display='none';
+  // Reset to idle state
+  showDevState('idle');
   document.getElementById('dev-opt-panel').style.display='none';
 }
 
@@ -1543,47 +1557,55 @@ function getDevParams(){
   return r;
 }
 
+function showDevState(state,data){
+  ['dev-s-idle','dev-s-loading','dev-s-results','dev-s-error'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  const el=document.getElementById('dev-s-'+state);if(el)el.style.display='block';
+}
+function showDevError(icon,title,msg,actions){
+  showDevState('error');
+  const e=id=>document.getElementById(id);
+  if(e('dev-err-icon'))e('dev-err-icon').textContent=icon;
+  if(e('dev-err-title'))e('dev-err-title').textContent=title;
+  if(e('dev-err-msg'))e('dev-err-msg').textContent=msg;
+  if(e('dev-err-actions'))e('dev-err-actions').innerHTML=actions||'';
+}
 async function runDevBacktest(){
-  if(!devSelectedStrat){alert('Select a strategy first');return;}
+  if(!devSelectedStrat){showDevError('\u26A0','No strategy selected','Click a strategy in the left panel first.');return;}
   const sym=document.getElementById('dev-symbol').value.trim();
   const tf=document.getElementById('dev-timeframe').value;
   const cap=parseFloat(document.getElementById('dev-capital').value)||10000;
   const params=getDevParams();
-  document.getElementById('dev-bt-results').style.display='none';
+  showDevState('loading');
   document.getElementById('dev-opt-panel').style.display='none';
   try{
     const r=await fetch(API+'/api/backtest/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,strategy:devSelectedStrat.id,params:params,initial_capital:cap,timeframe:tf,limit:devLimit})});
     const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
-    const m=d.metrics;
-    // Metrics
-    animM('dev-m-ret',m.total_return_pct,'%');animM('dev-m-cagr',m.cagr_pct,'%');
-    animM('dev-m-sharpe',m.sharpe_ratio,'');animM('dev-m-dd',-m.max_drawdown_pct,'%');animM('dev-m-wr',m.win_rate_pct,'%');
-    document.getElementById('dev-bt-badge').textContent=d.source==='cache'?'CACHED':'LIVE';
-    document.getElementById('dev-bt-badge').style.cssText='padding:3px 10px;border-radius:4px;font-family:Share Tech Mono,monospace;font-size:.65rem;'+(d.source==='cache'?'background:rgba(0,240,255,.1);color:var(--cyan)':'background:rgba(0,255,136,.1);color:var(--green)');
-    const pl={252:'1Y',504:'2Y',756:'3Y',1260:'5Y',2520:'10Y'}[devLimit]||devLimit;
-    document.getElementById('dev-bt-info').textContent=d.symbol+' | '+m.bars_tested+' bars | '+pl+' | $'+m.initial_capital+' -> $'+m.final_value;
-    // Chart
-    if(typeof Chart!=='undefined'){
-      const ctx=document.getElementById('dev-equity-chart').getContext('2d');
-      if(devEqChart)devEqChart.destroy();
-      devEqChart=new Chart(ctx,{type:'line',data:{labels:d.equity_curve.map(p=>p.date),datasets:[{data:d.equity_curve.map(p=>p.value),borderColor:'#00ff88',borderWidth:2,pointRadius:0,fill:true,backgroundColor:'rgba(0,255,136,0.04)',tension:0.1}]},options:{responsive:true,animation:{duration:1200},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8,font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#555',callback:v=>'$'+v.toLocaleString(),font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}}}}});
-    }
-    // No-trades check
     if(d.no_trades){
-      document.getElementById('dev-bt-results').innerHTML=`<div style="padding:30px;text-align:center"><div style="font-size:2rem;margin-bottom:8px">&#8505;</div><div style="font-family:'Inter',sans-serif;font-size:14px;color:#E8E8E8;margin-bottom:8px">No trades generated</div><div style="font-family:'Inter',sans-serif;font-size:12px;color:#9A9AB0;line-height:1.6;max-width:400px;margin:0 auto">${d.no_trades_message||'Try adjusting parameters or a longer period.'}</div></div>`;
-      document.getElementById('dev-bt-results').style.display='block';
+      showDevError('\u2139','No trades generated',d.no_trades_message||'Try adjusting parameters or a longer period.');
       return;
     }
-    document.getElementById('dev-bt-results').style.display='block';
+    const m=d.metrics;
+    showDevState('results');
+    animM('dev-m-ret',m.total_return_pct,'%');animM('dev-m-cagr',m.cagr_pct,'%');
+    animM('dev-m-sharpe',m.sharpe_ratio,'');animM('dev-m-dd',-m.max_drawdown_pct,'%');animM('dev-m-wr',m.win_rate_pct,'%');
+    const badge=document.getElementById('dev-bt-badge');
+    if(badge){badge.textContent=d.source==='cache'?'CACHED':'LIVE';badge.style.cssText='padding:3px 10px;border-radius:4px;font-family:Share Tech Mono,monospace;font-size:.65rem;'+(d.source==='cache'?'background:rgba(0,240,255,.1);color:var(--cyan)':'background:rgba(0,255,136,.1);color:var(--green)');}
+    const pl={252:'1Y',504:'2Y',756:'3Y',1260:'5Y',2520:'10Y'}[devLimit]||devLimit;
+    const info=document.getElementById('dev-bt-info');
+    if(info)info.textContent=d.symbol+' | '+m.bars_tested+' bars | '+pl+' | $'+m.initial_capital+' -> $'+m.final_value;
+    if(typeof Chart!=='undefined'){
+      const cvs=document.getElementById('dev-equity-chart');
+      if(cvs){const ctx=cvs.getContext('2d');if(devEqChart)devEqChart.destroy();
+      devEqChart=new Chart(ctx,{type:'line',data:{labels:d.equity_curve.map(p=>p.date),datasets:[{data:d.equity_curve.map(p=>p.value),borderColor:'#00ff88',borderWidth:2,pointRadius:0,fill:true,backgroundColor:'rgba(0,255,136,0.04)',tension:0.1}]},options:{responsive:true,animation:{duration:1200},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8,font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{color:'#555',callback:v=>'$'+v.toLocaleString(),font:{family:'Share Tech Mono'}},grid:{color:'rgba(255,255,255,0.03)'}}}}})}
+    }
     window._lastDevBt=d;
   }catch(e){
     const msg=e.message||'';
     if(msg.includes('403')||msg.includes('unavailable')||msg.includes('Intraday')){
-      // Show intraday unavailable panel
-      const re=document.getElementById('dev-bt-results');
-      re.innerHTML=`<div style="padding:24px;text-align:center;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.2);border-radius:8px"><div style="font-size:1.5rem;margin-bottom:8px">&#9888;</div><div style="font-family:'Inter',sans-serif;font-size:13px;color:#E8E8E8;margin-bottom:8px">Intraday data unavailable</div><div style="font-family:'Inter',sans-serif;font-size:11px;color:#9A9AB0;margin-bottom:12px">The selected timeframe is not available for this symbol on the current data plan. Try daily (1d) instead.</div><button onclick="document.getElementById('dev-timeframe').value='1day';runDevBacktest()" class="btn btn-primary btn-sm">Switch to 1d and retry</button></div>`;
-      re.style.display='block';
-    }else{alert('Backtest error: '+msg);}
+      showDevError('\u26A0','Intraday data unavailable','The selected timeframe is not available. Try daily (1d) instead.','<button onclick="document.getElementById(\'dev-timeframe\').value=\'1day\';runDevBacktest()" class="btn btn-primary btn-sm">Switch to 1d and retry</button>');
+    }else{
+      showDevError('\u274C','Backtest error',msg);
+    }
   }
 }
 
