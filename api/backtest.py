@@ -623,6 +623,12 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
         clean[k] = v
     signals = fn(bars, **clean)
 
+    buy_ct = sum(1 for s in signals if s == "buy")
+    sell_ct = sum(1 for s in signals if s == "sell")
+    print(f"[BT] {strategy} on {len(bars)} bars: {buy_ct} buys, {sell_ct} sells, comm={commission_pct}%, slip={slippage_pct}%")
+    if buy_ct == 0:
+        print(f"[BT] WARNING: 0 buy signals for {strategy}. First 20: {signals[:20]}")
+
     comm = float(commission_pct) / 100.0
     slip = float(slippage_pct) / 100.0
     capital, position, entry_px = initial_capital, 0, 0.0
@@ -909,6 +915,15 @@ def run_backtest_script(bars, script, initial_capital=10000):
             raise ValueError("generate_signals must return a list")
     if len(signals) != len(bars):
         raise ValueError(f"signals length ({len(signals)}) must match data length ({len(bars)})")
+
+    # Debug: log signal counts
+    sig_list = list(signals)
+    buy_count = sum(1 for s in sig_list if s == 1 or s == "buy")
+    sell_count = sum(1 for s in sig_list if s == -1 or s == "sell")
+    print(f"[SCRIPT] {len(sig_list)} bars, {buy_count} buy signals, {sell_count} sell signals")
+    print(f"[SCRIPT] Date range: {dates[0]} to {dates[-1]}")
+    if buy_count == 0:
+        print(f"[SCRIPT] WARNING: 0 buy signals. First 20 signals: {sig_list[:20]}")
 
     # Convert signals to buy/sell/None format
     bt_signals = []
