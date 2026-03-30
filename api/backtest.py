@@ -500,6 +500,8 @@ def signals_supertrend(bars, atr_period=10, multiplier=3.0, **kw):
 
 
 def signals_buffett_bot(bars, trend_period=50, rsi_min=40, rsi_max=65, **kw):
+    # TODO: Wire GET /api/fundamentals/{symbol} to filter entries
+    # Buffett criteria: ROE > 0.15 for past 5 years, low debt, stable earnings
     closes = [b["close"] for b in bars]
     sma = calc_sma(closes, min(int(trend_period), len(closes)))
     rsi = calc_rsi(closes, 14)
@@ -513,6 +515,8 @@ def signals_buffett_bot(bars, trend_period=50, rsi_min=40, rsi_max=65, **kw):
 
 
 def signals_graham_bot(bars, proximity_pct=20, rsi_threshold=40, **kw):
+    # TODO: Wire GET /api/fundamentals/{symbol} to filter entries
+    # Graham criteria: P/E < 15, P/B < 1.5, current ratio > 2
     c, l = [b["close"] for b in bars], [b["low"] for b in bars]
     rsi = calc_rsi(c, 14)
     sigs = [None] * len(bars)

@@ -519,6 +519,32 @@ async def backtest_run_script(body: ScriptBacktestReq):
         raise HTTPException(400, str(e))
 
 
+@app.get("/api/fundamentals/{symbol}")
+async def fundamentals(symbol: str):
+    from api.backtest import get_fundamentals, _fmp_symbol
+    data = get_fundamentals(symbol)
+    if not data:
+        raise HTTPException(404, "Fundamentals not available")
+    # Extract latest from metrics
+    metrics = data.get("metrics", [{}])
+    latest = metrics[0] if metrics else {}
+    ttm = (data.get("metrics_ttm") or [{}])
+    latest_ttm = ttm[0] if ttm else {}
+    return {
+        "symbol": symbol,
+        "roe": latest.get("roe") or latest_ttm.get("roeTTM"),
+        "roa": latest.get("roa") or latest_ttm.get("roaTTM"),
+        "pe_ratio": latest.get("peRatio") or latest_ttm.get("peRatioTTM"),
+        "debt_to_equity": latest.get("debtToEquity") or latest_ttm.get("debtToEquityTTM"),
+        "current_ratio": latest.get("currentRatio") or latest_ttm.get("currentRatioTTM"),
+        "revenue_growth": latest.get("revenueGrowth"),
+        "earnings_yield": latest.get("earningsYield") or latest_ttm.get("earningsYieldTTM"),
+        "dividend_yield": latest.get("dividendYield") or latest_ttm.get("dividendYieldTTM"),
+        "price_to_book": latest.get("pbRatio") or latest_ttm.get("pbRatioTTM"),
+        "free_cash_flow_yield": latest.get("freeCashFlowYield") or latest_ttm.get("freeCashFlowYieldTTM"),
+    }
+
+
 @app.post("/api/backtest/prewarm-bulk")
 async def prewarm_bulk(request: Request):
     auth = request.headers.get("X-Instructor-Key", "")
