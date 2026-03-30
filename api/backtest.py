@@ -640,80 +640,93 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
 
     comm = float(commission_pct) / 100.0
     slip = float(slippage_pct) / 100.0
-    capital, pos_dir, pos_shares, entry_px = initial_capital, 0, 0, 0.0
-    # pos_dir: 0=flat, 1=long, -1=short
+    # Track portfolio value simply: when flat, portfolio = cash
+    # When long: portfolio = shares * current_price (all-in, no leftover cash)
+    portfolio = float(initial_capital)
+    pos_dir = 0       # 0=flat, 1=long, -1=short
+    pos_shares = 0.0
+    entry_cost = 0.0  # total cost basis (including commission)
     trades, equity = [], []
 
     for i, (bar, sig) in enumerate(zip(bars, signals)):
+        price = bar["close"]
+        if price is None or price <= 0:
+            equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
+            continue
+        # Mark-to-market before processing signals
+        if pos_dir == 1:
+            portfolio = pos_shares * price
+        elif pos_dir == -1:
+            portfolio = entry_cost + pos_shares * (entry_cost / pos_shares - price) if pos_shares > 0 else entry_cost
+        # Floor at 0
+        portfolio = max(portfolio, 0)
+
         if i + 1 >= len(bars):
-            # Equity mark-to-market on last bar
-            if pos_dir == 1:
-                equity.append({"date": bar["date"], "value": round(capital + pos_shares * (bar["close"] - entry_px), 2)})
-            elif pos_dir == -1:
-                equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - bar["close"]), 2)})
-            else:
-                equity.append({"date": bar["date"], "value": round(capital, 2)})
+            equity.append({"date": bar["date"], "value": round(portfolio, 2)})
             continue
         next_open = bars[i + 1]["open"]
+        if next_open is None or next_open <= 0:
+            equity.append({"date": bar["date"], "value": round(portfolio, 2)})
+            continue
+
         # ── LONG ENTRY ──
-        if sig == "buy" and pos_dir == 0:
+        if sig == "buy" and pos_dir == 0 and portfolio > 0:
             fill_px = next_open * (1 + slip)
-            shares = int(capital / (fill_px * (1 + comm)))
+            cost_per = fill_px * (1 + comm)
+            shares = int(portfolio / cost_per)
             if shares > 0:
-                capital -= shares * fill_px * (1 + comm)
-                pos_dir, pos_shares, entry_px = 1, shares, fill_px
+                entry_cost = shares * cost_per
+                pos_dir, pos_shares = 1, shares
+                portfolio = shares * price  # immediate MTM
                 trades.append({"date": bars[i+1]["date"], "side": "buy", "price": round(fill_px, 4), "shares": shares, "pnl": None})
         # ── LONG EXIT ──
         elif sig == "sell" and pos_dir == 1:
             fill_px = next_open * (1 - slip)
             proceeds = pos_shares * fill_px * (1 - comm)
-            pnl = proceeds - pos_shares * entry_px
-            capital += proceeds
-            trades.append({"date": bars[i+1]["date"], "side": "sell", "price": round(fill_px, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
-            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+            pnl = proceeds - entry_cost
+            portfolio = proceeds
+            trades.append({"date": bars[i+1]["date"], "side": "sell", "price": round(fill_px, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_cost = 0, 0, 0.0
         # ── SHORT ENTRY ──
-        elif sig == "short" and pos_dir == 0:
+        elif sig == "short" and pos_dir == 0 and portfolio > 0:
             fill_px = next_open * (1 - slip)
-            shares = int(capital / (fill_px * (1 + comm)))
+            shares = int(portfolio / (fill_px * (1 + comm)))
             if shares > 0:
-                capital += shares * fill_px * (1 - comm)  # receive proceeds from short sale
-                pos_dir, pos_shares, entry_px = -1, shares, fill_px
+                entry_cost = portfolio  # remember starting equity for short
+                pos_dir, pos_shares = -1, shares
                 trades.append({"date": bars[i+1]["date"], "side": "short", "price": round(fill_px, 4), "shares": shares, "pnl": None})
         # ── SHORT COVER ──
         elif sig == "cover" and pos_dir == -1:
             fill_px = next_open * (1 + slip)
-            cost = pos_shares * fill_px * (1 + comm)
-            pnl = pos_shares * entry_px - cost
-            capital -= cost  # pay to buy back
-            capital += pos_shares * entry_px  # net = entry proceeds already counted
-            # Simpler: capital = capital_before_short + pnl
-            # Recalculate: we got entry*shares on short, paid fill*shares*(1+comm) to cover
-            trades.append({"date": bars[i+1]["date"], "side": "cover", "price": round(fill_px, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
-            pos_dir, pos_shares, entry_px = 0, 0, 0.0
-        # Equity mark-to-market
-        if pos_dir == 1:
-            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (bar["close"] - entry_px), 2)})
-        elif pos_dir == -1:
-            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - bar["close"]), 2)})
-        else:
-            equity.append({"date": bar["date"], "value": round(capital, 2)})
+            cover_cost = pos_shares * fill_px * (1 + comm)
+            short_proceeds = pos_shares * (entry_cost / pos_shares if pos_shares > 0 else 0)
+            pnl = short_proceeds - cover_cost
+            portfolio = entry_cost + pnl
+            portfolio = max(portfolio, 0)
+            trades.append({"date": bars[i+1]["date"], "side": "cover", "price": round(fill_px, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_cost = 0, 0, 0.0
 
-    # Force close open positions
+        equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
+
+    # Force close open positions at last price
     if pos_dir == 1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        pnl = pos_shares * (lp - entry_px)
-        capital += pos_shares * lp
-        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+        proceeds = pos_shares * lp * (1 - comm)
+        pnl = proceeds - entry_cost
+        portfolio = proceeds
+        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
     elif pos_dir == -1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        pnl = pos_shares * (entry_px - lp)
-        capital += pnl
-        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+        cover_cost = pos_shares * lp * (1 + comm)
+        pnl = (entry_cost / pos_shares * pos_shares) - cover_cost
+        portfolio = entry_cost + pnl
+        portfolio = max(portfolio, 0)
+        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
 
-    final = capital
+    final = max(portfolio, 0)
     ret = (final - initial_capital) / initial_capital * 100
     ny = len(bars) / 252
-    cagr = ((final / initial_capital) ** (1 / max(ny, 0.1)) - 1) * 100
+    cagr = ((final / max(initial_capital, 1)) ** (1 / max(ny, 0.1)) - 1) * 100 if final > 0 else -100
     rets = [(equity[i]["value"] - equity[i - 1]["value"]) / equity[i - 1]["value"] for i in range(1, len(equity)) if equity[i - 1]["value"] > 0]
     avg_r = sum(rets) / len(rets) if rets else 0
     std_r = (sum((r - avg_r) ** 2 for r in rets) / len(rets)) ** 0.5 if rets else 0
@@ -1147,60 +1160,72 @@ def run_backtest_script(bars, script, initial_capital=10000):
         elif s == -2 or s == "cover": bt_signals.append("cover")
         else: bt_signals.append(None)
 
-    # Run through backtest engine with long/short support
-    capital, pos_dir, pos_shares, entry_px = initial_capital, 0, 0, 0.0
+    # Run through backtest engine — portfolio-based tracking (no negative equity)
+    portfolio = float(initial_capital)
+    pos_dir, pos_shares, entry_cost = 0, 0.0, 0.0
     trades, equity = [], []
     for i, (bar, sig) in enumerate(zip(bars, bt_signals)):
         price = bar["close"]
+        if price is None or price <= 0:
+            equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
+            continue
+        # Mark-to-market
+        if pos_dir == 1:
+            portfolio = pos_shares * price
+        elif pos_dir == -1:
+            portfolio = entry_cost + pos_shares * (entry_cost / max(pos_shares, 1) - price)
+        portfolio = max(portfolio, 0)
         # Long entry
-        if sig == "buy" and pos_dir == 0:
-            shares = int(capital / price)
+        if sig == "buy" and pos_dir == 0 and portfolio > 0:
+            shares = int(portfolio / price)
             if shares > 0:
-                pos_dir, pos_shares, entry_px = 1, shares, price
-                capital -= shares * price
+                entry_cost = shares * price
+                pos_dir, pos_shares = 1, shares
+                portfolio = shares * price
                 trades.append({"date": bar["date"], "side": "buy", "price": round(price, 4), "shares": shares, "pnl": None})
         # Long exit
         elif sig == "sell" and pos_dir == 1:
-            pnl = (price - entry_px) * pos_shares
-            capital += pos_shares * price
-            trades.append({"date": bar["date"], "side": "sell", "price": round(price, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
-            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+            proceeds = pos_shares * price
+            pnl = proceeds - entry_cost
+            portfolio = proceeds
+            trades.append({"date": bar["date"], "side": "sell", "price": round(price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_cost = 0, 0, 0.0
         # Short entry
-        elif sig == "short" and pos_dir == 0:
-            shares = int(capital / price)
+        elif sig == "short" and pos_dir == 0 and portfolio > 0:
+            shares = int(portfolio / price)
             if shares > 0:
-                pos_dir, pos_shares, entry_px = -1, shares, price
+                entry_cost = portfolio
+                pos_dir, pos_shares = -1, shares
                 trades.append({"date": bar["date"], "side": "short", "price": round(price, 4), "shares": shares, "pnl": None})
         # Short cover
         elif sig == "cover" and pos_dir == -1:
-            pnl = (entry_px - price) * pos_shares
-            capital += pnl
-            trades.append({"date": bar["date"], "side": "cover", "price": round(price, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
-            pos_dir, pos_shares, entry_px = 0, 0, 0.0
-        # Mark-to-market
-        if pos_dir == 1:
-            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (price - entry_px), 2)})
-        elif pos_dir == -1:
-            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - price), 2)})
-        else:
-            equity.append({"date": bar["date"], "value": round(capital, 2)})
+            short_entry_px = entry_cost / max(pos_shares, 1)
+            pnl = pos_shares * (short_entry_px - price)
+            portfolio = entry_cost + pnl
+            portfolio = max(portfolio, 0)
+            trades.append({"date": bar["date"], "side": "cover", "price": round(price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_cost = 0, 0, 0.0
+        equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
 
-    # Force close open positions
+    # Force close
     if pos_dir == 1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        pnl = (lp - entry_px) * pos_shares
-        capital += pos_shares * lp
-        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+        proceeds = pos_shares * lp
+        pnl = proceeds - entry_cost
+        portfolio = proceeds
+        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
     elif pos_dir == -1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        pnl = (entry_px - lp) * pos_shares
-        capital += pnl
-        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+        short_entry_px = entry_cost / max(pos_shares, 1)
+        pnl = pos_shares * (short_entry_px - lp)
+        portfolio = entry_cost + pnl
+        portfolio = max(portfolio, 0)
+        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
 
-    final = capital
+    final = max(portfolio, 0)
     ret = (final - initial_capital) / initial_capital * 100
     ny = len(bars) / 252
-    cagr = ((final / initial_capital) ** (1 / max(ny, 0.1)) - 1) * 100
+    cagr = ((final / max(initial_capital, 1)) ** (1 / max(ny, 0.1)) - 1) * 100 if final > 0 else -100
     rets = [(equity[i]["value"] - equity[i - 1]["value"]) / equity[i - 1]["value"]
             for i in range(1, len(equity)) if equity[i - 1]["value"] > 0]
     avg_r = sum(rets) / len(rets) if rets else 0
