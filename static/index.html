@@ -2043,7 +2043,19 @@ async function runDevScriptBacktest(){
 }
 
 function showDevOptimize(){
-  const strat=devSelectedStrat;if(!strat)return;
+  // Script import mode — use parsed OPTIMIZE_PARAMS
+  const imp=window._importedScript;
+  if(imp&&imp.optimize_params&&Object.keys(imp.optimize_params).length>0){
+    const c=document.getElementById('dev-opt-ranges');
+    c.innerHTML=Object.entries(imp.optimize_params).map(([k,v])=>`<div style="margin-bottom:8px"><div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--cyan);margin-bottom:4px">${k}</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"><div><label style="font-size:.5rem;color:var(--dim)">From</label><input type="number" id="dopt-${k}-f" value="${v.min}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">To</label><input type="number" id="dopt-${k}-t" value="${v.max}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">Step</label><input type="number" id="dopt-${k}-s" value="${v.step}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div></div></div>`).join('');
+    updateDevOptCombos();
+    document.getElementById('dev-opt-results').innerHTML='';
+    document.getElementById('dev-opt-panel').style.display='block';
+    showToast('Optimize params loaded from script','success',2000);
+    return;
+  }
+  // Library mode
+  const strat=devSelectedStrat;if(!strat){showToast('Select a strategy or import a script first','error');return;}
   const ranges=OPT_RANGES[strat.id]||[{k:'lookback',l:'Lookback',f:10,t:50,s:10}];
   const c=document.getElementById('dev-opt-ranges');
   c.innerHTML=ranges.map(r=>`<div style="margin-bottom:8px"><div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--cyan);margin-bottom:4px">${r.l}</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"><div><label style="font-size:.5rem;color:var(--dim)">From</label><input type="number" id="dopt-${r.k}-f" value="${r.f}" step="${r.s}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">To</label><input type="number" id="dopt-${r.k}-t" value="${r.t}" step="${r.s}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div><div><label style="font-size:.5rem;color:var(--dim)">Step</label><input type="number" id="dopt-${r.k}-s" value="${r.s}" step="${r.s}" oninput="updateDevOptCombos()" class="opt-range-input" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:3px;border-radius:3px"></div></div></div>`).join('');
@@ -2052,9 +2064,19 @@ function showDevOptimize(){
   document.getElementById('dev-opt-panel').style.display='block';
 }
 
+function _getOptRangeKeys(){
+  // Get param keys from either imported script or library strategy
+  const imp=window._importedScript;
+  if(imp&&imp.optimize_params&&Object.keys(imp.optimize_params).length>0){
+    return Object.entries(imp.optimize_params).map(([k,v])=>({k,l:k,f:v.min,t:v.max,s:v.step}));
+  }
+  const strat=devSelectedStrat;
+  if(strat)return OPT_RANGES[strat.id]||[];
+  return[];
+}
+
 function updateDevOptCombos(){
-  const strat=devSelectedStrat;if(!strat)return;
-  const ranges=OPT_RANGES[strat.id]||[];
+  const ranges=_getOptRangeKeys();
   let combos=1;
   ranges.forEach(r=>{
     const f=parseFloat(document.getElementById('dopt-'+r.k+'-f')?.value||r.f);
@@ -2068,6 +2090,8 @@ function updateDevOptCombos(){
   if(el){el.textContent=combos.toLocaleString()+' combinations \u00B7 est. '+timeStr;el.style.color=combos>500?'#BA7517':combos>2000?'#E24B4A':'#4ECBA0';}
 }
 async function runDevOptimize(){
+  const imp=window._importedScript;
+  if(imp&&imp.signal_function){return runDevScriptOptimize();}
   const strat=devSelectedStrat;if(!strat)return;
   const sym=document.getElementById('dev-symbol').value.trim();
   const tf=document.getElementById('dev-timeframe').value;
@@ -2103,6 +2127,68 @@ async function runDevOptimize(){
     setTimeout(()=>{document.getElementById('dev-opt-panel').scrollIntoView({behavior:'smooth',block:'start'});},300);
   }catch(e){showToast('Optimize error: '+(e.message||''),'error');}
   btn.textContent='Run Sweep';btn.disabled=false;
+}
+
+// ── Script Optimize ───────────────────────────────────────────────────────
+async function runDevScriptOptimize(){
+  const imp=window._importedScript;if(!imp||!imp.signal_function)return;
+  const sym=document.getElementById('dev-symbol').value.trim();
+  const tf=document.getElementById('dev-timeframe').value;
+  const cap=parseFloat(document.getElementById('dev-capital').value)||10000;
+  const ranges=_getOptRangeKeys();
+  // Build param grid from UI inputs
+  const paramArrays={};
+  ranges.forEach(r=>{
+    const f=parseFloat(document.getElementById('dopt-'+r.k+'-f')?.value||r.f);
+    const t=parseFloat(document.getElementById('dopt-'+r.k+'-t')?.value||r.t);
+    const s=parseFloat(document.getElementById('dopt-'+r.k+'-s')?.value||r.s);
+    const vals=[];for(let v=f;v<=t+0.001;v+=s)vals.push(parseFloat(v.toFixed(4)));
+    paramArrays[r.k]=vals;
+  });
+  // Generate all combinations
+  let combos=[{}];
+  for(const[name,vals]of Object.entries(paramArrays)){
+    const nc=[];
+    for(const existing of combos)for(const val of vals)nc.push({...existing,[name]:val});
+    combos=nc;
+  }
+  console.log('[SWEEP] Script mode:',combos.length,'combinations');
+  const btn=document.getElementById('dev-opt-btn');
+  btn.textContent=`Running 0/${combos.length}...`;btn.disabled=true;
+  const results=[];
+  for(let ci=0;ci<combos.length;ci++){
+    const combo=combos[ci];
+    btn.textContent=`Running ${ci+1}/${combos.length}...`;
+    // Inject param values into script
+    let modScript=imp.signal_function;
+    for(const[pn,pv]of Object.entries(combo)){
+      const re=new RegExp('('+pn.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[=,]\\s*)[\\d.]+');
+      modScript=modScript.replace(re,'$1'+pv);
+    }
+    try{
+      const r=await fetch(API+'/api/backtest/run-script',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,script:modScript,initial_capital:cap,timeframe:tf,limit:devLimit})});
+      if(r.ok){
+        const d=await r.json();
+        results.push({params:combo,metrics:d.metrics||{}});
+      }
+    }catch(e){console.warn('[SWEEP] combo failed:',combo,e);}
+  }
+  // Sort by sharpe
+  results.sort((a,b)=>(b.metrics.sharpe_ratio||0)-(a.metrics.sharpe_ratio||0));
+  // Render results using same format as library optimize
+  const re=document.getElementById('dev-opt-results');
+  const best=results[0];
+  let h='';
+  if(best){const bps=Object.entries(best.params).map(([k,v])=>k+'='+v).join(', ');
+    h+=`<div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.25);border-radius:6px;padding:10px;margin-bottom:10px"><div style="color:var(--yellow);font-size:.75rem">BEST: ${bps}</div><div style="font-size:.7rem;color:var(--dim)">Return: ${best.metrics.total_return_pct}% | CAGR: ${best.metrics.cagr_pct}% | Sharpe: ${best.metrics.sharpe_ratio} | Trades: ${best.metrics.total_trades}</div></div>`;}
+  h+=`<div class="table-wrap"><table><thead><tr><th>Params</th><th>Return</th><th>CAGR</th><th>Sharpe</th><th>Win%</th><th>DD</th><th>Trades</th></tr></thead><tbody>`;
+  results.slice(0,10).forEach((row,i)=>{const m=row.metrics;const ps=Object.entries(row.params).map(([k,v])=>k+'='+v).join(' ');
+    h+=`<tr${i===0?' style="background:rgba(255,215,0,.04);border-left:2px solid gold"':''}><td style="font-size:.65rem;color:var(--dim)">${ps}</td><td class="${(m.total_return_pct||0)>=0?'pnl-pos':'pnl-neg'}">${m.total_return_pct||0}%</td><td style="color:${(m.cagr_pct||0)>=0?'#4ECBA0':'#E24B4A'}">${m.cagr_pct||0}%</td><td>${m.sharpe_ratio||0}</td><td>${m.win_rate_pct||0}%</td><td style="color:var(--red)">${m.max_drawdown_pct||0}%</td><td style="color:#E0E0F0">${m.total_trades||0}</td></tr>`;});
+  h+=`</tbody></table></div>`;
+  re.innerHTML=h;
+  btn.textContent='Run Sweep';btn.disabled=false;
+  showToast('Sweep complete: '+results.length+' combinations tested','success',3000);
+  setTimeout(()=>{document.getElementById('dev-opt-panel').scrollIntoView({behavior:'smooth',block:'start'});},300);
 }
 
 // ── Toast system ──────────────────────────────────────────────────────────
