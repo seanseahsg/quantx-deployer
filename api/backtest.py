@@ -1028,6 +1028,123 @@ def _calc_supertrend(highs, lows, closes, atr_list, period=10, multiplier=3.0):
     return st, dr
 
 
+def _calc_wma(closes, period):
+    """Weighted Moving Average."""
+    n = len(closes)
+    result = [None] * n
+    weights = list(range(1, period + 1))
+    wsum = sum(weights)
+    for i in range(period - 1, n):
+        w = closes[i - period + 1:i + 1]
+        if any(v is None for v in w): continue
+        result[i] = sum(wt * v for wt, v in zip(weights, w)) / wsum
+    return result
+
+
+def _calc_hma(closes, period):
+    """Hull Moving Average — faster and smoother than SMA/EMA."""
+    half = max(int(period / 2), 1)
+    sqrt_p = max(int(period ** 0.5), 1)
+    wma_h = _calc_wma(closes, half)
+    wma_f = _calc_wma(closes, period)
+    n = len(closes)
+    diff = [None] * n
+    for i in range(n):
+        if wma_h[i] is not None and wma_f[i] is not None:
+            diff[i] = 2 * wma_h[i] - wma_f[i]
+    return _calc_wma(diff, sqrt_p)
+
+
+def _calc_pivot_points(highs, lows, closes):
+    """Classic Pivot Points. Returns (pivot, r1, r2, s1, s2) lists."""
+    n = len(closes)
+    pivot, r1, r2, s1, s2 = [None]*n, [None]*n, [None]*n, [None]*n, [None]*n
+    for i in range(1, n):
+        h, l, c = highs[i-1], lows[i-1], closes[i-1]
+        if any(v is None for v in [h, l, c]): continue
+        p = (h + l + c) / 3
+        pivot[i], r1[i], r2[i] = p, 2*p - l, p + (h - l)
+        s1[i], s2[i] = 2*p - h, p - (h - l)
+    return pivot, r1, r2, s1, s2
+
+
+def _calc_obv(closes, volumes):
+    """On-Balance Volume — cumulative volume momentum."""
+    n = len(closes)
+    obv = [0] * n
+    for i in range(1, n):
+        if closes[i] is None or closes[i-1] is None:
+            obv[i] = obv[i-1]; continue
+        vol = volumes[i] or 0
+        if closes[i] > closes[i-1]: obv[i] = obv[i-1] + vol
+        elif closes[i] < closes[i-1]: obv[i] = obv[i-1] - vol
+        else: obv[i] = obv[i-1]
+    return obv
+
+
+def _calc_roc(closes, period=10):
+    """Rate of Change — momentum oscillator."""
+    n = len(closes)
+    roc = [None] * n
+    for i in range(period, n):
+        past, curr = closes[i - period], closes[i]
+        if past is None or curr is None or past == 0: continue
+        roc[i] = (curr - past) / past * 100
+    return roc
+
+
+def _calc_zscore(closes, period=20):
+    """Rolling Z-Score — std devs from rolling mean."""
+    n = len(closes)
+    zs = [None] * n
+    for i in range(period, n):
+        w = [x for x in closes[i-period:i] if x is not None]
+        if len(w) < period: continue
+        mean = sum(w) / len(w)
+        std = (sum((x - mean)**2 for x in w) / len(w)) ** 0.5
+        zs[i] = 0 if std == 0 else (closes[i] - mean) / std
+    return zs
+
+
+def _calc_ichimoku(highs, lows, tenkan=9, kijun=26, senkou_b_period=52):
+    """Ichimoku Cloud. Returns (tenkan_sen, kijun_sen, senkou_a, senkou_b, chikou)."""
+    n = len(highs)
+    def _mid(h, l, p, i):
+        wh = [x for x in h[max(0,i-p+1):i+1] if x is not None]
+        wl = [x for x in l[max(0,i-p+1):i+1] if x is not None]
+        if len(wh) < p or len(wl) < p: return None
+        return (max(wh) + min(wl)) / 2
+    ts = [_mid(highs, lows, tenkan, i) for i in range(n)]
+    ks = [_mid(highs, lows, kijun, i) for i in range(n)]
+    sb = [_mid(highs, lows, senkou_b_period, i) for i in range(n)]
+    sa = [None]*n
+    for i in range(n):
+        if ts[i] is not None and ks[i] is not None:
+            sa[i] = (ts[i] + ks[i]) / 2
+    chikou = [None]*n
+    for i in range(kijun, n):
+        chikou[i - kijun] = highs[i]
+    return ts, ks, sa, sb, chikou
+
+
+def _extract_script_globals(script_code):
+    """Parse module-level variable assignments from script (e.g. fast_period = 20)."""
+    import re, ast
+    result = {}
+    for line in script_code.split('\n'):
+        line = line.strip()
+        if not line or line.startswith('#'): continue
+        if line.startswith('def ') or line.startswith('class '): break
+        if any(line.startswith(p) for p in ['STRATEGY_', 'OPTIMIZE_', 'EDGE_', 'SYMBOL:', 'TIMEFRAME:', 'CAPITAL:', 'COMMISSION', 'STOP_', 'TAKE_']): continue
+        m = re.match(r'^([a-zA-Z_]\w*)\s*=\s*(.+)$', line)
+        if m:
+            try:
+                result[m.group(1)] = ast.literal_eval(m.group(2).strip())
+            except (ValueError, SyntaxError):
+                pass
+    return result
+
+
 def run_backtest_script(bars, script, initial_capital=10000, params_override=None):
     """Run a custom user script against bar data in a sandboxed exec()."""
     if not script or not script.strip():
@@ -1071,9 +1188,12 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
         "close": closes, "volume": volumes,
     })
 
-    # Sandbox globals — includes numpy/pandas for advanced scripts
-    print(f"[SANDBOX] numpy={HAS_NUMPY}, np={type(np)}, pd={type(pd)}")
+    # Extract module-level variables and inject into sandbox
+    script_globals = _extract_script_globals(script)
+    if params_override:
+        script_globals.update(params_override)
 
+    # Sandbox globals — includes numpy/pandas + all indicators
     sandbox = {
         "__builtins__": {
             "len": len, "range": range, "list": list, "dict": dict, "tuple": tuple,
@@ -1083,19 +1203,27 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
             "sorted": sorted, "reversed": reversed, "map": map, "filter": filter,
             "isinstance": isinstance, "any": any, "all": all,
         },
-        # Scientific computing (safe — no file/network access)
         "np": np, "numpy": np, "pd": pd, "pandas": pd,
-        # Indicator helpers
+        # Core indicators
         "calc_ema": calc_ema, "calc_sma": calc_sma, "calc_rsi": calc_rsi,
         "calc_atr": lambda period=14: calc_atr(highs, lows, closes, period),
         "calc_bbands": _calc_bbands, "calc_macd": _calc_macd,
+        # Oscillators
         "calc_stoch": _calc_stoch, "calc_adx": _calc_adx,
-        "calc_vwap": _calc_vwap, "calc_cci": _calc_cci,
-        "calc_williams_r": _calc_williams_r, "calc_donchian": _calc_donchian,
-        "calc_supertrend": _calc_supertrend,
-        # Data arrays (for scripts that use raw lists instead of df)
+        "calc_cci": _calc_cci, "calc_williams_r": _calc_williams_r,
+        # Channels + trend
+        "calc_donchian": _calc_donchian, "calc_supertrend": _calc_supertrend,
+        "calc_vwap": _calc_vwap,
+        # New indicators
+        "calc_wma": _calc_wma, "calc_hma": _calc_hma,
+        "calc_pivot_points": _calc_pivot_points,
+        "calc_obv": _calc_obv, "calc_roc": _calc_roc,
+        "calc_zscore": _calc_zscore, "calc_ichimoku": _calc_ichimoku,
+        # Data arrays
         "opens": opens, "highs": highs, "lows": lows, "closes": closes,
         "volumes": volumes, "dates": dates, "bars": bars, "df": df,
+        # Script-level variables (fast_period, slow_period etc.)
+        **script_globals,
     }
 
     try:

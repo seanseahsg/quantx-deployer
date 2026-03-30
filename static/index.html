@@ -1835,6 +1835,14 @@ def generate_signals(df):
     # calc_williams_r(high, low, close, period) -> list (-100 to 0)
     # calc_donchian(high, low, period) -> (upper, lower)
     # calc_supertrend(high, low, close, atr, period, multiplier) -> (supertrend, direction)
+    # calc_wma(close, period) -> list (Weighted Moving Average)
+    # calc_hma(close, period) -> list (Hull Moving Average)
+    # calc_pivot_points(high, low, close) -> (pivot, r1, r2, s1, s2)
+    # calc_obv(close, volume) -> list (On-Balance Volume)
+    # calc_roc(close, period) -> list (Rate of Change %)
+    # calc_zscore(close, period) -> list (Rolling Z-Score)
+    # calc_ichimoku(high, low, tenkan, kijun, senkou_b) -> (tenkan, kijun, senkou_a, senkou_b, chikou)
+    # np (numpy), pd (pandas) — available for advanced calculations
 
     in_position = False
     for i in range(1, n):
