@@ -1801,8 +1801,16 @@ def generate_signals(df):
                 in_position = False
     return signals
 
+SIGNAL VALUES:
+  1  = BUY (enter long)
+  -1 = SELL (exit long)
+  2  = SHORT (enter short)
+  -2 = COVER (exit short)
+  0  = HOLD
+
 RULES:
-- Never use imports. Use bar[i-1] for signals (no look-ahead bias).
+- Never use imports (numpy as np and pandas as pd are pre-injected).
+- Use bar[i-1] for signals (no look-ahead bias).
 - Always define OPTIMIZE_PARAMS with at least 2 parameters.
 - Defaults: Symbol=SPY.US, Timeframe=1day, SL=5%, TP=10%
 

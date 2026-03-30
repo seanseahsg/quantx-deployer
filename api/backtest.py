@@ -631,34 +631,75 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
 
     comm = float(commission_pct) / 100.0
     slip = float(slippage_pct) / 100.0
-    capital, position, entry_px = initial_capital, 0, 0.0
+    capital, pos_dir, pos_shares, entry_px = initial_capital, 0, 0, 0.0
+    # pos_dir: 0=flat, 1=long, -1=short
     trades, equity = [], []
 
     for i, (bar, sig) in enumerate(zip(bars, signals)):
-        # Signal on bar i, execute at bar i+1 open (no look-ahead bias)
-        if sig == "buy" and position == 0 and i + 1 < len(bars):
-            fill_px = bars[i + 1]["open"] * (1 + slip)  # slippage on buy
+        if i + 1 >= len(bars):
+            # Equity mark-to-market on last bar
+            if pos_dir == 1:
+                equity.append({"date": bar["date"], "value": round(capital + pos_shares * (bar["close"] - entry_px), 2)})
+            elif pos_dir == -1:
+                equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - bar["close"]), 2)})
+            else:
+                equity.append({"date": bar["date"], "value": round(capital, 2)})
+            continue
+        next_open = bars[i + 1]["open"]
+        # ── LONG ENTRY ──
+        if sig == "buy" and pos_dir == 0:
+            fill_px = next_open * (1 + slip)
             shares = int(capital / (fill_px * (1 + comm)))
             if shares > 0:
-                cost = shares * fill_px * (1 + comm)
-                position, entry_px = shares, fill_px
-                capital -= cost
-                trades.append({"date": bars[i + 1]["date"], "side": "buy", "price": round(fill_px, 4), "shares": shares, "pnl": None})
-        elif sig == "sell" and position > 0 and i + 1 < len(bars):
-            fill_px = bars[i + 1]["open"] * (1 - slip)  # slippage on sell
-            proceeds = position * fill_px * (1 - comm)
-            pnl = proceeds - (entry_px * position * (1 + comm))
+                capital -= shares * fill_px * (1 + comm)
+                pos_dir, pos_shares, entry_px = 1, shares, fill_px
+                trades.append({"date": bars[i+1]["date"], "side": "buy", "price": round(fill_px, 4), "shares": shares, "pnl": None})
+        # ── LONG EXIT ──
+        elif sig == "sell" and pos_dir == 1:
+            fill_px = next_open * (1 - slip)
+            proceeds = pos_shares * fill_px * (1 - comm)
+            pnl = proceeds - pos_shares * entry_px
             capital += proceeds
-            trades.append({"date": bars[i + 1]["date"], "side": "sell", "price": round(fill_px, 4), "shares": position, "pnl": round(pnl, 2)})
-            position, entry_px = 0, 0.0
-        equity.append({"date": bar["date"], "value": round(capital + position * bar["close"], 2)})
+            trades.append({"date": bars[i+1]["date"], "side": "sell", "price": round(fill_px, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+        # ── SHORT ENTRY ──
+        elif sig == "short" and pos_dir == 0:
+            fill_px = next_open * (1 - slip)
+            shares = int(capital / (fill_px * (1 + comm)))
+            if shares > 0:
+                capital += shares * fill_px * (1 - comm)  # receive proceeds from short sale
+                pos_dir, pos_shares, entry_px = -1, shares, fill_px
+                trades.append({"date": bars[i+1]["date"], "side": "short", "price": round(fill_px, 4), "shares": shares, "pnl": None})
+        # ── SHORT COVER ──
+        elif sig == "cover" and pos_dir == -1:
+            fill_px = next_open * (1 + slip)
+            cost = pos_shares * fill_px * (1 + comm)
+            pnl = pos_shares * entry_px - cost
+            capital -= cost  # pay to buy back
+            capital += pos_shares * entry_px  # net = entry proceeds already counted
+            # Simpler: capital = capital_before_short + pnl
+            # Recalculate: we got entry*shares on short, paid fill*shares*(1+comm) to cover
+            trades.append({"date": bars[i+1]["date"], "side": "cover", "price": round(fill_px, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+        # Equity mark-to-market
+        if pos_dir == 1:
+            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (bar["close"] - entry_px), 2)})
+        elif pos_dir == -1:
+            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - bar["close"]), 2)})
+        else:
+            equity.append({"date": bar["date"], "value": round(capital, 2)})
 
-    if position > 0:
-        lp = bars[-1]["close"] * (1 - slip)
-        proceeds = position * lp * (1 - comm)
-        pnl = proceeds - (entry_px * position * (1 + comm))
-        capital += proceeds
-        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": position, "pnl": round(pnl, 2)})
+    # Force close open positions
+    if pos_dir == 1 and pos_shares > 0:
+        lp = bars[-1]["close"]
+        pnl = pos_shares * (lp - entry_px)
+        capital += pos_shares * lp
+        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+    elif pos_dir == -1 and pos_shares > 0:
+        lp = bars[-1]["close"]
+        pnl = pos_shares * (entry_px - lp)
+        capital += pnl
+        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
 
     final = capital
     ret = (final - initial_capital) / initial_capital * 100
@@ -790,9 +831,10 @@ def run_optimization(bars, strategy, param_grid, initial_capital=10000):
 
 # ── Custom Script Backtest ───────────────────────────────────────────────────
 
-_FORBIDDEN_TOKENS = ["import ", "from ", "__", "open(", "exec(", "eval(", "compile(",
+_FORBIDDEN_TOKENS = ["import ", "from ", "open(", "exec(", "eval(", "compile(",
                      "os.", "sys.", "subprocess", "shutil", "pathlib", "socket",
-                     "requests.", "urllib", "http."]
+                     "requests.", "urllib", "http.", "__import__",
+                     "globals(", "locals(", "vars(", "getattr(", "setattr(", "delattr("]
 
 
 def _calc_bbands(closes, period=20, std_dev=2.0):
@@ -1003,27 +1045,31 @@ def run_backtest_script(bars, script, initial_capital=10000):
         "close": closes, "volume": volumes,
     })
 
-    # Sandbox globals
+    # Sandbox globals — includes numpy/pandas for advanced scripts
+    try:
+        import numpy as _np
+        import pandas as _pd
+    except ImportError:
+        _np, _pd = None, None
+
     sandbox = {
         "__builtins__": {
             "len": len, "range": range, "list": list, "dict": dict, "tuple": tuple,
-            "min": min, "max": max, "abs": abs, "sum": sum, "round": round,
+            "set": set, "min": min, "max": max, "abs": abs, "sum": sum, "round": round,
             "zip": zip, "enumerate": enumerate, "print": print, "int": int, "float": float,
             "True": True, "False": False, "None": None, "bool": bool, "str": str,
             "sorted": sorted, "reversed": reversed, "map": map, "filter": filter,
+            "isinstance": isinstance, "any": any, "all": all,
         },
-        "calc_ema": calc_ema,
-        "calc_sma": calc_sma,
-        "calc_rsi": calc_rsi,
+        # Scientific computing (safe — no file/network access)
+        "np": _np, "numpy": _np, "pd": _pd, "pandas": _pd,
+        # Indicator helpers
+        "calc_ema": calc_ema, "calc_sma": calc_sma, "calc_rsi": calc_rsi,
         "calc_atr": lambda period=14: calc_atr(highs, lows, closes, period),
-        "calc_bbands": _calc_bbands,
-        "calc_macd": _calc_macd,
-        "calc_stoch": _calc_stoch,
-        "calc_adx": _calc_adx,
-        "calc_vwap": _calc_vwap,
-        "calc_cci": _calc_cci,
-        "calc_williams_r": _calc_williams_r,
-        "calc_donchian": _calc_donchian,
+        "calc_bbands": _calc_bbands, "calc_macd": _calc_macd,
+        "calc_stoch": _calc_stoch, "calc_adx": _calc_adx,
+        "calc_vwap": _calc_vwap, "calc_cci": _calc_cci,
+        "calc_williams_r": _calc_williams_r, "calc_donchian": _calc_donchian,
         "calc_supertrend": _calc_supertrend,
         # Data arrays (for scripts that use raw lists instead of df)
         "opens": opens, "highs": highs, "lows": lows, "closes": closes,
@@ -1032,6 +1078,13 @@ def run_backtest_script(bars, script, initial_capital=10000):
 
     try:
         exec(script, sandbox)
+    except NameError as e:
+        import re as _re
+        m = _re.search(r"name '(\w+)' is not defined", str(e))
+        unknown = m.group(1) if m else str(e)
+        available = "calc_rsi, calc_ema, calc_sma, calc_atr, calc_bbands, calc_macd, calc_stoch, calc_adx, calc_vwap, calc_cci, calc_williams_r, calc_donchian, calc_supertrend"
+        print(f"[SCRIPT] Unknown name requested: {unknown}")
+        raise ValueError(f"'{unknown}' is not available. Available indicators: {available}. numpy (np) and pandas (pd) are also available.")
     except Exception as e:
         raise ValueError(f"Script error: {type(e).__name__}: {e}")
 
@@ -1044,13 +1097,22 @@ def run_backtest_script(bars, script, initial_capital=10000):
         signals = gen_fn(df)
     except TypeError as te:
         if "argument" in str(te) or "positional" in str(te):
-            # Function doesn't accept df — try without args (backward compat)
             try:
                 signals = gen_fn()
+            except NameError as ne:
+                import re as _re
+                m = _re.search(r"name '(\w+)' is not defined", str(ne))
+                unknown = m.group(1) if m else str(ne)
+                raise ValueError(f"'{unknown}' is not available in the script sandbox.")
             except Exception as e2:
                 raise ValueError(f"generate_signals() error: {type(e2).__name__}: {e2}")
         else:
             raise ValueError(f"generate_signals(df) error: {type(te).__name__}: {te}")
+    except NameError as ne:
+        import re as _re
+        m = _re.search(r"name '(\w+)' is not defined", str(ne))
+        unknown = m.group(1) if m else str(ne)
+        raise ValueError(f"'{unknown}' is not available in the script sandbox.")
     except Exception as e:
         raise ValueError(f"generate_signals(df) error: {type(e).__name__}: {e}")
 
@@ -1064,46 +1126,71 @@ def run_backtest_script(bars, script, initial_capital=10000):
 
     # Debug: log signal counts
     sig_list = list(signals)
-    buy_count = sum(1 for s in sig_list if s == 1 or s == "buy")
-    sell_count = sum(1 for s in sig_list if s == -1 or s == "sell")
-    print(f"[SCRIPT] {len(sig_list)} bars, {buy_count} buy signals, {sell_count} sell signals")
+    buy_ct = sum(1 for s in sig_list if s == 1 or s == "buy")
+    sell_ct = sum(1 for s in sig_list if s == -1 or s == "sell")
+    short_ct = sum(1 for s in sig_list if s == 2 or s == "short")
+    cover_ct = sum(1 for s in sig_list if s == -2 or s == "cover")
+    print(f"[SCRIPT] {len(sig_list)} bars, {buy_ct} buys, {sell_ct} sells, {short_ct} shorts, {cover_ct} covers")
     print(f"[SCRIPT] Date range: {dates[0]} to {dates[-1]}")
-    if buy_count == 0:
-        print(f"[SCRIPT] WARNING: 0 buy signals. First 20 signals: {sig_list[:20]}")
 
-    # Convert signals to buy/sell/None format
+    # Convert signals to string format
     bt_signals = []
     for s in signals:
-        if s == 1 or s == "buy":
-            bt_signals.append("buy")
-        elif s == -1 or s == "sell":
-            bt_signals.append("sell")
-        else:
-            bt_signals.append(None)
+        if s == 1 or s == "buy": bt_signals.append("buy")
+        elif s == -1 or s == "sell": bt_signals.append("sell")
+        elif s == 2 or s == "short": bt_signals.append("short")
+        elif s == -2 or s == "cover": bt_signals.append("cover")
+        else: bt_signals.append(None)
 
-    # Run through standard backtest engine
-    capital, position, entry_px = initial_capital, 0, 0.0
+    # Run through backtest engine with long/short support
+    capital, pos_dir, pos_shares, entry_px = initial_capital, 0, 0, 0.0
     trades, equity = [], []
     for i, (bar, sig) in enumerate(zip(bars, bt_signals)):
         price = bar["close"]
-        if sig == "buy" and position == 0:
+        # Long entry
+        if sig == "buy" and pos_dir == 0:
             shares = int(capital / price)
             if shares > 0:
-                position, entry_px = shares, price
+                pos_dir, pos_shares, entry_px = 1, shares, price
                 capital -= shares * price
                 trades.append({"date": bar["date"], "side": "buy", "price": round(price, 4), "shares": shares, "pnl": None})
-        elif sig == "sell" and position > 0:
-            pnl = (price - entry_px) * position
-            capital += position * price
-            trades.append({"date": bar["date"], "side": "sell", "price": round(price, 4), "shares": position, "pnl": round(pnl, 2)})
-            position, entry_px = 0, 0.0
-        equity.append({"date": bar["date"], "value": round(capital + position * price, 2)})
+        # Long exit
+        elif sig == "sell" and pos_dir == 1:
+            pnl = (price - entry_px) * pos_shares
+            capital += pos_shares * price
+            trades.append({"date": bar["date"], "side": "sell", "price": round(price, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+        # Short entry
+        elif sig == "short" and pos_dir == 0:
+            shares = int(capital / price)
+            if shares > 0:
+                pos_dir, pos_shares, entry_px = -1, shares, price
+                trades.append({"date": bar["date"], "side": "short", "price": round(price, 4), "shares": shares, "pnl": None})
+        # Short cover
+        elif sig == "cover" and pos_dir == -1:
+            pnl = (entry_px - price) * pos_shares
+            capital += pnl
+            trades.append({"date": bar["date"], "side": "cover", "price": round(price, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+            pos_dir, pos_shares, entry_px = 0, 0, 0.0
+        # Mark-to-market
+        if pos_dir == 1:
+            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (price - entry_px), 2)})
+        elif pos_dir == -1:
+            equity.append({"date": bar["date"], "value": round(capital + pos_shares * (entry_px - price), 2)})
+        else:
+            equity.append({"date": bar["date"], "value": round(capital, 2)})
 
-    if position > 0:
+    # Force close open positions
+    if pos_dir == 1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        pnl = (lp - entry_px) * position
-        capital += position * lp
-        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": position, "pnl": round(pnl, 2)})
+        pnl = (lp - entry_px) * pos_shares
+        capital += pos_shares * lp
+        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
+    elif pos_dir == -1 and pos_shares > 0:
+        lp = bars[-1]["close"]
+        pnl = (entry_px - lp) * pos_shares
+        capital += pnl
+        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": pos_shares, "pnl": round(pnl, 2)})
 
     final = capital
     ret = (final - initial_capital) / initial_capital * 100
