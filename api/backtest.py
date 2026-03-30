@@ -86,9 +86,11 @@ def _get_r2():
 def load_from_r2(symbol, timeframe):
     r2 = _get_r2()
     if not r2:
+        print(f"[R2] No R2 client — skipping cache for {symbol}/{timeframe}")
         return None, None
+    key = _r2_key(symbol, timeframe)
     try:
-        obj = r2.get_object(Bucket=R2_BUCKET, Key=_r2_key(symbol, timeframe))
+        obj = r2.get_object(Bucket=R2_BUCKET, Key=key)
         data = json.loads(obj["Body"].read().decode())
         bars = data.get("bars", [])
         if not bars:
@@ -113,7 +115,7 @@ def load_from_r2(symbol, timeframe):
             return bars, "cache"
         return None, None
     except Exception as e:
-        print(f"[R2] load error {symbol}/{timeframe}: {type(e).__name__}: {e}")
+        print(f"[R2] MISS key={key}: {type(e).__name__}: {e}")
         return None, None
 
 
