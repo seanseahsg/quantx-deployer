@@ -887,22 +887,20 @@ def run_backtest_script(bars, script, initial_capital=10000):
     if not gen_fn or not callable(gen_fn):
         raise ValueError("Script must define a 'generate_signals(df)' function")
 
-    # Call with df — also try without args for backward compat
+    # Always try passing df first, fall back to no-arg call
     try:
-        import inspect
-        sig = inspect.signature(gen_fn)
-        if len(sig.parameters) >= 1:
-            signals = gen_fn(df)
+        signals = gen_fn(df)
+    except TypeError as te:
+        if "argument" in str(te) or "positional" in str(te):
+            # Function doesn't accept df — try without args (backward compat)
+            try:
+                signals = gen_fn()
+            except Exception as e2:
+                raise ValueError(f"generate_signals() error: {type(e2).__name__}: {e2}")
         else:
-            signals = gen_fn()
-    except TypeError:
-        # Fallback: try both ways
-        try:
-            signals = gen_fn(df)
-        except TypeError:
-            signals = gen_fn()
+            raise ValueError(f"generate_signals(df) error: {type(te).__name__}: {te}")
     except Exception as e:
-        raise ValueError(f"generate_signals() error: {type(e).__name__}: {e}")
+        raise ValueError(f"generate_signals(df) error: {type(e).__name__}: {e}")
 
     if not isinstance(signals, (list, tuple)):
         try:
