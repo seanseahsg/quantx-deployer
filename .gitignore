@@ -9,6 +9,7 @@ bots/
 
 # Logs
 logs/
+*.log
 
 # Python
 __pycache__/
