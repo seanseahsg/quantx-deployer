@@ -98,6 +98,16 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 .form-hint { font-size:11px; color:var(--text-muted); margin-top:3px; }
 .form-row { display:grid; gap:16px; }
 
+/* ── Builder ─────────────────────────── */
+.bldr-tab { background:none; border:none; padding:8px 16px; font-size:13px; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; font-family:inherit; margin-bottom:-2px; }
+.bldr-tab.active { color:#1565C0; border-bottom-color:#1565C0; font-weight:500; }
+.bldr-tab:hover { color:var(--text-primary); }
+.bldr-rule { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; margin:4px 0; background:#fff; border:1px solid #E5E7EB; border-radius:8px; cursor:pointer; font-size:13px; color:#374151; transition:all .15s; }
+.bldr-rule:hover { border-color:#1565C0; background:#F8FAFF; }
+.bldr-rule strong { color:#1565C0; }
+.bldr-rule .r-del { color:#9CA3AF; font-size:18px; padding:0 4px; cursor:pointer; line-height:1; }
+.bldr-rule .r-del:hover { color:#DC2626; }
+
 /* ── Deploy Button ───────────────────── */
 .deploy-btn { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:500; border:none; cursor:pointer; min-width:90px; font-family:inherit; transition:all .15s; }
 .deploy-btn-off { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
@@ -448,25 +458,38 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
         <div class="form-group"><label>Strategy Name</label><input type="text" id="bldr-name" placeholder="My Strategy" value="Custom Strategy"></div>
         <div class="form-group"><label>Template</label><select id="bldr-tpl" onchange="loadBuilderTemplate(this.value)"><option value="">— Select template —</option><option value="ema_cross">EMA Crossover</option><option value="rsi_revert">RSI Oversold/Overbought</option><option value="macd_cross">MACD Signal Cross</option><option value="bb_bounce">Bollinger Band Bounce</option><option value="momentum">Momentum Breakout</option></select></div>
       </div>
-      <!-- Entry Long -->
-      <div style="border-left:3px solid #16A34A;padding:10px 14px;background:#F0FDF4;border-radius:0 6px 6px 0;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:600;color:#16A34A;margin-bottom:8px">📈 ENTRY LONG (Buy)</div>
-        <div id="bldr-entry-long"></div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button class="btn btn-outline btn-sm" onclick="bldrAddCondition('entry_long')" style="font-size:11px">+ Add</button><span style="font-size:11px;color:var(--text-muted)">Logic:</span><label style="font-size:11px;cursor:pointer"><input type="radio" name="bldr-entry-logic" value="AND" checked onchange="BLDR.entry_long.logic=this.value;bldrPreview()"> AND</label><label style="font-size:11px;cursor:pointer"><input type="radio" name="bldr-entry-logic" value="OR" onchange="BLDR.entry_long.logic=this.value;bldrPreview()"> OR</label></div>
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:4px">
+        <button class="bldr-tab active" onclick="switchBldrTab('entry_long')">Long entry</button>
+        <button class="bldr-tab" onclick="switchBldrTab('exit_long')">Long exit</button>
+        <button class="bldr-tab" onclick="switchBldrTab('entry_short')">Short entry</button>
+        <button class="bldr-tab" onclick="switchBldrTab('exit_short')">Short exit</button>
       </div>
-      <!-- Exit Long -->
-      <div style="border-left:3px solid #DC2626;padding:10px 14px;background:#FEF2F2;border-radius:0 6px 6px 0;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:600;color:#DC2626;margin-bottom:8px">📉 EXIT LONG (Sell)</div>
-        <div id="bldr-exit-long"></div>
-        <div style="margin-top:6px"><button class="btn btn-outline btn-sm" onclick="bldrAddCondition('exit_long')" style="font-size:11px">+ Add</button></div>
+      <div id="bldr-tab-desc" style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px;padding:4px 0">Open a long position at bar open when ALL rules below are satisfied.</div>
+      <!-- Rule cards -->
+      <div id="bldr-rules"></div>
+      <!-- Logic + Add -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0">
+        <button onclick="bldrAddCondition(_bldrTab)" style="background:none;border:none;color:#1565C0;font-size:13px;cursor:pointer;font-family:inherit;padding:4px 0">+ Add a new rule</button>
+        <div style="font-size:12px;color:var(--text-muted)">When <label style="cursor:pointer"><input type="radio" name="bldr-logic" value="AND" checked onchange="BLDR[_bldrTab].logic='AND';bldrPreview()"> ALL</label> <label style="cursor:pointer"><input type="radio" name="bldr-logic" value="OR" onchange="BLDR[_bldrTab].logic='OR';bldrPreview()"> ANY</label> rules match</div>
       </div>
       <!-- Risk -->
-      <div style="border:1px solid var(--border);padding:10px 14px;border-radius:6px;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">⚙️ Risk Management</div>
+      <div style="background:var(--surface-2);padding:10px 14px;border-radius:6px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">⚙️ Risk Management</div>
         <div style="display:flex;gap:16px"><div class="form-group" style="margin:0"><label style="font-size:11px">Stop Loss %</label><input type="number" id="bldr-sl" value="5" step="0.5" style="width:80px" onchange="BLDR.risk.stop_loss_pct=parseFloat(this.value)"></div><div class="form-group" style="margin:0"><label style="font-size:11px">Take Profit %</label><input type="number" id="bldr-tp" value="10" step="0.5" style="width:80px" onchange="BLDR.risk.take_profit_pct=parseFloat(this.value)"></div></div>
       </div>
-      <!-- Code preview -->
       <details style="margin-bottom:8px"><summary style="font-size:12px;color:var(--text-muted);cursor:pointer">Generated Strategy Code</summary><pre id="bldr-preview" style="background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:11px;padding:12px;border-radius:6px;max-height:250px;overflow-y:auto;margin-top:6px;white-space:pre-wrap"></pre></details>
+    </div>
+    <!-- Rule edit modal -->
+    <div id="bldr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;align-items:center;justify-content:center" onclick="if(event.target===this)closeBldrModal()">
+      <div style="background:#fff;border-radius:12px;width:420px;max-width:95vw;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.15)">
+        <h3 id="bldr-modal-title" style="font-size:16px;font-weight:500;color:#1565C0;border-bottom:1px solid #E5E7EB;padding-bottom:12px;margin:0 0 16px">Edit Rule</h3>
+        <div id="bldr-modal-body"></div>
+        <div style="display:flex;gap:8px;margin-top:20px">
+          <button onclick="closeBldrModal()" style="flex:1;padding:10px;background:#F3F4F6;color:#374151;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit">Cancel</button>
+          <button onclick="acceptBldrModal()" style="flex:2;padding:10px;background:#1565C0;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:500">Accept</button>
+        </div>
+      </div>
     </div>
     <button class="btn btn-primary" id="bt-run-btn" onclick="runBacktest()" style="width:100%;margin-top:8px">Run Backtest</button>
     <div id="bt-progress" style="display:none;margin-top:8px;padding:10px 14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;font-size:13px;color:#1D4ED8;align-items:center;gap:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span><span id="bt-progress-msg">Checking local cache...</span></div>
@@ -1420,8 +1443,10 @@ function createBotFromBacktest() {
 
 /* ═══════════════════ STRATEGY BUILDER ═══════════════════ */
 let _btMode = 'library';
+let _bldrTab = 'entry_long';
+let _bldrEditIdx = -1; // -1 = adding new, >=0 = editing existing
 const BLDR_INDICATORS = [
-  {group:'Price',items:[{id:'close',name:'Close'},{id:'open',name:'Open'},{id:'high',name:'High'},{id:'low',name:'Low'},{id:'volume',name:'Volume'}]},
+  {group:'Price',items:[{id:'close',name:'Close Price'},{id:'open',name:'Open Price'},{id:'high',name:'High'},{id:'low',name:'Low'},{id:'volume',name:'Volume'}]},
   {group:'Trend',items:[{id:'ema',name:'EMA',p:[{k:'period',d:20}]},{id:'sma',name:'SMA',p:[{k:'period',d:20}]},{id:'wma',name:'WMA',p:[{k:'period',d:20}]},{id:'hma',name:'HMA',p:[{k:'period',d:20}]}]},
   {group:'Momentum',items:[{id:'rsi',name:'RSI',p:[{k:'period',d:14}]},{id:'macd_line',name:'MACD Line',p:[{k:'fast',d:12},{k:'slow',d:26},{k:'signal',d:9}]},{id:'macd_signal',name:'MACD Signal',p:[{k:'fast',d:12},{k:'slow',d:26},{k:'signal',d:9}]},{id:'stoch_k',name:'Stoch %K',p:[{k:'k',d:14},{k:'d',d:3}]},{id:'stoch_d',name:'Stoch %D',p:[{k:'k',d:14},{k:'d',d:3}]},{id:'roc',name:'ROC',p:[{k:'period',d:10}]},{id:'williams_r',name:'Williams %R',p:[{k:'period',d:14}]}]},
   {group:'Volatility',items:[{id:'bb_upper',name:'BB Upper',p:[{k:'period',d:20},{k:'std',d:2}]},{id:'bb_lower',name:'BB Lower',p:[{k:'period',d:20},{k:'std',d:2}]},{id:'bb_mid',name:'BB Middle',p:[{k:'period',d:20},{k:'std',d:2}]},{id:'atr',name:'ATR',p:[{k:'period',d:14}]}]},
@@ -1429,11 +1454,14 @@ const BLDR_INDICATORS = [
   {group:'Other',items:[{id:'zscore',name:'Z-Score',p:[{k:'period',d:20}]},{id:'donch_upper',name:'Donchian Upper',p:[{k:'period',d:20}]},{id:'donch_lower',name:'Donchian Lower',p:[{k:'period',d:20}]}]},
 ];
 const BLDR_CONDITIONS = ['crosses_above','crosses_below','is_above','is_below','is_greater_than','is_less_than'];
-const BLDR_COND_LABELS = {crosses_above:'crosses above',crosses_below:'crosses below',is_above:'is above',is_below:'is below',is_greater_than:'>',is_less_than:'<'};
+const BLDR_COND_LABELS = {crosses_above:'crosses above',crosses_below:'crosses below',is_above:'is above',is_below:'is below',is_greater_than:'is greater than',is_less_than:'is less than'};
+const BLDR_TAB_DESC = {entry_long:'Open a long position at bar open when rules below are satisfied.',exit_long:'Close a long position at bar open when rules below are satisfied.',entry_short:'Open a short position at bar open when rules below are satisfied.',exit_short:'Close a short position at bar open when rules below are satisfied.'};
 
 let BLDR = {
   entry_long:{conditions:[],logic:'AND'},
   exit_long:{conditions:[],logic:'OR'},
+  entry_short:{conditions:[],logic:'AND'},
+  exit_short:{conditions:[],logic:'OR'},
   risk:{stop_loss_pct:5,take_profit_pct:10}
 };
 
@@ -1444,9 +1472,23 @@ function setBtMode(mode) {
   document.getElementById('bt-lib-strat').style.display = mode === 'library' ? '' : 'none';
   document.getElementById('bt-builder').style.display = mode === 'builder' ? '' : 'none';
   if (mode === 'builder' && BLDR.entry_long.conditions.length === 0) loadBuilderTemplate('ema_cross');
+  if (mode === 'builder') { switchBldrTab('entry_long'); bldrRender(); }
+}
+
+function switchBldrTab(tab) {
+  _bldrTab = tab;
+  document.querySelectorAll('.bldr-tab').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().replace(' ','_').includes(tab.replace('entry_','').replace('exit_',''))));
+  // More reliable: match by onclick content
+  document.querySelectorAll('.bldr-tab').forEach(b => { const t = b.getAttribute('onclick'); if (t) b.classList.toggle('active', t.includes("'" + tab + "'")); });
+  document.getElementById('bldr-tab-desc').textContent = BLDR_TAB_DESC[tab] || '';
+  // Set logic radio
+  const logic = BLDR[tab]?.logic || 'AND';
+  document.querySelectorAll('input[name="bldr-logic"]').forEach(r => r.checked = r.value === logic);
+  bldrRenderCards();
 }
 
 function loadBuilderTemplate(tpl) {
+  BLDR.entry_short.conditions = []; BLDR.exit_short.conditions = [];
   if (tpl === 'ema_cross') {
     BLDR.entry_long.conditions = [{left:{id:'ema',p:{period:20}},cond:'crosses_above',right:{type:'indicator',id:'ema',p:{period:50}}}];
     BLDR.exit_long.conditions = [{left:{id:'ema',p:{period:20}},cond:'crosses_below',right:{type:'indicator',id:'ema',p:{period:50}}}];
@@ -1463,22 +1505,22 @@ function loadBuilderTemplate(tpl) {
     BLDR.entry_long.conditions = [{left:{id:'roc',p:{period:10}},cond:'is_greater_than',right:{type:'value',value:5}}];
     BLDR.exit_long.conditions = [{left:{id:'roc',p:{period:10}},cond:'is_less_than',right:{type:'value',value:-5}}];
   }
-  bldrRender();
+  switchBldrTab('entry_long');
 }
 
 function bldrAddCondition(section) {
-  BLDR[section].conditions.push({left:{id:'close'},cond:'is_above',right:{type:'value',value:0}});
-  bldrRender();
+  openBldrModal(section, -1);
 }
 
 function bldrRemoveCondition(section, idx) {
   BLDR[section].conditions.splice(idx, 1);
-  bldrRender();
+  bldrRenderCards();
+  bldrPreview();
 }
 
-function _bldrIndOpts() {
+function _bldrIndOpts(selected) {
   let h = '';
-  BLDR_INDICATORS.forEach(g => { h += `<optgroup label="${g.group}">`; g.items.forEach(it => { h += `<option value="${it.id}">${it.name}</option>`; }); h += '</optgroup>'; });
+  BLDR_INDICATORS.forEach(g => { h += `<optgroup label="${g.group}">`; g.items.forEach(it => { h += `<option value="${it.id}"${it.id===selected?' selected':''}>${it.name}</option>`; }); h += '</optgroup>'; });
   return h;
 }
 
@@ -1487,50 +1529,67 @@ function _bldrFindInd(id) {
   return null;
 }
 
-function _bldrParamInputs(prefix, ind, currentParams) {
+function _bldrRuleSummary(c) {
+  const li = _bldrFindInd(c.left.id); const ln = li ? li.name : c.left.id;
+  const lp = c.left.p && Object.keys(c.left.p).length ? ' (' + Object.values(c.left.p).join(', ') + ')' : '';
+  const cond = BLDR_COND_LABELS[c.cond] || c.cond;
+  let rn;
+  if (c.right.type === 'value') { rn = String(c.right.value ?? 0); }
+  else { const ri = _bldrFindInd(c.right.id); rn = (ri ? ri.name : (c.right.id||'?')) + (c.right.p && Object.keys(c.right.p).length ? ' (' + Object.values(c.right.p).join(', ') + ')' : ''); }
+  return `<strong>${ln}</strong>${lp}  ${cond}  <strong>${rn}</strong>`;
+}
+
+function bldrRenderCards() {
+  const el = document.getElementById('bldr-rules'); if (!el) return;
+  const conds = BLDR[_bldrTab]?.conditions || [];
+  if (!conds.length) { el.innerHTML = '<div style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:13px">No rules yet. Click "+ Add a new rule" below.</div>'; }
+  else { el.innerHTML = conds.map((c,i)=>`<div class="bldr-rule" onclick="openBldrModal('${_bldrTab}',${i})"><span>${_bldrRuleSummary(c)}</span><span class="r-del" onclick="event.stopPropagation();bldrRemoveCondition('${_bldrTab}',${i})" title="Remove">&times;</span></div>`).join(''); }
+  bldrPreview();
+}
+
+function bldrRender() { bldrRenderCards(); }
+
+// ── Rule edit modal ──────────────────────────────────────────────────────
+let _bldrModalSection = '';
+let _bldrModalDraft = null;
+
+function openBldrModal(section, idx) {
+  _bldrModalSection = section; _bldrEditIdx = idx;
+  const existing = idx >= 0 ? BLDR[section].conditions[idx] : null;
+  _bldrModalDraft = existing ? JSON.parse(JSON.stringify(existing)) : {left:{id:'ema',p:{period:20}},cond:'crosses_above',right:{type:'indicator',id:'sma',p:{period:50}}};
+  renderBldrModalBody();
+  document.getElementById('bldr-modal').style.display = 'flex';
+  document.getElementById('bldr-modal-title').textContent = idx >= 0 ? 'Edit Rule' : 'Add Rule';
+}
+function closeBldrModal() { document.getElementById('bldr-modal').style.display = 'none'; }
+function acceptBldrModal() {
+  if (_bldrEditIdx >= 0) BLDR[_bldrModalSection].conditions[_bldrEditIdx] = _bldrModalDraft;
+  else BLDR[_bldrModalSection].conditions.push(_bldrModalDraft);
+  closeBldrModal(); bldrRenderCards();
+}
+
+function _bldrModalParamFields(prefix, indId, currentP) {
+  const ind = _bldrFindInd(indId);
   if (!ind || !ind.p) return '';
-  return ind.p.map(p => `<input type="number" value="${(currentParams||{})[p.k]||p.d}" style="width:50px;padding:2px 4px;font-size:11px;border:1px solid var(--border);border-radius:3px" onchange="bldrUpdateParam('${prefix}','${p.k}',parseFloat(this.value))" title="${p.k}">`).join('');
+  return ind.p.map(p => `<div style="margin-bottom:12px"><label style="display:block;font-size:12px;font-weight:500;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${p.k}</label><input type="number" value="${(currentP||{})[p.k]??p.d}" onchange="_bldrModalDraft.${prefix}.p=_bldrModalDraft.${prefix}.p||{};_bldrModalDraft.${prefix}.p['${p.k}']=parseFloat(this.value)" style="width:100%;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;font-size:14px;font-family:inherit"></div>`).join('');
 }
 
-function bldrUpdateParam(prefix, key, value) {
-  const parts = prefix.split('.');
-  const section = parts[0], idx = parseInt(parts[1]), side = parts[2];
-  const cond = BLDR[section].conditions[idx];
-  if (side === 'left') { if (!cond.left.p) cond.left.p = {}; cond.left.p[key] = value; }
-  else { if (!cond.right.p) cond.right.p = {}; cond.right.p[key] = value; }
-  bldrPreview();
+function renderBldrModalBody() {
+  const d = _bldrModalDraft; const isVal = d.right.type === 'value';
+  const fld = (lbl, inner) => `<div style="margin-bottom:16px"><label style="display:block;font-size:12px;font-weight:500;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">${lbl}</label>${inner}</div>`;
+  const sel = (cls) => `style="width:100%;padding:8px 12px;border:1px solid #D1D5DB;border-radius:6px;font-size:14px;font-family:inherit"`;
+  document.getElementById('bldr-modal-body').innerHTML =
+    fld('Indicator', `<select onchange="_bldrModalDraft.left.id=this.value;const i=_bldrFindInd(this.value);_bldrModalDraft.left.p={};if(i&&i.p)i.p.forEach(p=>_bldrModalDraft.left.p[p.k]=p.d);renderBldrModalBody()" ${sel()}>${_bldrIndOpts(d.left.id)}</select>`) +
+    _bldrModalParamFields('left', d.left.id, d.left.p) +
+    fld('Condition', `<select onchange="_bldrModalDraft.cond=this.value" ${sel()}>${BLDR_CONDITIONS.map(c=>`<option value="${c}"${c===d.cond?' selected':''}>${BLDR_COND_LABELS[c]}</option>`).join('')}</select>`) +
+    fld('Compare to', `<div style="display:flex;gap:4px;margin-bottom:8px"><span class="filter-pill${!isVal?' active':''}" onclick="_bldrModalDraft.right.type='indicator';if(!_bldrModalDraft.right.id){_bldrModalDraft.right.id='sma';_bldrModalDraft.right.p={period:50};}renderBldrModalBody()">Indicator</span><span class="filter-pill${isVal?' active':''}" onclick="_bldrModalDraft.right.type='value';_bldrModalDraft.right.value=_bldrModalDraft.right.value||0;renderBldrModalBody()">Value</span></div>`) +
+    (isVal ? fld('Value', `<input type="number" value="${d.right.value||0}" onchange="_bldrModalDraft.right.value=parseFloat(this.value)" ${sel()}>`) :
+    fld('Right Indicator', `<select onchange="_bldrModalDraft.right.id=this.value;const i=_bldrFindInd(this.value);_bldrModalDraft.right.p={};if(i&&i.p)i.p.forEach(p=>_bldrModalDraft.right.p[p.k]=p.d);renderBldrModalBody()" ${sel()}>${_bldrIndOpts(d.right.id)}</select>`) + _bldrModalParamFields('right', d.right.id, d.right.p));
 }
 
-function bldrUpdateField(section, idx, field, value) {
-  const c = BLDR[section].conditions[idx];
-  if (field === 'left_id') { c.left.id = value; c.left.p = {}; const ind = _bldrFindInd(value); if (ind && ind.p) ind.p.forEach(p => c.left.p[p.k] = p.d); }
-  else if (field === 'cond') c.cond = value;
-  else if (field === 'right_type') { c.right.type = value; if (value === 'value') c.right.value = 0; else { c.right.id = 'sma'; c.right.p = {period: 50}; } }
-  else if (field === 'right_id') { c.right.id = value; c.right.p = {}; const ind = _bldrFindInd(value); if (ind && ind.p) ind.p.forEach(p => c.right.p[p.k] = p.d); }
-  else if (field === 'right_value') c.right.value = parseFloat(value);
-  bldrRender();
-}
-
-function bldrRender() {
-  ['entry_long','exit_long'].forEach(section => {
-    const el = document.getElementById('bldr-' + section.replace('_','-'));
-    if (!el) return;
-    el.innerHTML = BLDR[section].conditions.map((c, i) => {
-      const leftInd = _bldrFindInd(c.left.id);
-      const isVal = c.right.type === 'value';
-      const rightInd = isVal ? null : _bldrFindInd(c.right.id);
-      return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
-        <select onchange="bldrUpdateField('${section}',${i},'left_id',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;min-width:90px">${_bldrIndOpts().replace('value="'+c.left.id+'"','value="'+c.left.id+'" selected')}</select>
-        ${_bldrParamInputs(section+'.'+i+'.left', leftInd, c.left.p)}
-        <select onchange="bldrUpdateField('${section}',${i},'cond',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px">${BLDR_CONDITIONS.map(cd => `<option value="${cd}"${cd===c.cond?' selected':''}>${BLDR_COND_LABELS[cd]}</option>`).join('')}</select>
-        <select onchange="bldrUpdateField('${section}',${i},'right_type',this.value)" style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;width:70px"><option value="value"${isVal?' selected':''}>Value</option><option value="indicator"${!isVal?' selected':''}>Indicator</option></select>
-        ${isVal ? `<input type="number" value="${c.right.value||0}" onchange="bldrUpdateField('${section}',${i},'right_value',this.value)" style="width:70px;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px">` :
-        `<select onchange="bldrUpdateField('${section}',${i},'right_id',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;min-width:90px">${_bldrIndOpts().replace('value="'+(c.right.id||'')+'"','value="'+(c.right.id||'')+'" selected')}</select>${_bldrParamInputs(section+'.'+i+'.right', rightInd, c.right.p)}`}
-        <span onclick="bldrRemoveCondition('${section}',${i})" style="cursor:pointer;color:var(--red);font-size:14px" title="Remove">&times;</span>
-      </div>`;
-    }).join('');
-  });
-  bldrPreview();
+function bldrPreview() {
+  const el = document.getElementById('bldr-preview');
+  if (el) el.textContent = bldrGenerateScript();
 }
 
 function _bldrGenVar(id, params) {
