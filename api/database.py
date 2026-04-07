@@ -123,13 +123,21 @@ def init_db():
             timestamp TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (email) REFERENCES students(email)
         );
+        CREATE TABLE IF NOT EXISTS ibkr_configs (
+            email TEXT PRIMARY KEY,
+            host TEXT DEFAULT '127.0.0.1',
+            port INTEGER DEFAULT 7497,
+            client_id INTEGER DEFAULT 1,
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     # Migration: add new strategy columns
     try:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(strategies)").fetchall()}
         for col, default in [("allocation", "'10000'"), ("backtest_results_json", "NULL"),
-                              ("live_results_json", "NULL"), ("trade_log_json", "NULL")]:
+                              ("live_results_json", "NULL"), ("trade_log_json", "NULL"),
+                              ("broker", "'longport'")]:
             if col not in cols:
                 conn.execute(f"ALTER TABLE strategies ADD COLUMN {col} TEXT DEFAULT {default}")
         conn.commit()
@@ -185,14 +193,15 @@ def get_student(email: str) -> dict | None:
 def save_strategy(email: str, strategy_id: str, strategy_name: str, symbol: str,
                   arena: str, timeframe: str, conditions: dict, exit_rules: dict,
                   risk: dict, is_active: bool = True, mode: str = "library",
-                  library_id: str = "", custom_script: str = ""):
+                  library_id: str = "", custom_script: str = "",
+                  broker: str = "longport"):
     conn = get_db()
     try:
         conn.execute(
             """INSERT INTO strategies (email, strategy_id, strategy_name, symbol, arena, timeframe,
                                       conditions_json, exit_rules_json, risk_json, is_active,
-                                      mode, library_id, custom_script)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      mode, library_id, custom_script, broker)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(strategy_id) DO UPDATE SET
                  strategy_name=excluded.strategy_name,
                  symbol=excluded.symbol,
@@ -204,10 +213,11 @@ def save_strategy(email: str, strategy_id: str, strategy_name: str, symbol: str,
                  is_active=excluded.is_active,
                  mode=excluded.mode,
                  library_id=excluded.library_id,
-                 custom_script=excluded.custom_script""",
+                 custom_script=excluded.custom_script,
+                 broker=excluded.broker""",
             (email, strategy_id, strategy_name, symbol, arena, timeframe,
              json.dumps(conditions), json.dumps(exit_rules), json.dumps(risk),
-             1 if is_active else 0, mode, library_id, custom_script),
+             1 if is_active else 0, mode, library_id, custom_script, broker),
         )
         conn.commit()
     finally:
@@ -238,6 +248,7 @@ def get_strategies(email: str, active_only: bool = False) -> list[dict]:
                 "mode": r["mode"] if "mode" in rk else "library",
                 "library_id": r["library_id"] if "library_id" in rk else "",
                 "custom_script": r["custom_script"] if "custom_script" in rk else "",
+                "broker": r["broker"] if "broker" in rk else "longport",
                 "allocation": float(r["allocation"]) if "allocation" in rk and r["allocation"] else 10000,
                 "backtest_results": json.loads(r["backtest_results_json"]) if "backtest_results_json" in rk and r["backtest_results_json"] else None,
                 "live_results": json.loads(r["live_results_json"]) if "live_results_json" in rk and r["live_results_json"] else None,
@@ -339,5 +350,35 @@ def get_trades(email: str) -> list[dict]:
             "SELECT * FROM trades WHERE email = ? ORDER BY timestamp DESC", (email,)
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ── IBKR config helpers ────────────────────────────────────────────────────
+
+def save_ibkr_config(email: str, host: str = "127.0.0.1", port: int = 7497,
+                     client_id: int = 1):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO ibkr_configs (email, host, port, client_id, updated_at)
+               VALUES (?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(email) DO UPDATE SET
+                 host=excluded.host, port=excluded.port,
+                 client_id=excluded.client_id, updated_at=excluded.updated_at""",
+            (email, host, port, client_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_ibkr_config(email: str) -> dict | None:
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM ibkr_configs WHERE email = ?", (email,)).fetchone()
+        if not row:
+            return None
+        return {"host": row["host"], "port": row["port"], "client_id": row["client_id"]}
     finally:
         conn.close()

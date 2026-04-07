@@ -1196,23 +1196,47 @@ async function connectLongPort() {
   } catch (e) { showToast('Connection failed: ' + e.message, 'error'); }
 }
 
-function saveIbkrConfig() {
+async function saveIbkrConfig() {
   const host = document.getElementById('ibkr-host').value.trim() || '127.0.0.1';
-  const port = document.getElementById('ibkr-port').value || '7497';
-  const clientId = document.getElementById('ibkr-clientid').value || '1';
+  const port = parseInt(document.getElementById('ibkr-port').value) || 7497;
+  const clientId = parseInt(document.getElementById('ibkr-clientid').value) || 1;
   localStorage.setItem('ibkr_config', JSON.stringify({ host, port, client_id: clientId }));
+  // Save to server if logged in
+  if (EMAIL) {
+    try {
+      await fetch(API + '/api/ibkr-config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: EMAIL, host, port, client_id: clientId })
+      });
+    } catch (e) { console.warn('IBKR config save to server failed:', e); }
+  }
   document.getElementById('ibkr-connected').style.display = '';
   document.getElementById('ibkr-info').textContent = host + ':' + port;
   document.getElementById('ibkr-form').style.display = 'none';
   showToast('IBKR config saved', 'success');
 }
 
-function checkIbkrStatus() {
+async function checkIbkrStatus() {
+  // Check localStorage first
   const cfg = JSON.parse(localStorage.getItem('ibkr_config') || 'null');
   if (cfg) {
     document.getElementById('ibkr-connected').style.display = '';
     document.getElementById('ibkr-info').textContent = cfg.host + ':' + cfg.port;
     document.getElementById('ibkr-form').style.display = 'none';
+    return;
+  }
+  // Check server
+  if (EMAIL) {
+    try {
+      const r = await fetch(API + '/api/ibkr-config?email=' + encodeURIComponent(EMAIL));
+      const d = await r.json();
+      if (d.configured) {
+        document.getElementById('ibkr-connected').style.display = '';
+        document.getElementById('ibkr-info').textContent = d.host + ':' + d.port;
+        document.getElementById('ibkr-form').style.display = 'none';
+        localStorage.setItem('ibkr_config', JSON.stringify({ host: d.host, port: d.port, client_id: d.client_id }));
+      }
+    } catch (_) {}
   }
 }
 

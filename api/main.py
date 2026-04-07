@@ -34,8 +34,9 @@ from api.database import (
     init_db, get_db, save_student, get_student, save_strategy, get_strategies,
     delete_strategy, toggle_strategy, save_process, update_process_status,
     get_latest_process, log_trade, get_trades, decrypt,
+    save_ibkr_config, get_ibkr_config,
 )
-from api.generate import generate_master_bot
+from api.generate import generate_master_bot, generate_ibkr_bot
 
 _log = _logging.getLogger("quantx-deployer")
 
@@ -65,6 +66,14 @@ class StrategyReq(BaseModel):
     mode: str = "library"
     library_id: str = ""
     custom_script: str = ""
+    broker: str = "longport"
+
+
+class IBKRConfigReq(BaseModel):
+    email: str
+    host: str = "127.0.0.1"
+    port: int = 7497
+    client_id: int = 1
 
 
 class ValidateScriptReq(BaseModel):
@@ -798,6 +807,7 @@ async def add_strategy(req: StrategyReq):
         email, req.strategy_id, req.strategy_name, req.symbol, req.arena,
         req.timeframe, req.conditions, req.exit_rules, req.risk, req.is_active,
         mode=req.mode, library_id=req.library_id, custom_script=req.custom_script,
+        broker=req.broker,
     )
     return {"status": "saved", "strategy_id": req.strategy_id}
 
@@ -876,8 +886,35 @@ async def deploy(req: DeployReq):
 
     _log.info("Deploying with central API: %s", central_url)
 
-    # Generate master bot
-    script_path = generate_master_bot(email, strategies, student)
+    # Split strategies by broker
+    lp_strats = [s for s in strategies if s.get("broker", "longport") != "ibkr"]
+    ibkr_strats = [s for s in strategies if s.get("broker") == "ibkr"]
+
+    # If there are IBKR strategies, launch IBKR bot too
+    if ibkr_strats:
+        ibkr_cfg = get_ibkr_config(email) or {"host": "127.0.0.1", "port": 7497, "client_id": 1}
+        ibkr_script = generate_ibkr_bot(email, ibkr_strats, student, ibkr_cfg)
+        email_safe = email.replace("@", "_at_").replace(".", "_")
+        ibkr_log = str(LOGS_DIR / f"{email_safe}_ibkr_master.log")
+        try:
+            ibkr_proc = _launch_bot(ibkr_script, ibkr_log)
+            _log.info("[DEPLOY] IBKR bot PID: %s for %d strategies", ibkr_proc.pid, len(ibkr_strats))
+        except Exception as e:
+            _log.error("[DEPLOY] IBKR bot launch failed: %s", e)
+
+    # Use LongPort strategies for the main bot (or all if no broker split)
+    deploy_strats = lp_strats if lp_strats else strategies
+    if not lp_strats and ibkr_strats:
+        # All strategies are IBKR — no LongPort bot needed
+        return {
+            "status": "deployed",
+            "broker": "ibkr",
+            "strategies_count": len(ibkr_strats),
+            "central_api_url": central_url,
+        }
+
+    # Generate LongPort master bot
+    script_path = generate_master_bot(email, deploy_strats, student)
 
     # Prepare log file path and ensure logs directory exists
     email_safe = email.replace("@", "_at_").replace(".", "_")
@@ -942,6 +979,21 @@ async def restart(req: DeployReq):
     if email in _running_processes:
         _stop_process(email)
     return await deploy(req)
+
+
+@app.post("/api/ibkr-config")
+async def set_ibkr_config(req: IBKRConfigReq):
+    email = req.email.lower().strip()
+    save_ibkr_config(email, req.host, req.port, req.client_id)
+    return {"status": "saved", "host": req.host, "port": req.port, "client_id": req.client_id}
+
+
+@app.get("/api/ibkr-config")
+async def get_ibkr_config_endpoint(email: str):
+    cfg = get_ibkr_config(email.lower().strip())
+    if not cfg:
+        return {"configured": False}
+    return {"configured": True, **cfg}
 
 
 @app.get("/api/status/{email}")
