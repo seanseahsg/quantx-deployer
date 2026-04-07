@@ -299,6 +299,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     <span class="filter-pill" onclick="filterBots('off',this)">Off</span>
     <input type="text" class="filter-search" placeholder="Search bots..." oninput="filterBotSearch(this.value)" style="width:200px;padding:6px 12px;font-size:12px">
   </div>
+  <div id="bots-dupe-banner" style="display:none;background:var(--orange-light);border:1px solid #FFCC80;border-radius:6px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--orange);display:none"><span></span> <button class="btn btn-sm" onclick="cleanupDuplicates()" style="margin-left:8px;background:var(--orange);color:#fff;border:none;padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">Clean up</button></div>
   <div class="stat-row" style="grid-template-columns:repeat(4,1fr)" id="bots-stats">
     <div class="stat-card"><div class="stat-label">Total Bots</div><div class="stat-value" id="bs-total">0</div></div>
     <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value green" id="bs-active">0</div></div>
@@ -338,6 +339,9 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <!-- Dashboard -->
   <div id="bd-dashboard">
+    <div id="bd-no-bt" class="card" style="display:none;margin-bottom:16px;text-align:center;padding:20px;color:var(--text-muted)">
+      No backtest data available. <a href="#" onclick="navigate('backtester');return false" style="color:var(--blue-primary)">Run a backtest</a> to see stats.
+    </div>
     <div class="stat-row" style="grid-template-columns:repeat(5,1fr)">
       <div class="stat-card"><div class="stat-label">Return</div><div class="stat-value" id="bd-return">—</div></div>
       <div class="stat-card"><div class="stat-label">Sharpe</div><div class="stat-value" id="bd-sharpe">—</div></div>
@@ -346,6 +350,16 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <div class="stat-card"><div class="stat-label">Trades</div><div class="stat-value" id="bd-trades">—</div></div>
     </div>
     <div class="chart-container"><canvas id="bd-chart"></canvas></div>
+    <!-- Live P/L -->
+    <div class="card" style="margin-top:16px">
+      <h4 style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-secondary)">Live Trading</h4>
+      <div class="stat-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-label">Total P/L</div><div class="stat-value" id="bd-live-pnl">—</div></div>
+        <div class="stat-card"><div class="stat-label">Trade Count</div><div class="stat-value" id="bd-live-count">0</div></div>
+        <div class="stat-card"><div class="stat-label">Last Trade</div><div class="stat-value" id="bd-live-last" style="font-size:12px">—</div></div>
+      </div>
+      <div id="bd-live-empty" style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;display:none">No trades yet. Bot will show trades here when live.</div>
+    </div>
   </div>
   <!-- Log -->
   <div id="bd-log" style="display:none">
@@ -357,15 +371,27 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <!-- Settings -->
   <div id="bd-settings" style="display:none">
-    <div class="card" style="max-width:500px">
+    <div class="card" style="max-width:560px">
       <h3 style="margin-bottom:16px">Bot Settings</h3>
-      <div class="form-group"><label>Strategy Name</label><input type="text" id="bd-set-name"></div>
-      <div class="form-group"><label>Symbol</label><input type="text" id="bd-set-symbol"></div>
-      <div class="form-group"><label>Allocation ($)</label><input type="number" id="bd-set-alloc"></div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>Bot Name</label><input type="text" id="bd-set-name"></div>
+        <div class="form-group"><label>Symbol</label><input type="text" id="bd-set-symbol"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="form-group"><label>Allocation ($)</label><input type="number" id="bd-set-alloc"></div>
+        <div class="form-group"><label>Stop Loss %</label><input type="number" id="bd-set-sl" step="0.5" value="5"></div>
+        <div class="form-group"><label>Take Profit %</label><input type="number" id="bd-set-tp" step="0.5" value="10"></div>
+      </div>
+      <div class="form-group"><label>Strategy</label><input type="text" id="bd-set-strat" disabled style="background:var(--surface-2);color:var(--text-muted)"></div>
+      <div id="bd-set-msg" style="font-size:12px;min-height:18px;margin-bottom:8px"></div>
       <button class="btn btn-primary" onclick="saveBotSettings()">Save Changes</button>
-      <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border)">
+      <div style="margin-top:32px;padding-top:16px;border-top:2px solid var(--red-light);border-radius:8px">
         <h4 style="color:var(--red);font-size:13px;margin-bottom:8px">Danger Zone</h4>
-        <button class="btn btn-danger btn-sm" onclick="deleteBot()">Delete Bot</button>
+        <div id="bd-delete-normal"><button class="btn btn-danger btn-sm" onclick="showDeleteConfirm()">Delete Bot</button></div>
+        <div id="bd-delete-confirm" style="display:none;background:var(--red-light);padding:12px;border-radius:6px">
+          <div style="font-size:13px;color:var(--red);margin-bottom:8px">Are you sure? This cannot be undone.</div>
+          <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" onclick="hideDeleteConfirm()">Cancel</button><button class="btn btn-danger btn-sm" onclick="deleteBot()">Delete Permanently</button></div>
+        </div>
       </div>
     </div>
   </div>
@@ -717,6 +743,8 @@ async function loadBots() {
     const d = await r.json();
     USER_STRATEGIES = Array.isArray(d) ? d : (d.strategies || []);
     console.log('[BOTS] Loaded', USER_STRATEGIES.length, 'user strategies');
+    // Check for duplicates
+    checkDuplicateBots();
     renderBots();
   } catch (e) { showToast('Failed to load bots: ' + e.message, 'error'); }
 }
@@ -768,14 +796,62 @@ function filterBots(f, el) {
 }
 function filterBotSearch(v) { _botSearch = v; renderBots(); }
 
+function checkDuplicateBots() {
+  const seen = {};
+  const dupes = [];
+  USER_STRATEGIES.forEach(s => {
+    const key = (s.strategy_name || '') + '|' + (s.symbol || '');
+    if (seen[key]) dupes.push(s.strategy_id);
+    else seen[key] = s.strategy_id;
+  });
+  const banner = document.getElementById('bots-dupe-banner');
+  if (dupes.length > 0 && banner) {
+    banner.style.display = '';
+    banner.querySelector('span').textContent = dupes.length + ' duplicate bot' + (dupes.length > 1 ? 's' : '') + ' found.';
+    banner._dupes = dupes;
+  } else if (banner) { banner.style.display = 'none'; }
+}
+
+async function cleanupDuplicates() {
+  const banner = document.getElementById('bots-dupe-banner');
+  const dupes = banner?._dupes || [];
+  for (const sid of dupes) {
+    try { await fetch(API + '/api/strategy/' + encodeURIComponent(sid), { method: 'DELETE' }); } catch (_) {}
+  }
+  showToast('Cleaned up ' + dupes.length + ' duplicate(s)', 'success');
+  await loadBots();
+}
+
 async function toggleBot(sid, active) {
+  // Mark loading on the toggle
+  const s = USER_STRATEGIES.find(x => x.strategy_id === sid);
+  if (s) { s._toggling = true; renderBots(); }
   try {
+    // Toggle the strategy active flag
     await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=' + active, { method: 'PUT' });
+    // Deploy or stop the subprocess
     if (active) {
-      await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
+      const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
+      if (!dr.ok) { const dd = await dr.json(); throw new Error(dd.detail || 'Deploy failed'); }
+      showToast('Bot deployed', 'success');
+    } else {
+      const sr = await fetch(API + '/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
+      if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Stop failed'); }
+      showToast('Bot stopped', 'info');
     }
-    setTimeout(loadBots, 500);
-  } catch (e) { showToast('Toggle failed: ' + e.message, 'error'); }
+  } catch (e) {
+    showToast('Toggle failed: ' + e.message, 'error');
+    // Revert toggle on failure
+    try { await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=' + !active, { method: 'PUT' }); } catch (_) {}
+  }
+  if (s) s._toggling = false;
+  await loadBots();
+  // Refresh status
+  try {
+    const sr = await fetch(API + '/api/status/' + encodeURIComponent(EMAIL));
+    const sd = await sr.json();
+    console.log('[STATUS]', sd);
+  } catch (_) {}
 }
 
 function openNewBot() {
@@ -795,6 +871,9 @@ async function createBot(andDeploy = false) {
   const name = document.getElementById('nb-name').value.trim() || (strat === '__TEST__' ? 'Quick Test ' + sym : strat + ' ' + sym);
   if (!sym) { errEl.textContent = 'Symbol required'; return; }
   if (!EMAIL) { errEl.textContent = 'Set up account on Home page first'; return; }
+  // Duplicate check
+  const existing = USER_STRATEGIES.find(s => s.strategy_name === name && s.symbol === sym);
+  if (existing) { errEl.textContent = 'A bot with this name and symbol already exists. Use a different name.'; return; }
   const isTest = strat === '__TEST__';
   const stratId = isTest ? 'TEST' : strat;
   const lib = (LIB_CACHE || []).find(l => l.id === strat);
@@ -842,17 +921,52 @@ function openBotDetail(sid) {
   document.getElementById('bd-symbol').textContent = _currentBot.symbol;
   document.getElementById('bd-toggle').querySelector('input').checked = _currentBot.is_active;
   const bt = _currentBot.backtest_results || {};
+  const hasBt = bt && bt.total_return_pct !== undefined && bt.total_return_pct !== null;
   const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) : '—';
   document.getElementById('bd-return').textContent = mf(bt.total_return_pct) + '%';
+  document.getElementById('bd-return').className = 'stat-value ' + ((bt.total_return_pct||0) >= 0 ? 'green' : 'red');
   document.getElementById('bd-sharpe').textContent = mf(bt.sharpe_ratio);
   document.getElementById('bd-winrate').textContent = mf(bt.win_rate_pct) + '%';
   document.getElementById('bd-dd').textContent = mf(bt.max_drawdown_pct) + '%';
+  document.getElementById('bd-dd').className = 'stat-value red';
   document.getElementById('bd-trades').textContent = mf(bt.total_trades);
+  document.getElementById('bd-no-bt').style.display = hasBt ? 'none' : '';
+  // Settings fields
   document.getElementById('bd-set-name').value = _currentBot.strategy_name || '';
   document.getElementById('bd-set-symbol').value = _currentBot.symbol || '';
   document.getElementById('bd-set-alloc').value = _currentBot.allocation || 10000;
+  document.getElementById('bd-set-sl').value = (_currentBot.risk || {}).sl_pct || 5;
+  document.getElementById('bd-set-tp').value = (_currentBot.risk || {}).tp_pct || 10;
+  document.getElementById('bd-set-strat').value = _currentBot.library_id || _currentBot.mode || '—';
+  hideDeleteConfirm();
+  // Load live trades
+  loadBotLiveTrades();
   showBdTab('dashboard');
   navigate('bot-detail');
+}
+
+async function loadBotLiveTrades() {
+  if (!_currentBot || !EMAIL) return;
+  try {
+    const r = await fetch(API + '/api/trades/' + encodeURIComponent(EMAIL));
+    const all = await r.json();
+    const trades = (Array.isArray(all) ? all : []).filter(t => t.strategy_id === _currentBot.strategy_id);
+    if (trades.length === 0) {
+      document.getElementById('bd-live-empty').style.display = '';
+      document.getElementById('bd-live-pnl').textContent = '—';
+      document.getElementById('bd-live-count').textContent = '0';
+      document.getElementById('bd-live-last').textContent = '—';
+    } else {
+      document.getElementById('bd-live-empty').style.display = 'none';
+      const totalPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0);
+      document.getElementById('bd-live-pnl').textContent = '$' + totalPnl.toFixed(2);
+      document.getElementById('bd-live-pnl').className = 'stat-value ' + (totalPnl >= 0 ? 'green' : 'red');
+      document.getElementById('bd-live-count').textContent = trades.length;
+      document.getElementById('bd-live-last').textContent = trades[0].timestamp || '—';
+    }
+  } catch (e) {
+    document.getElementById('bd-live-empty').style.display = '';
+  }
 }
 
 function showBdTab(tab) {
@@ -877,13 +991,20 @@ async function loadBotLog() {
     const r = await fetch(API + '/api/logs/' + encodeURIComponent(EMAIL) + '/' + encodeURIComponent(_currentBot.strategy_id) + '?lines=100');
     const d = await r.json();
     const el = document.getElementById('bd-log-content');
-    el.textContent = (d.logs || d.log || 'No logs available');
+    const raw = d.logs || d.log || 'No logs available';
+    // Color-code log levels
+    el.innerHTML = raw.split('\n').map(line => {
+      if (line.includes('[ERROR]') || line.includes('ERROR')) return `<span style="color:#F87171">${esc(line)}</span>`;
+      if (line.includes('[WARNING]') || line.includes('WARNING')) return `<span style="color:#FBBF24">${esc(line)}</span>`;
+      return `<span>${esc(line)}</span>`;
+    }).join('\n');
     el.scrollTop = el.scrollHeight;
     if (status) { status.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Live'; status.style.color = 'var(--green)'; }
   } catch (e) {
     if (status) { status.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span> Disconnected'; status.style.color = 'var(--red)'; }
   }
 }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 async function toggleBotDetail(active) {
   if (!_currentBot) return;
@@ -891,15 +1012,43 @@ async function toggleBotDetail(active) {
 }
 
 async function saveBotSettings() {
-  showToast('Settings saved', 'success');
+  if (!_currentBot) return;
+  const msg = document.getElementById('bd-set-msg');
+  const name = document.getElementById('bd-set-name').value.trim();
+  const sym = document.getElementById('bd-set-symbol').value.trim();
+  const alloc = document.getElementById('bd-set-alloc').value;
+  try {
+    // Re-save the strategy with updated fields
+    const r = await fetch(API + '/api/strategy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: EMAIL, strategy_id: _currentBot.strategy_id, strategy_name: name, symbol: sym,
+        arena: sym.endsWith('.HK') ? 'HK' : sym.endsWith('.SI') ? 'SG' : 'US',
+        timeframe: _currentBot.timeframe || '1day', conditions: _currentBot.conditions || {},
+        exit_rules: _currentBot.exit_rules || {}, risk: { ..._currentBot.risk, sl_pct: parseFloat(document.getElementById('bd-set-sl').value) || 5, tp_pct: parseFloat(document.getElementById('bd-set-tp').value) || 10 },
+        is_active: _currentBot.is_active, mode: _currentBot.mode || 'library', library_id: _currentBot.library_id || ''
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Save failed');
+    msg.textContent = 'Settings saved'; msg.style.color = 'var(--green)';
+    showToast('Settings saved', 'success');
+    // Update header
+    document.getElementById('bd-name').textContent = name;
+    document.getElementById('bd-symbol').textContent = sym;
+  } catch (e) { msg.textContent = e.message; msg.style.color = 'var(--red)'; }
 }
 
+function showDeleteConfirm() { document.getElementById('bd-delete-normal').style.display = 'none'; document.getElementById('bd-delete-confirm').style.display = ''; }
+function hideDeleteConfirm() { document.getElementById('bd-delete-normal').style.display = ''; document.getElementById('bd-delete-confirm').style.display = 'none'; }
+
 async function deleteBot() {
-  if (!_currentBot || !confirm('Delete ' + _currentBot.strategy_name + '?')) return;
+  if (!_currentBot) return;
   try {
     await fetch(API + '/api/strategy/' + encodeURIComponent(_currentBot.strategy_id), { method: 'DELETE' });
     showToast('Bot deleted', 'info');
+    _currentBot = null;
     navigate('bots');
+    await loadBots();
   } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
 }
 
