@@ -98,17 +98,13 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 .form-hint { font-size:11px; color:var(--text-muted); margin-top:3px; }
 .form-row { display:grid; gap:16px; }
 
-/* ── Toggle Switch ───────────────────── */
-.toggle { position:relative; width:44px; height:24px; cursor:pointer; }
-.toggle input { display:none; }
-.toggle-track { position:absolute; inset:0; background:#D1D5DB; border-radius:12px; transition:background .2s; }
-.toggle input:checked + .toggle-track { background:#22C55E; }
-.toggle-thumb { position:absolute; top:2px; left:2px; width:20px; height:20px; background:#fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .2s; }
-.toggle input:checked ~ .toggle-thumb { transform:translateX(20px); }
-.toggle.processing .toggle-track { background:#F59E0B; animation:toggle-pulse .8s ease-in-out infinite; }
-.toggle.processing { cursor:wait; }
-.toggle.error .toggle-track { background:#EF4444; }
-@keyframes toggle-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+/* ── Deploy Button ───────────────────── */
+.deploy-btn { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:500; border:none; cursor:pointer; min-width:90px; font-family:inherit; transition:all .15s; }
+.deploy-btn-off { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
+.deploy-btn-off:hover { background:#DBEAFE; }
+.deploy-btn-loading { background:#FEF3C7; color:#92400E; border:1px solid #FDE68A; cursor:wait; }
+.deploy-btn-on { background:#DCFCE7; color:#166534; border:1px solid #BBF7D0; }
+.deploy-btn-on:hover { background:#FEE2E2; color:#991B1B; border-color:#FECACA; }
 
 /* ── Badges ──────────────────────────── */
 .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; letter-spacing:.3px; }
@@ -310,7 +306,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table id="bots-table">
-      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Return</th><th>Sharpe</th><th>Trades</th><th style="width:60px">On/Off</th><th style="width:40px"></th></tr></thead>
+      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Return</th><th>Sharpe</th><th>Trades</th><th style="width:100px">Status</th><th style="width:40px"></th></tr></thead>
       <tbody id="bots-tbody"></tbody>
     </table>
     <div id="bots-empty" class="empty-state" style="display:none">
@@ -331,7 +327,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <span class="badge" id="bd-symbol" style="background:var(--surface-2);color:var(--text-secondary)">—</span>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
-      <label class="toggle" id="bd-toggle"><input type="checkbox" onchange="toggleBotDetail(this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      <span id="bd-toggle-btn"></span>
     </div>
   </div>
   <div class="tab-bar" id="bd-tabs">
@@ -770,11 +766,13 @@ async function loadBots() {
     try {
       const sr = await fetch(API + '/api/status/' + encodeURIComponent(EMAIL));
       const sd = await sr.json();
-      LP_BOT_RUNNING = sd.lp_running || false;
-      IBKR_BOT_RUNNING = sd.ibkr_running || false;
+      const recentDeploy = (Date.now() - _deployedAt) < 10000;
+      // Don't revert running state if deployed within last 10s (process may still be starting)
+      if (!recentDeploy || sd.lp_running) LP_BOT_RUNNING = sd.lp_running || false;
+      if (!recentDeploy || sd.ibkr_running) IBKR_BOT_RUNNING = sd.ibkr_running || false;
       BOT_RUNNING = LP_BOT_RUNNING || IBKR_BOT_RUNNING;
-      console.log('[STATUS] LP:', LP_BOT_RUNNING, 'IBKR:', IBKR_BOT_RUNNING);
-    } catch (_) { BOT_RUNNING = LP_BOT_RUNNING = IBKR_BOT_RUNNING = false; }
+      console.log('[STATUS] LP:', LP_BOT_RUNNING, 'IBKR:', IBKR_BOT_RUNNING, 'recentDeploy:', recentDeploy);
+    } catch (_) { if ((Date.now() - _deployedAt) > 10000) { BOT_RUNNING = LP_BOT_RUNNING = IBKR_BOT_RUNNING = false; } }
     checkDuplicateBots();
     renderBots();
   } catch (e) { showToast('Failed to load bots: ' + e.message, 'error'); }
@@ -794,7 +792,7 @@ function renderBots() {
   empty.style.display = 'none';
 
   // Stats
-  const active = USER_STRATEGIES.filter(s => s.is_active).length;
+  const active = USER_STRATEGIES.filter(s => s.is_active && ((s.broker||'longport')==='ibkr'?IBKR_BOT_RUNNING:LP_BOT_RUNNING)).length;
   document.getElementById('bs-total').textContent = USER_STRATEGIES.length;
   document.getElementById('bs-active').textContent = active;
   const rets = USER_STRATEGIES.map(s => (s.backtest_results || {}).total_return_pct).filter(v => typeof v === 'number');
@@ -815,7 +813,7 @@ function renderBots() {
       <td class="stat-value ${retClass}" style="font-size:13px">${mf(bt.total_return_pct)}%</td>
       <td>${mf(bt.sharpe_ratio)}</td>
       <td>${mf(bt.total_trades)}</td>
-      <td onclick="event.stopPropagation()"><label class="toggle${s._toggling ? ' processing' : ''}" data-sid="${s.strategy_id}"><input type="checkbox" ${((s.broker==='ibkr'?IBKR_BOT_RUNNING:LP_BOT_RUNNING) && s.is_active) ? 'checked' : ''} onchange="toggleBot('${s.strategy_id}',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></td>
+      <td onclick="event.stopPropagation()" id="btn-${s.strategy_id}">${_renderDeployBtn(s)}</td>
       <td onclick="event.stopPropagation()" id="del-${s.strategy_id}"><span style="cursor:pointer;opacity:.4;font-size:14px" onclick="confirmDeleteRow('${s.strategy_id}')" title="Delete bot">🗑</span></td>
     </tr>`;
   }).join('');
@@ -873,46 +871,56 @@ async function deleteRowBot(sid) {
   } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
 }
 
-const _TOGGLING = new Map();
+let _deployedAt = 0; // timestamp of last deploy
+
+function _renderDeployBtn(s) {
+  const broker = s.broker || 'longport';
+  const isRunning = (broker === 'ibkr' ? IBKR_BOT_RUNNING : LP_BOT_RUNNING) && s.is_active;
+  if (s._toggling) return `<button class="deploy-btn deploy-btn-loading" disabled>\u27F3 ${s._toggling === 'deploy' ? 'Deploying...' : 'Stopping...'}</button>`;
+  if (isRunning) return `<button class="deploy-btn deploy-btn-on" onclick="event.stopPropagation();toggleBot('${s.strategy_id}',false)">\u25A0 Stop</button>`;
+  return `<button class="deploy-btn deploy-btn-off" onclick="event.stopPropagation();toggleBot('${s.strategy_id}',true)">\u25B6 Deploy</button>`;
+}
 
 async function toggleBot(sid, active) {
-  if (_TOGGLING.get(sid)) return; // debounce — already in progress
-  _TOGGLING.set(sid, true);
   const s = USER_STRATEGIES.find(x => x.strategy_id === sid);
-  const broker = s ? (s.broker || 'longport') : 'longport';
-  const brokerRunning = broker === 'ibkr' ? IBKR_BOT_RUNNING : LP_BOT_RUNNING;
-  if (s) { s._toggling = true; renderBots(); }
+  if (!s) return;
+  const broker = s.broker || 'longport';
+  const cell = document.getElementById('btn-' + sid);
+  // Immediately show loading state
+  s._toggling = active ? 'deploy' : 'stop';
+  if (cell) cell.innerHTML = _renderDeployBtn(s);
   try {
     if (active) {
-      if (brokerRunning) { showToast(broker + ' bot already running. Stop it first.', 'info'); return; }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
       const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!dr.ok) { const dd = await dr.json(); throw new Error(dd.detail || 'Deploy failed'); }
       if (broker === 'ibkr') IBKR_BOT_RUNNING = true; else LP_BOT_RUNNING = true;
-      BOT_RUNNING = LP_BOT_RUNNING || IBKR_BOT_RUNNING;
-      if (s) s.is_active = true;
+      BOT_RUNNING = true;
+      s.is_active = true;
+      _deployedAt = Date.now();
       showToast('Bot deployed (' + broker + ')', 'success');
+      // Show stop button immediately
+      s._toggling = false;
+      if (cell) cell.innerHTML = _renderDeployBtn(s);
+      // Delayed refresh — don't revert if within 10s of deploy
+      setTimeout(loadBots, 5000);
     } else {
-      if (!brokerRunning) { showToast(broker + ' bot is not running', 'info'); return; }
       const sr = await fetch(API + '/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, broker: broker }) });
       if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Stop failed'); }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=false', { method: 'PUT' });
       if (broker === 'ibkr') IBKR_BOT_RUNNING = false; else LP_BOT_RUNNING = false;
       BOT_RUNNING = LP_BOT_RUNNING || IBKR_BOT_RUNNING;
-      if (s) s.is_active = false;
+      s.is_active = false;
       showToast('Bot stopped (' + broker + ')', 'info');
+      s._toggling = false;
+      if (cell) cell.innerHTML = _renderDeployBtn(s);
+      setTimeout(loadBots, 2000);
     }
   } catch (e) {
     showToast(e.message, 'error');
-    // Show error state briefly
-    const errLabel = document.querySelector(`label.toggle[data-sid="${sid}"]`);
-    if (errLabel) { errLabel.classList.remove('processing'); errLabel.classList.add('error'); setTimeout(() => errLabel.classList.remove('error'), 2000); }
-  } finally {
-    _TOGGLING.delete(sid);
-    if (s) s._toggling = false;
+    s._toggling = false;
+    if (cell) cell.innerHTML = _renderDeployBtn(s);
   }
-  renderBots();
-  setTimeout(loadBots, 3000);
 }
 
 function openNewBot() {
@@ -987,7 +995,7 @@ function openBotDetail(sid) {
   if (!_currentBot) return;
   document.getElementById('bd-name').textContent = _currentBot.strategy_name || sid;
   document.getElementById('bd-symbol').textContent = _currentBot.symbol;
-  document.getElementById('bd-toggle').querySelector('input').checked = _currentBot.is_active;
+  updateBdToggleBtn();
   const bt = _currentBot.backtest_results || {};
   const hasBt = bt && bt.total_return_pct !== undefined && bt.total_return_pct !== null;
   const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) : '—';
@@ -1084,9 +1092,10 @@ function copyLogFilename() {
   if (path) { navigator.clipboard.writeText(path); showToast('Copied: ' + path, 'info', 2000); }
 }
 
-async function toggleBotDetail(active) {
-  if (!_currentBot) return;
-  await toggleBot(_currentBot.strategy_id, active);
+function updateBdToggleBtn() {
+  const el = document.getElementById('bd-toggle-btn');
+  if (!el || !_currentBot) return;
+  el.innerHTML = _renderDeployBtn(_currentBot);
 }
 
 async function saveBotSettings() {
