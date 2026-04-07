@@ -297,7 +297,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     <span class="filter-pill active" onclick="filterBots('all',this)">All</span>
     <span class="filter-pill" onclick="filterBots('live',this)">Live</span>
     <span class="filter-pill" onclick="filterBots('off',this)">Off</span>
-    <input type="text" class="filter-search" placeholder="Search bots..." oninput="filterBotSearch(this.value)" style="width:200px;padding:6px 12px;font-size:12px">
+    <input type="text" class="filter-search" placeholder="Search bots..." oninput="filterBotSearch(this.value)">
   </div>
   <div id="bots-dupe-banner" style="display:none;background:var(--orange-light);border:1px solid #FFCC80;border-radius:6px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--orange);display:none"><span></span> <button class="btn btn-sm" onclick="cleanupDuplicates()" style="margin-left:8px;background:var(--orange);color:#fff;border:none;padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">Clean up</button></div>
   <div class="stat-row" style="grid-template-columns:repeat(4,1fr)" id="bots-stats">
@@ -568,6 +568,7 @@ let LICENSE = localStorage.getItem('qx_license') || '';
 let LIB_CACHE = null;
 let ALL_STRATEGIES = [];   // library strategies (from /api/strategies-library)
 let USER_STRATEGIES = [];  // user's saved bots (from /api/strategies/{email})
+let BOT_RUNNING = false;   // true if master subprocess is running
 let _currentBot = null;
 let _btChart = null;
 let _bdChart = null;
@@ -682,6 +683,8 @@ function populateStrategySelects() {
 /* ── Toast ─────────────────────────────────────────────────────────── */
 function showToast(msg, type = 'success', dur = 3000) {
   const c = document.getElementById('toast-container');
+  // Max 3 toasts — remove oldest if over limit
+  while (c.children.length >= 3) c.removeChild(c.firstChild);
   const t = document.createElement('div');
   t.className = 'toast ' + type;
   t.textContent = msg;
@@ -743,7 +746,13 @@ async function loadBots() {
     const d = await r.json();
     USER_STRATEGIES = Array.isArray(d) ? d : (d.strategies || []);
     console.log('[BOTS] Loaded', USER_STRATEGIES.length, 'user strategies');
-    // Check for duplicates
+    // Get real subprocess state
+    try {
+      const sr = await fetch(API + '/api/status/' + encodeURIComponent(EMAIL));
+      const sd = await sr.json();
+      BOT_RUNNING = sd.status === 'running';
+      console.log('[STATUS] Bot running:', BOT_RUNNING, 'pid:', sd.pid);
+    } catch (_) { BOT_RUNNING = false; }
     checkDuplicateBots();
     renderBots();
   } catch (e) { showToast('Failed to load bots: ' + e.message, 'error'); }
@@ -783,7 +792,7 @@ function renderBots() {
       <td class="stat-value ${retClass}" style="font-size:13px">${mf(bt.total_return_pct)}%</td>
       <td>${mf(bt.sharpe_ratio)}</td>
       <td>${mf(bt.total_trades)}</td>
-      <td onclick="event.stopPropagation()"><label class="toggle${s._toggling ? ' loading' : ''}"><input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="toggleBot('${s.strategy_id}',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></td>
+      <td onclick="event.stopPropagation()"><label class="toggle${s._toggling ? ' loading' : ''}"><input type="checkbox" ${(BOT_RUNNING && s.is_active) ? 'checked' : ''} onchange="toggleBot('${s.strategy_id}',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></td>
     </tr>`;
   }).join('');
 }
@@ -823,35 +832,31 @@ async function cleanupDuplicates() {
 }
 
 async function toggleBot(sid, active) {
-  // Mark loading on the toggle
   const s = USER_STRATEGIES.find(x => x.strategy_id === sid);
   if (s) { s._toggling = true; renderBots(); }
   try {
-    // Toggle the strategy active flag
-    await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=' + active, { method: 'PUT' });
-    // Deploy or stop the subprocess
     if (active) {
+      // Wanting to turn ON: mark strategy active, then deploy
+      if (BOT_RUNNING) { showToast('Bot process already running. Stop it first to redeploy.', 'info'); if (s) s._toggling = false; renderBots(); return; }
+      await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
       const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!dr.ok) { const dd = await dr.json(); throw new Error(dd.detail || 'Deploy failed'); }
+      BOT_RUNNING = true;
       showToast('Bot deployed', 'success');
     } else {
+      // Wanting to turn OFF: stop subprocess, then mark inactive
+      if (!BOT_RUNNING) { showToast('Bot is not running', 'info'); if (s) s._toggling = false; renderBots(); return; }
       const sr = await fetch(API + '/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Stop failed'); }
+      await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=false', { method: 'PUT' });
+      BOT_RUNNING = false;
       showToast('Bot stopped', 'info');
     }
   } catch (e) {
-    showToast('Toggle failed: ' + e.message, 'error');
-    // Revert toggle on failure
-    try { await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=' + !active, { method: 'PUT' }); } catch (_) {}
+    showToast(e.message, 'error');
   }
   if (s) s._toggling = false;
   await loadBots();
-  // Refresh status
-  try {
-    const sr = await fetch(API + '/api/status/' + encodeURIComponent(EMAIL));
-    const sd = await sr.json();
-    console.log('[STATUS]', sd);
-  } catch (_) {}
 }
 
 function openNewBot() {
@@ -885,7 +890,7 @@ async function createBot(andDeploy = false) {
       email: EMAIL, strategy_id: sid, strategy_name: name, symbol: sym,
       arena: sym.endsWith('.HK') ? 'HK' : sym.endsWith('.SI') ? 'SG' : 'US',
       timeframe: tf, conditions: {}, exit_rules: {}, risk: lib ? lib.default_risk || {} : {},
-      is_active: andDeploy, mode: isTest ? 'custom' : 'library', library_id: isTest ? '' : strat,
+      is_active: false, mode: isTest ? 'custom' : 'library', library_id: isTest ? '' : strat,
       custom_script: isTest ? 'def generate_signals(df):\n    n = len(df["close"])\n    signals = [0] * n\n    if n > 1: signals[1] = 1\n    if n > 2: signals[2] = -1\n    return signals' : ''
     };
     const r = await fetch(API + '/api/strategy', {
@@ -895,12 +900,14 @@ async function createBot(andDeploy = false) {
     if (!r.ok) throw new Error(rData.detail || 'Failed to create strategy');
     console.log('[BOT] Strategy created:', sid);
     if (andDeploy) {
-      console.log('[BOT] Deploying...');
+      console.log('[BOT] Activating + deploying...');
       try {
+        // First mark active so the master bot picks it up
+        await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
         const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
         const dd = await dr.json();
         if (!dr.ok) { errEl.textContent = 'Created but deploy failed: ' + (dd.detail || 'Unknown error'); console.error('[BOT] Deploy error:', dd); }
-        else { console.log('[BOT] Deployed:', dd); showToast('Bot deployed: ' + name, 'success'); }
+        else { console.log('[BOT] Deployed:', dd); BOT_RUNNING = true; showToast('Bot deployed: ' + name, 'success'); }
       } catch (de) { errEl.textContent = 'Created but deploy failed: ' + de.message; console.error('[BOT] Deploy error:', de); }
     } else {
       showToast('Bot created: ' + name, 'success');
