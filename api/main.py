@@ -1004,25 +1004,25 @@ async def get_ibkr_config_endpoint(email: str):
 async def test_ibkr_connection(req: IBKRConfigReq):
     def _test_sync():
         try:
-            from ib_insync import IB
             import nest_asyncio
             nest_asyncio.apply()
-        except ImportError:
-            return {"ok": False, "message": "ib_insync or nest_asyncio not installed"}
-        ib = IB()
-        try:
+            from ib_insync import IB
+            ib = IB()
             ib.connect(req.host, req.port, clientId=req.client_id + 50, timeout=10)
-            accounts = ib.managedAccounts()
+            connected = ib.isConnected()
+            accounts = list(ib.managedAccounts()) if connected else []
             ib.disconnect()
-            return {"ok": True, "message": "Connected to IBKR", "account": accounts[0] if accounts else ""}
+            if connected:
+                return {"ok": True, "message": "Connected to IBKR",
+                        "account": accounts[0] if accounts else "unknown"}
+            return {"ok": False, "message": "Connection returned but isConnected=False"}
         except Exception as e:
-            try:
-                ib.disconnect()
-            except Exception:
-                pass
             return {"ok": False, "message": str(e)}
-    result = await asyncio.get_event_loop().run_in_executor(_executor, _test_sync)
-    return result
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(_executor, _test_sync)
+        return result
+    except Exception as e:
+        return {"ok": False, "message": f"Executor error: {e}"}
 
 
 @app.get("/api/status/{email}")
