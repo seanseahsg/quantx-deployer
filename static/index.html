@@ -493,8 +493,12 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <div class="broker-title">Interactive Brokers</div>
       <div class="broker-desc">Connect your IBKR account to trade global markets</div>
       <div id="ibkr-connected" style="display:none;margin-bottom:12px">
-        <span class="badge badge-green">Saved</span>
-        <span style="font-size:12px;color:var(--text-muted);margin-left:8px" id="ibkr-info"></span>
+        <div style="margin-bottom:8px"><span class="badge badge-green">Saved</span> <span style="font-size:12px;color:var(--text-muted);margin-left:4px" id="ibkr-info"></span></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn btn-outline btn-sm" onclick="testIbkrConnection()">Test Connection</button>
+          <button class="btn btn-outline btn-sm" onclick="editIbkrConfig()">Edit</button>
+        </div>
+        <div id="ibkr-test-result" style="font-size:12px;min-height:18px"></div>
       </div>
       <div id="ibkr-form">
         <div class="form-group"><label>TWS/Gateway Host</label><input type="text" id="ibkr-host" value="127.0.0.1"></div>
@@ -1216,7 +1220,32 @@ async function saveIbkrConfig() {
   document.getElementById('ibkr-connected').style.display = '';
   document.getElementById('ibkr-info').textContent = host + ':' + port;
   document.getElementById('ibkr-form').style.display = 'none';
+  document.getElementById('ibkr-test-result').textContent = '';
   showToast('IBKR config saved', 'success');
+}
+
+function editIbkrConfig() {
+  const cfg = JSON.parse(localStorage.getItem('ibkr_config') || '{}');
+  document.getElementById('ibkr-host').value = cfg.host || '127.0.0.1';
+  document.getElementById('ibkr-port').value = cfg.port || 7497;
+  document.getElementById('ibkr-clientid').value = cfg.client_id || 1;
+  document.getElementById('ibkr-connected').style.display = 'none';
+  document.getElementById('ibkr-form').style.display = '';
+}
+
+async function testIbkrConnection() {
+  const el = document.getElementById('ibkr-test-result');
+  el.textContent = 'Testing...'; el.style.color = 'var(--text-muted)';
+  const cfg = JSON.parse(localStorage.getItem('ibkr_config') || '{}');
+  try {
+    const r = await fetch(API + '/api/test-ibkr-connection', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, host: cfg.host || '127.0.0.1', port: cfg.port || 7497, client_id: cfg.client_id || 1 })
+    });
+    const d = await r.json();
+    if (d.ok) { el.textContent = '✓ ' + (d.message || 'Connected'); el.style.color = 'var(--green)'; }
+    else { el.textContent = '✗ ' + (d.message || 'Failed'); el.style.color = 'var(--red)'; }
+  } catch (e) { el.textContent = '✗ ' + e.message; el.style.color = 'var(--red)'; }
 }
 
 async function checkIbkrStatus() {
@@ -1261,11 +1290,19 @@ async function testConnection() {
 }
 
 function disconnectBroker() {
-  if (!confirm('Disconnect LongPort? Your account will remain but broker credentials will need to be re-entered.')) return;
-  // Note: we keep EMAIL/UNAME — just visually reset broker status
-  // The actual credentials are server-side; re-register to reconnect
-  checkBrokerStatus();
-  showToast('To reconnect, re-enter your LongPort credentials', 'info');
+  if (!confirm('Disconnect LongPort? You will need to re-enter credentials to reconnect.')) return;
+  // Clear LP state — keep EMAIL/UNAME
+  localStorage.removeItem('lp_connected');
+  localStorage.removeItem('lp_app_key');
+  localStorage.removeItem('lp_app_secret');
+  localStorage.removeItem('lp_access_token');
+  document.getElementById('lp-connected').style.display = 'none';
+  document.getElementById('lp-form').style.display = '';
+  document.getElementById('lp-appkey').value = '';
+  document.getElementById('lp-appsecret').value = '';
+  document.getElementById('lp-token').value = '';
+  document.getElementById('lp-test-result').textContent = '';
+  showToast('LongPort disconnected', 'info');
 }
 
 /* ═══════════════════ STATUS POLLING ═══════════════════ */

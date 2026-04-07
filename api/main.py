@@ -1000,6 +1000,26 @@ async def get_ibkr_config_endpoint(email: str):
     return {"configured": True, **cfg}
 
 
+@app.post("/api/test-ibkr-connection")
+async def test_ibkr_connection(req: IBKRConfigReq):
+    try:
+        from ib_insync import IB
+    except ImportError:
+        return {"ok": False, "message": "ib_insync not installed. Run: pip install ib_insync"}
+    ib = IB()
+    try:
+        ib.connect(req.host, req.port, clientId=req.client_id, timeout=10)
+        accounts = ib.managedAccounts()
+        ib.disconnect()
+        return {"ok": True, "message": f"Connected to IBKR", "account": accounts[0] if accounts else "unknown"}
+    except Exception as e:
+        try:
+            ib.disconnect()
+        except Exception:
+            pass
+        return {"ok": False, "message": str(e)}
+
+
 @app.get("/api/status/{email}")
 async def status(email: str):
     email = email.lower().strip()
