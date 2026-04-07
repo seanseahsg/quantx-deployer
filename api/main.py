@@ -124,6 +124,9 @@ class ScriptBacktestReq(BaseModel):
     initial_capital: float = 10000
     limit: int = 1260
     params: dict = {}
+    email: str = ""
+    use_ibkr: bool = False
+    skip_cache: bool = False
 
 
 class SweepScriptReq(BaseModel):
@@ -551,14 +554,29 @@ async def backtest_optimize(body: OptimizeReq):
 
 @app.post("/api/backtest/run-script")
 async def backtest_run_script(body: ScriptBacktestReq):
-    from api.backtest import fetch_ohlcv, run_backtest_script
+    from api.backtest import run_backtest_script
+    from api.data_manager import fetch_bars_waterfall_sync
     def _run():
-        bars, source = fetch_ohlcv(body.symbol, body.timeframe, body.limit)
+        ibkr_cfg = None
+        if body.email and body.use_ibkr:
+            ibkr_cfg = get_ibkr_config(body.email.lower().strip())
+        data = fetch_bars_waterfall_sync(
+            symbol=body.symbol, timeframe=body.timeframe, limit=body.limit,
+            db_path=str(DB_PATH), ibkr_config=ibkr_cfg, skip_cache=body.skip_cache)
+        if data["error"]:
+            return {"status": "error", "message": data["error"],
+                    "source": data["source"], "source_message": data["source_message"]}
+        bars = data["bars"]
+        if len(bars) < 50:
+            return {"status": "error", "message": f"Only {len(bars)} bars, need 50+.",
+                    "source": data["source"]}
         result = run_backtest_script(bars, body.script, body.initial_capital,
                                      params_override=body.params if body.params else None)
-        result["source"] = source
+        result["source"] = data["source"]
+        result["source_message"] = data["source_message"]
         result["symbol"] = body.symbol
         result["strategy"] = "CUSTOM_SCRIPT"
+        result["bar_count"] = data["bar_count"]
         return result
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)

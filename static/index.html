@@ -1642,7 +1642,7 @@ async function runBuilderBacktest() {
     const btBase = getBacktestBaseUrl();
     const r = await fetch(btBase + '/api/backtest/run-script', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: sym, script: script, initial_capital: cap, timeframe: tf, limit: _btLimit })
+      body: JSON.stringify({ symbol: sym, script: script, initial_capital: cap, timeframe: tf, limit: _btLimit, email: EMAIL || '', use_ibkr: !!localStorage.getItem('ibkr_config'), skip_cache: false })
     });
     const d = await r.json();
     if (d.status === 'error') throw new Error(d.message || d.detail || 'Failed');
