@@ -367,7 +367,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <span id="bd-log-status" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--green)"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Live</span>
       <span style="font-size:11px;color:var(--text-muted)">Polling every 3s</span>
     </div>
-    <div class="log-viewer" id="bd-log-content" style="color:#4ADE80">Waiting for logs...</div>
+    <div class="log-viewer" id="bd-log-content" style="color:#4ADE80;min-height:400px">Waiting for logs...</div>
   </div>
   <!-- Settings -->
   <div id="bd-settings" style="display:none">
@@ -697,7 +697,7 @@ function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 /* ═══════════════════ HOME ═══════════════════ */
-function quickLogin() {
+async function quickLogin() {
   const email = document.getElementById('home-email').value.trim();
   const name = document.getElementById('home-name').value.trim();
   if (!email) { document.getElementById('home-login-error').textContent = 'Email required'; return; }
@@ -708,6 +708,13 @@ function quickLogin() {
   document.getElementById('set-email').value = EMAIL;
   document.getElementById('set-name').value = UNAME;
   document.getElementById('home-login-form').style.display = 'none';
+  // Register with server (creates student record if not exists)
+  try {
+    await fetch(API + '/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, name: UNAME, app_key: '', app_secret: '', access_token: '', central_api_url: '' })
+    });
+  } catch (e) { console.log('[LOGIN] Register call failed (ok if already registered):', e.message); }
   showToast('Welcome, ' + (name || email) + '!', 'success');
   loadHome();
 }
@@ -786,7 +793,7 @@ function renderBots() {
     return `<tr onclick="openBotDetail('${s.strategy_id}')">
       <td style="font-size:20px">🤖</td>
       <td><strong>${s.strategy_name || s.strategy_id}</strong></td>
-      <td><span class="badge badge-blue">LongPort</span></td>
+      <td>${s.broker === 'ibkr' ? '<span class="badge badge-orange">IBKR</span>' : '<span class="badge badge-blue">LongPort</span>'}</td>
       <td style="font-weight:600;color:var(--blue-primary)">${s.symbol}</td>
       <td>${s.library_id || s.mode || '—'}</td>
       <td class="stat-value ${retClass}" style="font-size:13px">${mf(bt.total_return_pct)}%</td>
@@ -836,30 +843,32 @@ async function toggleBot(sid, active) {
   if (s) { s._toggling = true; renderBots(); }
   try {
     if (active) {
-      // Wanting to turn ON: mark strategy active, then deploy
-      if (BOT_RUNNING) { showToast('Bot process already running. Stop it first to redeploy.', 'info'); if (s) s._toggling = false; renderBots(); return; }
+      if (BOT_RUNNING) { showToast('Bot already running. Stop it first.', 'info'); if (s) s._toggling = false; renderBots(); return; }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
       const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!dr.ok) { const dd = await dr.json(); throw new Error(dd.detail || 'Deploy failed'); }
       BOT_RUNNING = true;
+      if (s) s.is_active = true;
       showToast('Bot deployed', 'success');
     } else {
-      // Wanting to turn OFF: stop subprocess, then mark inactive
       if (!BOT_RUNNING) { showToast('Bot is not running', 'info'); if (s) s._toggling = false; renderBots(); return; }
       const sr = await fetch(API + '/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Stop failed'); }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=false', { method: 'PUT' });
       BOT_RUNNING = false;
+      if (s) s.is_active = false;
       showToast('Bot stopped', 'info');
     }
   } catch (e) {
     showToast(e.message, 'error');
   }
   if (s) s._toggling = false;
-  await loadBots();
+  renderBots(); // instant visual update
+  setTimeout(loadBots, 2000); // delayed full refresh
 }
 
 function openNewBot() {
+  if (ALL_STRATEGIES.length === 0) loadLibrary();
   populateStrategySelects();
   document.getElementById('nb-error').textContent = '';
   document.getElementById('nb-name').value = '';
@@ -873,49 +882,51 @@ async function createBot(andDeploy = false) {
   const strat = document.getElementById('nb-strategy').value;
   const tf = document.getElementById('nb-timeframe').value;
   const alloc = document.getElementById('nb-alloc').value;
+  const broker = document.getElementById('nb-broker').value || 'longport';
   const name = document.getElementById('nb-name').value.trim() || (strat === '__TEST__' ? 'Quick Test ' + sym : strat + ' ' + sym);
   if (!sym) { errEl.textContent = 'Symbol required'; return; }
   if (!EMAIL) { errEl.textContent = 'Set up account on Home page first'; return; }
-  // Duplicate check
   const existing = USER_STRATEGIES.find(s => s.strategy_name === name && s.symbol === sym);
-  if (existing) { errEl.textContent = 'A bot with this name and symbol already exists. Use a different name.'; return; }
+  if (existing) { errEl.textContent = 'A bot with this name and symbol already exists.'; return; }
+  // Loading state on buttons
+  const btns = document.querySelectorAll('#nb-step1 .btn');
+  btns.forEach(b => { b.disabled = true; b._origText = b.textContent; b.textContent = andDeploy ? 'Deploying...' : 'Creating...'; });
   const isTest = strat === '__TEST__';
   const stratId = isTest ? 'TEST' : strat;
   const lib = (LIB_CACHE || []).find(l => l.id === strat);
   const ts4 = Date.now().toString(36).slice(-4).toUpperCase();
   const sid = stratId + '_' + ts4;
-  console.log('[BOT] Creating:', sid, sym, strat, 'deploy=' + andDeploy);
   try {
     const payload = {
       email: EMAIL, strategy_id: sid, strategy_name: name, symbol: sym,
       arena: sym.endsWith('.HK') ? 'HK' : sym.endsWith('.SI') ? 'SG' : 'US',
       timeframe: tf, conditions: {}, exit_rules: {}, risk: lib ? lib.default_risk || {} : {},
       is_active: false, mode: isTest ? 'custom' : 'library', library_id: isTest ? '' : strat,
-      custom_script: isTest ? 'def generate_signals(df):\n    n = len(df["close"])\n    signals = [0] * n\n    if n > 1: signals[1] = 1\n    if n > 2: signals[2] = -1\n    return signals' : ''
+      custom_script: isTest ? 'def generate_signals(df):\n    n = len(df["close"])\n    signals = [0] * n\n    if n > 1: signals[1] = 1\n    if n > 2: signals[2] = -1\n    return signals' : '',
+      broker: broker
     };
     const r = await fetch(API + '/api/strategy', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
     const rData = await r.json();
     if (!r.ok) throw new Error(rData.detail || 'Failed to create strategy');
-    console.log('[BOT] Strategy created:', sid);
+    // Close modal immediately — don't wait for loadBots
+    closeModal('newbot-modal');
     if (andDeploy) {
-      console.log('[BOT] Activating + deploying...');
       try {
-        // First mark active so the master bot picks it up
         await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
         const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
         const dd = await dr.json();
-        if (!dr.ok) { errEl.textContent = 'Created but deploy failed: ' + (dd.detail || 'Unknown error'); console.error('[BOT] Deploy error:', dd); }
-        else { console.log('[BOT] Deployed:', dd); BOT_RUNNING = true; showToast('Bot deployed: ' + name, 'success'); }
-      } catch (de) { errEl.textContent = 'Created but deploy failed: ' + de.message; console.error('[BOT] Deploy error:', de); }
+        if (!dr.ok) { showToast('Created but deploy failed: ' + (dd.detail || ''), 'error'); }
+        else { BOT_RUNNING = true; showToast('Bot deployed: ' + name, 'success'); }
+      } catch (de) { showToast('Created but deploy failed: ' + de.message, 'error'); }
     } else {
       showToast('Bot created: ' + name, 'success');
     }
-    closeModal('newbot-modal');
     navigate('bots');
-    await loadBots();
-  } catch (e) { errEl.textContent = e.message; console.error('[BOT] Error:', e); }
+    setTimeout(loadBots, 300);
+  } catch (e) { errEl.textContent = e.message; }
+  btns.forEach(b => { b.disabled = false; b.textContent = b._origText || 'Create Bot'; });
 }
 
 async function createAndDeployBot() { return createBot(true); }
@@ -994,8 +1005,10 @@ function showBdTab(tab) {
 async function loadBotLog() {
   if (!_currentBot) return;
   const status = document.getElementById('bd-log-status');
+  const logUrl = API + '/api/logs/' + encodeURIComponent(EMAIL) + '/' + encodeURIComponent(_currentBot.strategy_id) + '?lines=100';
+  console.log('[LOG] Polling:', logUrl);
   try {
-    const r = await fetch(API + '/api/logs/' + encodeURIComponent(EMAIL) + '/' + encodeURIComponent(_currentBot.strategy_id) + '?lines=100');
+    const r = await fetch(logUrl);
     const d = await r.json();
     const el = document.getElementById('bd-log-content');
     const raw = d.logs || d.log || 'No logs available';
