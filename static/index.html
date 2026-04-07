@@ -539,8 +539,13 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
         </div>
         <input type="hidden" id="nb-broker" value="longport">
       </div>
-      <div class="form-group"><label>Symbol</label><input type="text" id="nb-symbol" value="700.HK" placeholder="e.g. 700.HK, D05.SI, TQQQ.US">
-        <div class="quicktags"><span class="qtag" onclick="document.getElementById('nb-symbol').value='700.HK'">700.HK</span><span class="qtag" onclick="document.getElementById('nb-symbol').value='D05.SI'">D05.SI</span><span class="qtag" onclick="document.getElementById('nb-symbol').value='TQQQ.US'">TQQQ.US</span><span class="qtag" onclick="document.getElementById('nb-symbol').value='SPY.US'">SPY.US</span></div>
+      <div class="form-group"><label>Symbol</label>
+        <div style="position:relative">
+          <input type="text" id="nb-symbol" value="" placeholder="Search symbol..." autocomplete="off" oninput="nbSearchSymbol(this.value)" onfocus="nbSearchSymbol(this.value)">
+          <div id="nb-sym-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow-lg);max-height:200px;overflow-y:auto;z-index:1000"></div>
+        </div>
+        <div id="nb-sym-validation" style="margin-top:4px;font-size:12px;min-height:16px"></div>
+        <div class="quicktags" id="nb-sym-qtags"></div>
       </div>
       <div class="form-group"><label>Strategy</label>
         <select id="nb-strategy" style="width:100%">
@@ -575,6 +580,31 @@ let BOT_RUNNING = false;   // true if any subprocess is running
 let LP_BOT_RUNNING = false;
 let IBKR_BOT_RUNNING = false;
 let _currentBot = null;
+
+const SYMBOL_LIBRARY = [
+  {s:"700.HK",n:"Tencent Holdings",b:"longport",m:"HK"},{s:"9988.HK",n:"Alibaba Group",b:"longport",m:"HK"},
+  {s:"0005.HK",n:"HSBC Holdings",b:"longport",m:"HK"},{s:"1299.HK",n:"AIA Group",b:"longport",m:"HK"},
+  {s:"2318.HK",n:"Ping An Insurance",b:"longport",m:"HK"},{s:"0388.HK",n:"HK Exchanges",b:"longport",m:"HK"},
+  {s:"1810.HK",n:"Xiaomi",b:"longport",m:"HK"},{s:"3690.HK",n:"Meituan",b:"longport",m:"HK"},
+  {s:"9618.HK",n:"JD.com",b:"longport",m:"HK"},{s:"0941.HK",n:"China Mobile",b:"longport",m:"HK"},
+  {s:"D05.SI",n:"DBS Group",b:"longport",m:"SG"},{s:"O39.SI",n:"OCBC Bank",b:"longport",m:"SG"},
+  {s:"U11.SI",n:"UOB",b:"longport",m:"SG"},{s:"Z74.SI",n:"Singtel",b:"longport",m:"SG"},
+  {s:"C6L.SI",n:"Singapore Airlines",b:"longport",m:"SG"},{s:"G13.SI",n:"Genting Singapore",b:"longport",m:"SG"},
+  {s:"AAPL.US",n:"Apple Inc",b:"longport",m:"US"},{s:"MSFT.US",n:"Microsoft",b:"longport",m:"US"},
+  {s:"NVDA.US",n:"Nvidia",b:"longport",m:"US"},{s:"TSLA.US",n:"Tesla",b:"longport",m:"US"},
+  {s:"GOOGL.US",n:"Alphabet",b:"longport",m:"US"},{s:"META.US",n:"Meta Platforms",b:"longport",m:"US"},
+  {s:"AMZN.US",n:"Amazon",b:"longport",m:"US"},{s:"SPY.US",n:"S&P 500 ETF",b:"longport",m:"US"},
+  {s:"QQQ.US",n:"Nasdaq 100 ETF",b:"longport",m:"US"},{s:"TQQQ.US",n:"3x Nasdaq ETF",b:"longport",m:"US"},
+  {s:"AAPL",n:"Apple Inc",b:"ibkr",m:"US"},{s:"MSFT",n:"Microsoft",b:"ibkr",m:"US"},
+  {s:"NVDA",n:"Nvidia",b:"ibkr",m:"US"},{s:"TSLA",n:"Tesla",b:"ibkr",m:"US"},
+  {s:"GOOGL",n:"Alphabet",b:"ibkr",m:"US"},{s:"META",n:"Meta Platforms",b:"ibkr",m:"US"},
+  {s:"AMZN",n:"Amazon",b:"ibkr",m:"US"},{s:"SPY",n:"S&P 500 ETF",b:"ibkr",m:"US"},
+  {s:"QQQ",n:"Nasdaq 100 ETF",b:"ibkr",m:"US"},{s:"TQQQ",n:"3x Nasdaq ETF",b:"ibkr",m:"US"},
+  {s:"AMD",n:"AMD",b:"ibkr",m:"US"},{s:"NFLX",n:"Netflix",b:"ibkr",m:"US"},{s:"JPM",n:"JPMorgan Chase",b:"ibkr",m:"US"},
+  {s:"700",n:"Tencent Holdings",b:"ibkr",m:"HK"},{s:"9988",n:"Alibaba Group",b:"ibkr",m:"HK"},
+  {s:"5",n:"HSBC Holdings",b:"ibkr",m:"HK"},
+  {s:"D05",n:"DBS Group",b:"ibkr",m:"SG"},{s:"O39",n:"OCBC Bank",b:"ibkr",m:"SG"},{s:"Z74",n:"Singtel",b:"ibkr",m:"SG"},
+];
 let _btChart = null;
 let _bdChart = null;
 let _logInterval = null;
@@ -928,6 +958,9 @@ function openNewBot() {
   populateStrategySelects();
   document.getElementById('nb-error').textContent = '';
   document.getElementById('nb-name').value = '';
+  document.getElementById('nb-symbol').value = '';
+  document.getElementById('nb-sym-validation').innerHTML = '';
+  nbRenderQuicktags(document.getElementById('nb-broker').value || 'longport');
   openModal('newbot-modal');
 }
 
@@ -1340,7 +1373,68 @@ function setNbBroker(broker) {
   document.getElementById('nb-broker').value = broker;
   document.getElementById('nb-broker-lp').classList.toggle('active', broker === 'longport');
   document.getElementById('nb-broker-ib').classList.toggle('active', broker === 'ibkr');
+  // Reset symbol for new broker
+  document.getElementById('nb-symbol').value = '';
+  document.getElementById('nb-sym-validation').innerHTML = '';
+  nbRenderQuicktags(broker);
 }
+
+function nbRenderQuicktags(broker) {
+  const qt = document.getElementById('nb-sym-qtags');
+  if (!qt) return;
+  const tags = broker === 'ibkr'
+    ? [{s:'AAPL',n:'Apple'},{s:'TSLA',n:'Tesla'},{s:'SPY',n:'S&P 500'},{s:'700',n:'Tencent'}]
+    : [{s:'700.HK',n:'Tencent'},{s:'D05.SI',n:'DBS'},{s:'TQQQ.US',n:'3x Nasdaq'},{s:'SPY.US',n:'S&P 500'}];
+  qt.innerHTML = tags.map(t => `<span class="qtag" onclick="nbSelectSymbol('${t.s}','${t.n}')">${t.s}</span>`).join('');
+}
+
+function nbSearchSymbol(query) {
+  const dd = document.getElementById('nb-sym-dropdown');
+  const broker = document.getElementById('nb-broker').value || 'longport';
+  const q = query.trim().toUpperCase();
+  if (!q) {
+    const popular = SYMBOL_LIBRARY.filter(x => x.b === broker).slice(0, 8);
+    nbShowDropdown(popular, '');
+    return;
+  }
+  const matches = SYMBOL_LIBRARY.filter(x => x.b === broker && (x.s.toUpperCase().includes(q) || x.n.toUpperCase().includes(q))).slice(0, 8);
+  nbShowDropdown(matches, q);
+  // LongPort suffix warning
+  if (broker === 'longport' && q.length >= 2 && !q.includes('.')) {
+    const guess = SYMBOL_LIBRARY.find(x => x.b === 'longport' && x.s.toUpperCase().startsWith(q));
+    if (guess) {
+      document.getElementById('nb-sym-validation').innerHTML = `<span style="color:#92400E">\u26A0 LongPort needs market suffix. Did you mean <a href="#" onclick="nbSelectSymbol('${guess.s}','${guess.n}');return false" style="color:#1D4ED8;font-weight:600">${guess.s}</a>?</span>`;
+    }
+  }
+}
+
+function nbShowDropdown(symbols, query) {
+  const dd = document.getElementById('nb-sym-dropdown');
+  if (!symbols.length && query) {
+    dd.innerHTML = `<div onclick="nbSelectSymbol('${query}','')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text-secondary)">Use "${query}" as custom symbol</div>`;
+    dd.style.display = 'block';
+    return;
+  }
+  if (!symbols.length) { dd.style.display = 'none'; return; }
+  const mColor = m => m==='HK'?'background:#FEF3C7;color:#92400E':m==='SG'?'background:#DCFCE7;color:#166534':'background:#EFF6FF;color:#1D4ED8';
+  dd.innerHTML = symbols.map(x => `<div onclick="nbSelectSymbol('${x.s}','${x.n}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);font-size:13px" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='#fff'"><div><span style="font-weight:500">${x.s}</span> <span style="color:var(--text-muted);margin-left:6px">${x.n}</span></div><span style="font-size:11px;padding:1px 6px;border-radius:4px;${mColor(x.m)}">${x.m}</span></div>`).join('');
+  dd.style.display = 'block';
+}
+
+function nbSelectSymbol(symbol, name) {
+  document.getElementById('nb-symbol').value = symbol;
+  document.getElementById('nb-sym-dropdown').style.display = 'none';
+  const val = document.getElementById('nb-sym-validation');
+  if (name) val.innerHTML = `<span style="color:#16A34A">\u2713 ${name}</span>`;
+  else val.innerHTML = `<span style="color:#6B7280">Custom symbol</span>`;
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#nb-symbol') && !e.target.closest('#nb-sym-dropdown')) {
+    const dd = document.getElementById('nb-sym-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
 
 async function testConnection() {
   const el = document.getElementById('lp-test-result');
