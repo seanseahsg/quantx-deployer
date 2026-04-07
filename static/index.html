@@ -436,6 +436,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     </div>
     <div id="bt-params-container"></div>
     <button class="btn btn-primary" id="bt-run-btn" onclick="runBacktest()" style="width:100%;margin-top:8px">Run Backtest</button>
+    <div id="bt-progress" style="display:none;margin-top:8px;padding:10px 14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;font-size:13px;color:#1D4ED8;align-items:center;gap:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span><span id="bt-progress-msg">Checking local cache...</span></div>
   </div>
   <!-- Results -->
   <div id="bt-results" style="display:none">
@@ -1233,12 +1234,20 @@ function openNewBacktest() {
 
 async function runBacktest() {
   const btn = document.getElementById('bt-run-btn');
+  const prog = document.getElementById('bt-progress');
+  const progMsg = document.getElementById('bt-progress-msg');
   const sym = document.getElementById('bt-symbol').value.trim();
   const strat = document.getElementById('bt-strategy').value;
   const tf = document.getElementById('bt-timeframe').value;
   const cap = parseFloat(document.getElementById('bt-capital').value) || 10000;
   if (!sym) { showToast('Enter a symbol', 'error'); return; }
   btn.disabled = true; btn.textContent = 'Running...';
+  // Show progress messages
+  const msgs = ['Checking local cache...','Connecting to data sources...','Downloading historical price data...','Processing bars...','Running backtest engine...','Calculating performance metrics...'];
+  let mi = 0;
+  if (prog) prog.style.display = 'flex';
+  if (progMsg) progMsg.textContent = msgs[0];
+  const msgInt = setInterval(() => { mi = (mi + 1) % msgs.length; if (progMsg) progMsg.textContent = msgs[mi]; }, 2000);
   try {
     const btBase = getBacktestBaseUrl();
     console.log('[BT] Running on:', btBase);
@@ -1250,12 +1259,13 @@ async function runBacktest() {
     if (d.status === 'error') throw new Error(d.message || 'Failed');
     if (!r.ok) throw new Error(d.detail || 'Failed');
     showBacktestResults(d, sym, strat, tf);
-    // Save to localStorage
     _savedBacktests.unshift({ date: new Date().toISOString(), symbol: sym, strategy: strat, timeframe: tf, period: _btLimit, metrics: d.metrics });
     if (_savedBacktests.length > 50) _savedBacktests = _savedBacktests.slice(0, 50);
     localStorage.setItem('qx_backtests', JSON.stringify(_savedBacktests));
     renderSavedBacktests();
   } catch (e) { showToast('Backtest error: ' + e.message, 'error'); }
+  clearInterval(msgInt);
+  if (prog) prog.style.display = 'none';
   btn.disabled = false; btn.textContent = 'Run Backtest';
 }
 
@@ -1362,10 +1372,15 @@ function clearSavedBacktests() {
 function createBotFromBacktest() {
   const sym = document.getElementById('bt-symbol').value;
   const strat = document.getElementById('bt-strategy').value;
-  document.getElementById('nb-symbol').value = sym;
-  document.getElementById('nb-strategy').value = strat;
-  document.getElementById('nb-name').value = strat + ' ' + sym;
-  openModal('newbot-modal');
+  // Open modal first (initializes quicktags etc), then pre-fill AFTER
+  openNewBot();
+  // Set values after modal init so broker pill switch doesn't clear them
+  setTimeout(() => {
+    document.getElementById('nb-symbol').value = sym;
+    document.getElementById('nb-strategy').value = strat;
+    document.getElementById('nb-name').value = strat + ' ' + sym;
+    nbSelectSymbol(sym, '');
+  }, 50);
 }
 
 /* ═══════════════════ BROKERS ═══════════════════ */
@@ -1472,13 +1487,19 @@ async function checkIbkrStatus() {
 }
 
 function setNbBroker(broker) {
+  const symInput = document.getElementById('nb-symbol');
+  const currentSym = symInput ? symInput.value : '';
   document.getElementById('nb-broker').value = broker;
   document.getElementById('nb-broker-lp').classList.toggle('active', broker === 'longport');
   document.getElementById('nb-broker-ib').classList.toggle('active', broker === 'ibkr');
-  // Reset symbol for new broker
-  document.getElementById('nb-symbol').value = '';
-  document.getElementById('nb-sym-validation').innerHTML = '';
   nbRenderQuicktags(broker);
+  // Only clear symbol if it was empty; otherwise preserve it
+  if (currentSym && symInput) {
+    symInput.value = currentSym;
+    document.getElementById('nb-sym-validation').innerHTML = '';
+  } else {
+    document.getElementById('nb-sym-validation').innerHTML = '';
+  }
 }
 
 function nbRenderQuicktags(broker) {
