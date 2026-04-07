@@ -31,7 +31,13 @@ class IBKRConnector:
             log.error("ib_insync not installed. Run: pip install ib_insync")
             return False
         try:
-            self.ib.connect(self.host, self.port, clientId=self.client_id)
+            # Ensure event loop exists in this thread (needed if called from ThreadPoolExecutor)
+            import asyncio
+            try:
+                asyncio.get_event_loop()
+            except RuntimeError:
+                asyncio.set_event_loop(asyncio.new_event_loop())
+            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=10)
             self._connected = self.ib.isConnected()
             log.info(f"IBKR connected: {self._connected}, account: {self.ib.managedAccounts()}")
             return self._connected

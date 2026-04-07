@@ -1003,9 +1003,11 @@ async def get_ibkr_config_endpoint(email: str):
 @app.post("/api/test-ibkr-connection")
 async def test_ibkr_connection(req: IBKRConfigReq):
     def _test_sync():
+        import asyncio as _asyncio
+        # Create event loop for this thread BEFORE importing ib_insync
+        _loop = _asyncio.new_event_loop()
+        _asyncio.set_event_loop(_loop)
         try:
-            import nest_asyncio
-            nest_asyncio.apply()
             from ib_insync import IB
             ib = IB()
             ib.connect(req.host, req.port, clientId=req.client_id + 50, timeout=10)
@@ -1018,11 +1020,13 @@ async def test_ibkr_connection(req: IBKRConfigReq):
             return {"ok": False, "message": "Connection returned but isConnected=False"}
         except Exception as e:
             return {"ok": False, "message": str(e)}
+        finally:
+            _loop.close()
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _test_sync)
         return result
     except Exception as e:
-        return {"ok": False, "message": f"Executor error: {e}"}
+        return {"ok": False, "message": f"Server error: {e}"}
 
 
 @app.get("/api/status/{email}")
