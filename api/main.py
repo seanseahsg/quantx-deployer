@@ -36,7 +36,7 @@ from api.database import (
     get_latest_process, log_trade, get_trades, decrypt,
     save_ibkr_config, get_ibkr_config,
 )
-from api.generate import generate_master_bot, generate_ibkr_bot
+from api.generate import generate_master_bot, generate_ibkr_bot, generate_simple_lp_bot, generate_simple_ibkr_bot
 
 _log = _logging.getLogger("quantx-deployer")
 
@@ -891,9 +891,35 @@ async def deploy(req: DeployReq):
 
     _log.info("Deploying with central API: %s", central_url)
 
-    # Split strategies by broker
+    # Split strategies by broker and type
     lp_strats = [s for s in strategies if s.get("broker", "longport") != "ibkr"]
     ibkr_strats = [s for s in strategies if s.get("broker") == "ibkr"]
+
+    # Check for simple/quick_test strategies — deploy as individual simple bots
+    deployed_simple = []
+    for s in strategies:
+        conds = s.get("conditions", {})
+        is_quick = (s.get("library_id") == "QUICK_TEST" or
+                    conds.get("type") == "quick_test" or
+                    s.get("mode") == "quick_test")
+        if is_quick:
+            sym = s.get("symbol", "700.HK")
+            broker = s.get("broker", "longport")
+            try:
+                if broker == "ibkr":
+                    ibkr_cfg = get_ibkr_config(email) or {"host": "127.0.0.1", "port": 7497, "client_id": 1}
+                    sp, lp = generate_simple_ibkr_bot(email, sym, ibkr_cfg, student)
+                else:
+                    sp, lp = generate_simple_lp_bot(email, sym, student)
+                proc = _launch_bot(sp, lp)
+                save_process(email, proc.pid, "running", sp, lp)
+                deployed_simple.append({"strategy_id": s["strategy_id"], "pid": proc.pid, "broker": broker})
+                _log.info("[DEPLOY] Simple %s bot PID: %s for %s", broker, proc.pid, sym)
+            except Exception as e:
+                _log.error("[DEPLOY] Simple bot failed for %s: %s", sym, e)
+            # Remove from regular deploy lists
+            lp_strats = [x for x in lp_strats if x["strategy_id"] != s["strategy_id"]]
+            ibkr_strats = [x for x in ibkr_strats if x["strategy_id"] != s["strategy_id"]]
 
     # If there are IBKR strategies, launch IBKR bot too
     if ibkr_strats:

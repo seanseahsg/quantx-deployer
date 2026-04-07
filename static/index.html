@@ -750,9 +750,13 @@ async function loadHome() {
 let _botFilter = 'all';
 let _botSearch = '';
 
+let _loadBotsInProgress = false;
 async function loadBots() {
+  if (_loadBotsInProgress) return;
+  _loadBotsInProgress = true;
   if (!EMAIL) {
     document.getElementById('bots-empty').style.display = '';
+    _loadBotsInProgress = false;
     return;
   }
   try {
@@ -772,6 +776,7 @@ async function loadBots() {
     checkDuplicateBots();
     renderBots();
   } catch (e) { showToast('Failed to load bots: ' + e.message, 'error'); }
+  _loadBotsInProgress = false;
 }
 
 function renderBots() {
@@ -851,9 +856,11 @@ async function cleanupDuplicates() {
 function confirmDeleteRow(sid) {
   const cell = document.getElementById('del-' + sid);
   if (!cell) return;
-  cell.innerHTML = '<span style="font-size:11px;color:var(--red)">Delete? </span>' +
-    '<span style="cursor:pointer;color:var(--red);font-weight:600;font-size:11px;margin-right:4px" onclick="deleteRowBot(\'' + sid + '\')">Yes</span>' +
-    '<span style="cursor:pointer;color:var(--text-muted);font-size:11px" onclick="renderBots()">No</span>';
+  cell.innerHTML = `<div style="display:flex;align-items:center;gap:4px">
+    <span style="font-size:11px;color:var(--text-secondary)">Delete?</span>
+    <button onclick="deleteRowBot('${sid}')" style="padding:2px 8px;font-size:11px;background:#DC2626;color:#fff;border:none;border-radius:4px;cursor:pointer">Yes</button>
+    <button onclick="renderBots()" style="padding:2px 8px;font-size:11px;background:#6B7280;color:#fff;border:none;border-radius:4px;cursor:pointer">No</button>
+  </div>`;
 }
 
 async function deleteRowBot(sid) {
@@ -899,7 +906,8 @@ async function toggleBot(sid, active) {
     _TOGGLING.delete(sid);
     if (s) s._toggling = false;
   }
-  await loadBots();
+  renderBots(); // instant visual update
+  setTimeout(loadBots, 3000); // delayed refresh to let subprocess register
 }
 
 function openNewBot() {
