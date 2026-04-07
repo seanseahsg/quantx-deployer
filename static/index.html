@@ -366,6 +366,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <span id="bd-log-status" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--green)"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Live</span>
       <span style="font-size:11px;color:var(--text-muted)">Polling every 3s</span>
+      <span id="bd-log-filename" style="font-size:10px;color:var(--text-muted);margin-left:auto;font-family:monospace"></span>
     </div>
     <div class="log-viewer" id="bd-log-content" style="color:#4ADE80;min-height:400px">Waiting for logs...</div>
   </div>
@@ -1011,7 +1012,9 @@ async function loadBotLog() {
     const r = await fetch(logUrl);
     const d = await r.json();
     const el = document.getElementById('bd-log-content');
-    const raw = d.logs || d.log || 'No logs available';
+    const raw = (d.lines ? d.lines.join('\n') : d.logs || d.log || 'No logs available');
+    const fnEl = document.getElementById('bd-log-filename');
+    if (fnEl && d.filename) fnEl.textContent = 'Reading: ' + d.filename;
     // Color-code log levels
     el.innerHTML = raw.split('\n').map(line => {
       if (line.includes('[ERROR]') || line.includes('ERROR')) return `<span style="color:#F87171">${esc(line)}</span>`;

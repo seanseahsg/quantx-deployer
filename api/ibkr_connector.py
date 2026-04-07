@@ -7,8 +7,15 @@ except ImportError:
     HAS_IB = False
 
 import logging
+import hashlib
 
 log = logging.getLogger("quantx-ibkr")
+
+
+def get_client_id_for_strategy(strategy_id: str) -> int:
+    """Generate a unique IBKR client ID (100-899) from strategy_id."""
+    h = int(hashlib.md5(strategy_id.encode()).hexdigest(), 16)
+    return (h % 800) + 100
 
 
 class IBKRConnector:
@@ -41,14 +48,34 @@ class IBKRConnector:
         return self.ib.isConnected() if self.ib else False
 
     def get_quote(self, symbol, exchange='SMART', currency='USD'):
+        import math
         try:
             contract = self._make_contract(symbol, exchange, currency)
             self.ib.qualifyContracts(contract)
+            # Try live market data first
             ticker = self.ib.reqMktData(contract)
             self.ib.sleep(2)
-            price = ticker.last or ticker.bid or ticker.close
-            log.info(f"Quote {symbol}: {price}")
-            return price
+            # Check each price field, skip nan
+            for field, name in [(ticker.last, 'last'), (ticker.bid, 'bid'),
+                                (ticker.ask, 'ask'), (ticker.close, 'close')]:
+                if field is not None and not (isinstance(field, float) and math.isnan(field)) and field > 0:
+                    log.info(f"Quote {symbol}: {field} (from {name})")
+                    return field
+            # Fallback: request historical data (last close)
+            log.info(f"Quote {symbol}: live data unavailable, trying historical fallback")
+            try:
+                bars = self.ib.reqHistoricalData(
+                    contract, endDateTime='', durationStr='1 D',
+                    barSizeSetting='1 day', whatToShow='MIDPOINT', useRTH=True
+                )
+                if bars:
+                    price = bars[-1].close
+                    log.info(f"Quote {symbol}: {price} (from historical fallback)")
+                    return price
+            except Exception as he:
+                log.warning(f"Historical fallback failed for {symbol}: {he}")
+            log.warning(f"Quote {symbol}: no price available from any source")
+            return None
         except Exception as e:
             log.error(f"Quote failed {symbol}: {e}")
             return None

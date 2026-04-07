@@ -855,7 +855,11 @@ def _cancel_student_orders(student: dict) -> int:
         logger.info("[DEPLOY] Cancelled %d old open orders", cancelled)
         return cancelled
     except Exception as e:
-        logger.warning("[DEPLOY] Could not cancel old orders: %s", e)
+        msg = str(e)
+        if "connections limitation" in msg.lower() or "limit" in msg.lower():
+            logger.warning("[DEPLOY] LongPort connection limit hit — skipping order cancel, proceeding with deploy")
+        else:
+            logger.warning("[DEPLOY] Could not cancel old orders: %s", e)
         return 0
 
 
@@ -1056,22 +1060,34 @@ async def strategy_logs(email: str, strategy_id: str, lines: int = Query(50, ge=
     email = email.lower().strip()
     email_safe = email.replace("@", "_at_").replace(".", "_")
     safe_sid = strategy_id.replace("/", "_")
-    log_path = Path(__file__).parent.parent / "logs" / f"{email_safe}_{safe_sid}.log"
-    if not log_path.exists():
-        return {"lines": [], "total": 0, "strategy_id": strategy_id}
-    all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    return {"lines": all_lines[-lines:], "total": len(all_lines), "strategy_id": strategy_id}
+    logs_dir = Path(__file__).parent.parent / "logs"
+    # Search for log file in order of specificity
+    candidates = [
+        f"{email_safe}_{safe_sid}.log",       # strategy-specific
+        f"{email_safe}_master.log",            # LongPort master
+        f"{email_safe}_ibkr_master.log",       # IBKR master
+    ]
+    for fname in candidates:
+        log_path = logs_dir / fname
+        if log_path.exists():
+            all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            return {"lines": all_lines[-lines:], "total": len(all_lines),
+                    "strategy_id": strategy_id, "filename": fname}
+    return {"lines": ["No log file found yet. Deploy a bot to start logging."],
+            "total": 0, "strategy_id": strategy_id, "filename": ""}
 
 
 @app.get("/api/logs/{email}")
 async def logs(email: str, lines: int = Query(50, ge=1, le=500)):
     email = email.lower().strip()
     email_safe = email.replace("@", "_at_").replace(".", "_")
-    log_path = Path(__file__).parent.parent / "logs" / f"{email_safe}_master.log"
-    if not log_path.exists():
-        return {"lines": [], "total": 0}
-    all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    return {"lines": all_lines[-lines:], "total": len(all_lines)}
+    logs_dir = Path(__file__).parent.parent / "logs"
+    for fname in [f"{email_safe}_master.log", f"{email_safe}_ibkr_master.log"]:
+        log_path = logs_dir / fname
+        if log_path.exists():
+            all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            return {"lines": all_lines[-lines:], "total": len(all_lines), "filename": fname}
+    return {"lines": [], "total": 0, "filename": ""}
 
 
 @app.get("/api/trades/{email}")
