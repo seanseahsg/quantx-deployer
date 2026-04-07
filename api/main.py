@@ -103,6 +103,9 @@ class BacktestReq(BaseModel):
     limit: int = 1260
     commission_pct: float = 0.0
     slippage_pct: float = 0.0
+    email: str = ""
+    use_ibkr: bool = False
+    skip_cache: bool = False
 
 
 class OptimizeReq(BaseModel):
@@ -495,16 +498,33 @@ async def log_bot_trade(strategy_id: str, body: dict):
 
 @app.post("/api/backtest/run")
 async def backtest_run(body: BacktestReq):
-    from api.backtest import fetch_ohlcv, run_backtest
+    from api.backtest import run_backtest
+    from api.data_manager import fetch_bars_waterfall_sync
     def _run():
-        bars, source = fetch_ohlcv(body.symbol, body.timeframe, body.limit)
+        # Get credentials if email provided
+        ibkr_cfg = None
+        if body.email and body.use_ibkr:
+            ibkr_cfg = get_ibkr_config(body.email.lower().strip())
+        # Waterfall fetch
+        data = fetch_bars_waterfall_sync(
+            symbol=body.symbol, timeframe=body.timeframe, limit=body.limit,
+            db_path=DB_PATH, ibkr_config=ibkr_cfg, skip_cache=body.skip_cache)
+        if data["error"]:
+            return {"status": "error", "message": data["error"],
+                    "source": data["source"], "source_message": data["source_message"]}
+        bars = data["bars"]
+        if len(bars) < 50:
+            return {"status": "error", "message": f"Only {len(bars)} bars available, need 50+.",
+                    "source": data["source"]}
         result = run_backtest(bars, body.strategy, body.params, body.initial_capital,
                               body.commission_pct, body.slippage_pct)
-        result["source"] = source
+        result["source"] = data["source"]
+        result["source_message"] = data["source_message"]
         result["symbol"] = body.symbol
         result["strategy"] = body.strategy
         result["commission_pct"] = body.commission_pct
         result["slippage_pct"] = body.slippage_pct
+        result["bar_count"] = data["bar_count"]
         return result
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)
@@ -1097,6 +1117,45 @@ async def test_ibkr_connection(req: IBKRConfigReq):
         return result
     except Exception as e:
         return {"ok": False, "message": f"Server error: {e}"}
+
+
+# ── Data cache endpoints ─────────────────────────────────────────────────────
+
+@app.get("/api/data-cache")
+async def data_cache_list(email: str = Query("")):
+    from api.data_manager import get_cached_symbols
+    cached = get_cached_symbols(DB_PATH)
+    return {"cached": cached, "count": len(cached)}
+
+
+@app.delete("/api/data-cache")
+async def data_cache_clear(symbol: str = Query(""), timeframe: str = Query("")):
+    from api.data_manager import clear_cached_symbol
+    if symbol:
+        clear_cached_symbol(DB_PATH, symbol.upper(), timeframe or None)
+        return {"ok": True, "cleared": symbol}
+    return {"ok": False, "message": "symbol required"}
+
+
+@app.post("/api/data-prefetch")
+async def data_prefetch(request: Request):
+    body = await request.json()
+    symbol = (body.get("symbol", "") or "").upper().strip()
+    timeframe = body.get("timeframe", "1day")
+    limit = int(body.get("limit", 252))
+    email = body.get("email", "")
+    if not symbol:
+        return {"ok": False, "message": "symbol required"}
+    def _fetch():
+        from api.data_manager import fetch_bars_waterfall_sync
+        ibkr_cfg = None
+        if email:
+            ibkr_cfg = get_ibkr_config(email.lower().strip())
+        result = fetch_bars_waterfall_sync(symbol=symbol, timeframe=timeframe, limit=limit,
+                                           db_path=DB_PATH, ibkr_config=ibkr_cfg)
+        _log.info("Prefetch %s/%s: %s (%d bars)", symbol, timeframe, result["source"], result["bar_count"])
+    asyncio.get_event_loop().run_in_executor(_executor, _fetch)
+    return {"ok": True, "message": f"Fetching {symbol}/{timeframe} in background..."}
 
 
 @app.get("/api/status/{email}")

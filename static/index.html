@@ -1244,9 +1244,10 @@ async function runBacktest() {
     console.log('[BT] Running on:', btBase);
     const r = await fetch(btBase + '/api/backtest/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: sym, strategy: strat, params: {}, initial_capital: cap, timeframe: tf, limit: _btLimit })
+      body: JSON.stringify({ symbol: sym, strategy: strat, params: {}, initial_capital: cap, timeframe: tf, limit: _btLimit, email: EMAIL, use_ibkr: !!localStorage.getItem('ibkr_config'), skip_cache: false })
     });
     const d = await r.json();
+    if (d.status === 'error') throw new Error(d.message || 'Failed');
     if (!r.ok) throw new Error(d.detail || 'Failed');
     showBacktestResults(d, sym, strat, tf);
     // Save to localStorage
@@ -1291,12 +1292,15 @@ function showBacktestResults(d, sym, strat, tf) {
   // Settings summary
   const pm = {252:'1Y',504:'2Y',756:'3Y',1260:'5Y',2520:'10Y'};
   const sumEl = document.getElementById('btr-summary');
+  const srcBadge = {local_cache:'\uD83D\uDCBE Cache',ibkr:'\uD83D\uDCCA IBKR',longport:'\uD83D\uDCCA LongPort',r2:'\u2601\uFE0F QuantX Library',yahoo:'\uD83D\uDCC8 Yahoo',fmp:'\uD83D\uDCCA FMP'}[d.source] || d.source || '';
+  const srcColor = {local_cache:'#6B7280',ibkr:'#1D4ED8',longport:'#1D4ED8',r2:'#7C3AED',yahoo:'#16A34A',fmp:'#7C3AED'}[d.source] || '#6B7280';
   if (sumEl) sumEl.innerHTML = [
     `<span><strong>${sym}</strong></span>`,
     `<span>${strat}</span>`,
     `<span>${tf}</span>`,
-    `<span>${pm[_btLimit]||_btLimit} (${m.bars_tested||'?'} bars)</span>`,
+    `<span>${pm[_btLimit]||_btLimit} (${d.bar_count||m.bars_tested||'?'} bars)</span>`,
     `<span>$${(m.initial_capital||10000).toLocaleString()}</span>`,
+    srcBadge ? `<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:${srcColor}15;color:${srcColor}">${srcBadge}</span>` : '',
   ].join('');
   // Monthly P/L table
   buildMonthlyPL(trades);

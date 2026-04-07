@@ -143,6 +143,12 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+    # Data cache table
+    try:
+        from .data_manager import init_data_cache
+        init_data_cache(conn)
+    except Exception:
+        pass
     conn.close()
 
 
