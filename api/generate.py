@@ -80,13 +80,15 @@ def generate_simple_lp_bot(email: str, symbol: str, credentials: dict) -> tuple[
     email_safe = email.replace("@", "_at_").replace(".", "_")
     script_path = BOTS_DIR / f"{email_safe}_simple_lp.py"
     log_name = f"{email_safe}_simple_lp.log"
-    content = SIMPLE_LP_TEMPLATE.format(
-        email=email, symbol=symbol,
-        central_api_url=credentials.get("central_api_url", ""),
-        log_dir=str(LOGS_DIR).replace("\\", "/"),
-        master_log_name=log_name,
-    )
+    content = SIMPLE_LP_TEMPLATE
+    content = content.replace('__EMAIL__', email)
+    content = content.replace('__SYMBOL__', symbol)
+    content = content.replace('__CENTRAL_API_URL__', credentials.get("central_api_url", ""))
+    content = content.replace('__LOG_DIR__', str(LOGS_DIR).replace("\\", "/"))
+    content = content.replace('__LOG_NAME__', log_name)
     script_path.write_text(content, encoding="utf-8")
+    # Verify template was filled correctly
+    assert email in script_path.read_text(encoding="utf-8"), "Template fill failed for LP bot"
     return str(script_path.resolve()), str(LOGS_DIR / log_name)
 
 
@@ -100,14 +102,15 @@ def generate_simple_ibkr_bot(email: str, symbol: str, ibkr_config: dict,
     cid = ibkr_config.get("client_id", 1)
     script_path = BOTS_DIR / f"{email_safe}_simple_ibkr_{cid}.py"
     log_name = f"{email_safe}_simple_ibkr_{cid}.log"
-    content = SIMPLE_IBKR_TEMPLATE.format(
-        email=email, symbol=symbol,
-        ibkr_host=ibkr_config.get("host", "127.0.0.1"),
-        ibkr_port=ibkr_config.get("port", 7497),
-        ibkr_client_id=cid,
-        central_api_url=credentials.get("central_api_url", ""),
-        log_dir=str(LOGS_DIR).replace("\\", "/"),
-        master_log_name=log_name,
-    )
+    content = SIMPLE_IBKR_TEMPLATE
+    content = content.replace('__EMAIL__', email)
+    content = content.replace('__SYMBOL__', symbol)
+    content = content.replace('__IBKR_HOST__', ibkr_config.get("host", "127.0.0.1"))
+    content = content.replace('__IBKR_PORT__', str(ibkr_config.get("port", 7497)))
+    content = content.replace('__IBKR_CLIENT_ID__', str(cid))
+    content = content.replace('__CENTRAL_API_URL__', credentials.get("central_api_url", ""))
+    content = content.replace('__LOG_DIR__', str(LOGS_DIR).replace("\\", "/"))
+    content = content.replace('__LOG_NAME__', log_name)
     script_path.write_text(content, encoding="utf-8")
+    assert email in script_path.read_text(encoding="utf-8"), "Template fill failed for IBKR bot"
     return str(script_path.resolve()), str(LOGS_DIR / log_name)

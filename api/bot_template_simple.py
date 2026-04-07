@@ -1,15 +1,19 @@
-"""QuantX — Simple bot templates for direct order placement testing."""
+"""QuantX — Simple bot templates for direct order placement testing.
 
-SIMPLE_LP_TEMPLATE = r"""#!/usr/bin/env python3
-\"\"\"QuantX Simple LongPort Bot — places one limit buy, waits, cancels.\"\"\"
+Uses __PLACEHOLDER__ style instead of {placeholder} to avoid conflicts
+with literal curly braces in the Python code (dicts, json, f-strings).
+"""
+
+SIMPLE_LP_TEMPLATE = r'''#!/usr/bin/env python3
+"""QuantX Simple LongPort Bot — places one limit buy, waits, cancels."""
 import sys, os, math, decimal, time, logging, requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-EMAIL = '{email}'
-SYMBOL = '{symbol}'
-CENTRAL_API_URL = '{central_api_url}'
-LOG_DIR = '{log_dir}'
-LOG_NAME = '{master_log_name}'
+EMAIL = '__EMAIL__'
+SYMBOL = '__SYMBOL__'
+CENTRAL_API_URL = '__CENTRAL_API_URL__'
+LOG_DIR = '__LOG_DIR__'
+LOG_NAME = '__LOG_NAME__'
 
 os.makedirs(LOG_DIR, exist_ok=True)
 logging.basicConfig(
@@ -108,24 +112,24 @@ except Exception as e:
     log.error("Order failed: %s", e)
 
 log.info("Bot finished.")
-"""
+'''
 
 
-SIMPLE_IBKR_TEMPLATE = r"""#!/usr/bin/env python3
-\"\"\"QuantX Simple IBKR Bot — places one market buy, waits, cancels.\"\"\"
+SIMPLE_IBKR_TEMPLATE = r'''#!/usr/bin/env python3
+"""QuantX Simple IBKR Bot — places one market buy, waits, cancels."""
 import sys, os, time, logging, requests, asyncio
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 asyncio.set_event_loop(asyncio.new_event_loop())
 
-EMAIL = '{email}'
-SYMBOL = '{symbol}'
-IBKR_HOST = '{ibkr_host}'
-IBKR_PORT = {ibkr_port}
-IBKR_CLIENT_ID = {ibkr_client_id}
-CENTRAL_API_URL = '{central_api_url}'
-LOG_DIR = '{log_dir}'
-LOG_NAME = '{master_log_name}'
+EMAIL = '__EMAIL__'
+SYMBOL = '__SYMBOL__'
+IBKR_HOST = '__IBKR_HOST__'
+IBKR_PORT = __IBKR_PORT__
+IBKR_CLIENT_ID = __IBKR_CLIENT_ID__
+CENTRAL_API_URL = '__CENTRAL_API_URL__'
+LOG_DIR = '__LOG_DIR__'
+LOG_NAME = '__LOG_NAME__'
 
 os.makedirs(LOG_DIR, exist_ok=True)
 logging.basicConfig(
@@ -145,6 +149,7 @@ log.info("IBKR: %s:%s clientId=%s", IBKR_HOST, IBKR_PORT, IBKR_CLIENT_ID)
 log.info("=" * 50)
 
 from ib_insync import IB, Stock, MarketOrder
+import math
 
 ib = IB()
 try:
@@ -167,7 +172,6 @@ ib.qualifyContracts(contract)
 
 ticker = ib.reqMktData(contract)
 ib.sleep(3)
-import math
 price = ticker.last if (ticker.last and not math.isnan(ticker.last)) else None
 if not price:
     price = ticker.close if (ticker.close and not math.isnan(ticker.close)) else None
@@ -183,7 +187,7 @@ if not price:
     log.info("%s historical price: %s", SYMBOL, price)
 
 if not price:
-    log.error("Could not get price for %s — exiting", SYMBOL)
+    log.error("Could not get price for %s - exiting", SYMBOL)
     ib.disconnect()
     sys.exit(1)
 
@@ -216,4 +220,4 @@ except Exception as e:
 
 ib.disconnect()
 log.info("Bot finished.")
-"""
+'''

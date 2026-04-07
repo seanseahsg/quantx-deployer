@@ -916,7 +916,8 @@ async def deploy(req: DeployReq):
                 deployed_simple.append({"strategy_id": s["strategy_id"], "pid": proc.pid, "broker": broker})
                 _log.info("[DEPLOY] Simple %s bot PID: %s for %s", broker, proc.pid, sym)
             except Exception as e:
-                _log.error("[DEPLOY] Simple bot failed for %s: %s", sym, e)
+                import traceback
+                _log.error("[DEPLOY] Simple bot FAILED for %s: %s\n%s", sym, e, traceback.format_exc())
             # Remove from regular deploy lists
             lp_strats = [x for x in lp_strats if x["strategy_id"] != s["strategy_id"]]
             ibkr_strats = [x for x in ibkr_strats if x["strategy_id"] != s["strategy_id"]]
