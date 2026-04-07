@@ -399,7 +399,10 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 <!-- ══════════════════════════════════════ BACKTESTER ══════════════════════════════════════ -->
 <div class="page" id="page-backtester">
   <div class="page-header">
-    <h1 class="page-title">Backtester</h1>
+    <div style="display:flex;align-items:center;gap:10px">
+      <h1 class="page-title">Backtester</h1>
+      <span id="bt-source-badge" style="font-size:11px;padding:3px 10px;border-radius:10px"></span>
+    </div>
     <button class="btn btn-primary" onclick="openNewBacktest()">+ New Backtest</button>
   </div>
   <!-- New Backtest Panel -->
@@ -570,9 +573,16 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
    QuantX Deployer — Frontend
    ════════════════════════════════════════════════════════════════════════════ */
 const API = '';
+let CENTRAL = localStorage.getItem('qx_central_url') || localStorage.getItem('qx_central') || '';
 let EMAIL = localStorage.getItem('qx_email') || '';
 let UNAME = localStorage.getItem('qx_name') || '';
 let LICENSE = localStorage.getItem('qx_license') || '';
+
+function getBacktestBaseUrl() {
+  const c = CENTRAL || localStorage.getItem('qx_central_url') || localStorage.getItem('qx_central') || '';
+  if (c && c.startsWith('http') && !c.includes('localhost:8001')) return c.replace(/\/$/,'');
+  return window.location.origin;
+}
 let LIB_CACHE = null;
 let ALL_STRATEGIES = [];   // library strategies (from /api/strategies-library)
 let USER_STRATEGIES = [];  // user's saved bots (from /api/strategies/{email})
@@ -675,7 +685,16 @@ function navigate(page) {
   if (page === 'bots') loadBots();
   if (page === 'home') loadHome();
   if (page === 'brokers') checkBrokerStatus();
-  if (page === 'backtester') { populateStrategySelects(); renderSavedBacktests(); }
+  if (page === 'backtester') {
+    populateStrategySelects(); renderSavedBacktests();
+    const badge = document.getElementById('bt-source-badge');
+    const base = getBacktestBaseUrl();
+    const isCloud = base !== window.location.origin;
+    if (badge) {
+      badge.textContent = isCloud ? '\uD83D\uDCE1 Using Railway data' : '\uD83D\uDCBB Using local data';
+      badge.style.cssText = 'font-size:11px;padding:3px 10px;border-radius:10px;' + (isCloud ? 'background:#DCFCE7;color:#166534' : 'background:#F3F4F6;color:#6B7280');
+    }
+  }
   // Stop log polling when leaving bot detail
   if (page !== 'bot-detail' && _logInterval) { clearInterval(_logInterval); _logInterval = null; }
 }
@@ -691,18 +710,35 @@ async function loadConfig() {
     const d = await r.json();
     document.getElementById('set-central').value = d.central_api_url || '';
     document.getElementById('set-version').value = 'v' + (d.version || '1.0.0');
+    // Auto-store central URL for backtest routing
+    if (d.central_api_url && d.central_api_url !== 'http://localhost:8001' && d.central_api_url.startsWith('http')) {
+      localStorage.setItem('qx_central_url', d.central_api_url);
+      CENTRAL = d.central_api_url;
+      console.log('[CONFIG] Central API:', CENTRAL);
+    }
   } catch (e) { console.warn('Config load failed:', e); }
 }
 
 async function loadLibrary() {
   try {
-    const r = await fetch(API + '/api/strategies-library');
+    // Try central server first (has full library), fall back to local
+    const base = getBacktestBaseUrl();
+    const r = await fetch(base + '/api/strategies-library');
     const d = await r.json();
     LIB_CACHE = d.strategies || d || [];
     ALL_STRATEGIES = Array.isArray(LIB_CACHE) ? LIB_CACHE : [];
-    console.log('[LIB] Loaded', ALL_STRATEGIES.length, 'library strategies');
+    console.log('[LIB] Loaded', ALL_STRATEGIES.length, 'strategies from', base);
     populateStrategySelects();
-  } catch (e) { console.warn('Library load failed:', e); }
+  } catch (e) {
+    console.warn('Library load from central failed, trying local:', e);
+    try {
+      const r2 = await fetch(API + '/api/strategies-library');
+      const d2 = await r2.json();
+      LIB_CACHE = d2.strategies || d2 || [];
+      ALL_STRATEGIES = Array.isArray(LIB_CACHE) ? LIB_CACHE : [];
+      populateStrategySelects();
+    } catch (_) {}
+  }
 }
 
 function populateStrategySelects() {
@@ -1193,7 +1229,9 @@ async function runBacktest() {
   if (!sym) { showToast('Enter a symbol', 'error'); return; }
   btn.disabled = true; btn.textContent = 'Running...';
   try {
-    const r = await fetch(API + '/api/backtest/run', {
+    const btBase = getBacktestBaseUrl();
+    console.log('[BT] Running on:', btBase);
+    const r = await fetch(btBase + '/api/backtest/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol: sym, strategy: strat, params: {}, initial_capital: cap, timeframe: tf, limit: _btLimit })
     });
