@@ -256,6 +256,18 @@ class StrategyRunner(BaseRunner):
                     elif d == "below" and price < thr: sig = "sell"
             elif ctype == "always_buy": sig = "buy"
             elif ctype == "always_sell": sig = "sell"
+            elif ctype == "quick_test":
+                if not hasattr(self, '_qt_done'):
+                    self._qt_done = True
+                    sig = "buy"
+                    # Auto-sell after 30s
+                    import threading as _thr
+                    def _qt_sell():
+                        import time as _t; _t.sleep(30)
+                        if self.position_qty != 0:
+                            self.log("[QUICK_TEST] Auto-sell after 30s")
+                            self._close("sell", price)
+                    _thr.Thread(target=_qt_sell, daemon=True).start()
 
         if sig in ("buy", "sell"):
             self._open(sig, price)

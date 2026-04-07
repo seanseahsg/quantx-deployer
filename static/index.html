@@ -308,7 +308,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table id="bots-table">
-      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Return</th><th>Sharpe</th><th>Trades</th><th style="width:60px">On/Off</th></tr></thead>
+      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Return</th><th>Sharpe</th><th>Trades</th><th style="width:60px">On/Off</th><th style="width:40px"></th></tr></thead>
       <tbody id="bots-tbody"></tbody>
     </table>
     <div id="bots-empty" class="empty-state" style="display:none">
@@ -783,7 +783,7 @@ function renderBots() {
   if (_botSearch) list = list.filter(s => ((s.strategy_name||'') + (s.symbol||'') + (s.library_id||'')).toLowerCase().includes(_botSearch.toLowerCase()));
 
   if (list.length === 0 && USER_STRATEGIES.length === 0) { tbody.innerHTML = ''; empty.style.display = ''; return; }
-  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">No bots match filter</td></tr>'; empty.style.display = 'none'; return; }
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">No bots match filter</td></tr>'; empty.style.display = 'none'; return; }
   empty.style.display = 'none';
 
   // Stats
@@ -809,6 +809,7 @@ function renderBots() {
       <td>${mf(bt.sharpe_ratio)}</td>
       <td>${mf(bt.total_trades)}</td>
       <td onclick="event.stopPropagation()"><label class="toggle${s._toggling ? ' loading' : ''}"><input type="checkbox" ${((s.broker==='ibkr'?IBKR_BOT_RUNNING:LP_BOT_RUNNING) && s.is_active) ? 'checked' : ''} onchange="toggleBot('${s.strategy_id}',this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></td>
+      <td onclick="event.stopPropagation()" id="del-${s.strategy_id}"><span style="cursor:pointer;opacity:.4;font-size:14px" onclick="confirmDeleteRow('${s.strategy_id}')" title="Delete bot">🗑</span></td>
     </tr>`;
   }).join('');
 }
@@ -847,14 +848,34 @@ async function cleanupDuplicates() {
   await loadBots();
 }
 
+function confirmDeleteRow(sid) {
+  const cell = document.getElementById('del-' + sid);
+  if (!cell) return;
+  cell.innerHTML = '<span style="font-size:11px;color:var(--red)">Delete? </span>' +
+    '<span style="cursor:pointer;color:var(--red);font-weight:600;font-size:11px;margin-right:4px" onclick="deleteRowBot(\'' + sid + '\')">Yes</span>' +
+    '<span style="cursor:pointer;color:var(--text-muted);font-size:11px" onclick="renderBots()">No</span>';
+}
+
+async function deleteRowBot(sid) {
+  try {
+    await fetch(API + '/api/strategy/' + encodeURIComponent(sid), { method: 'DELETE' });
+    showToast('Bot deleted', 'info');
+    await loadBots();
+  } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
+}
+
+const _TOGGLING = new Map();
+
 async function toggleBot(sid, active) {
+  if (_TOGGLING.get(sid)) return; // debounce — already in progress
+  _TOGGLING.set(sid, true);
   const s = USER_STRATEGIES.find(x => x.strategy_id === sid);
   const broker = s ? (s.broker || 'longport') : 'longport';
   const brokerRunning = broker === 'ibkr' ? IBKR_BOT_RUNNING : LP_BOT_RUNNING;
   if (s) { s._toggling = true; renderBots(); }
   try {
     if (active) {
-      if (brokerRunning) { showToast(broker + ' bot already running. Stop it first.', 'info'); if (s) s._toggling = false; renderBots(); return; }
+      if (brokerRunning) { showToast(broker + ' bot already running. Stop it first.', 'info'); return; }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
       const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
       if (!dr.ok) { const dd = await dr.json(); throw new Error(dd.detail || 'Deploy failed'); }
@@ -863,7 +884,7 @@ async function toggleBot(sid, active) {
       if (s) s.is_active = true;
       showToast('Bot deployed (' + broker + ')', 'success');
     } else {
-      if (!brokerRunning) { showToast(broker + ' bot is not running', 'info'); if (s) s._toggling = false; renderBots(); return; }
+      if (!brokerRunning) { showToast(broker + ' bot is not running', 'info'); return; }
       const sr = await fetch(API + '/api/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, broker: broker }) });
       if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Stop failed'); }
       await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=false', { method: 'PUT' });
@@ -874,10 +895,11 @@ async function toggleBot(sid, active) {
     }
   } catch (e) {
     showToast(e.message, 'error');
+  } finally {
+    _TOGGLING.delete(sid);
+    if (s) s._toggling = false;
   }
-  if (s) s._toggling = false;
-  renderBots();
-  setTimeout(loadBots, 2000);
+  await loadBots();
 }
 
 function openNewBot() {
@@ -913,9 +935,11 @@ async function createBot(andDeploy = false) {
     const payload = {
       email: EMAIL, strategy_id: sid, strategy_name: name, symbol: sym,
       arena: sym.endsWith('.HK') ? 'HK' : sym.endsWith('.SI') ? 'SG' : 'US',
-      timeframe: tf, conditions: {}, exit_rules: {}, risk: lib ? lib.default_risk || {} : {},
-      is_active: false, mode: isTest ? 'custom' : 'library', library_id: isTest ? '' : strat,
-      custom_script: isTest ? 'def generate_signals(df):\n    n = len(df["close"])\n    signals = [0] * n\n    if n > 1: signals[1] = 1\n    if n > 2: signals[2] = -1\n    return signals' : '',
+      timeframe: tf,
+      conditions: isTest ? {type: 'quick_test'} : {},
+      exit_rules: {}, risk: isTest ? {lots: 100, tp_pct: 1, sl_pct: 2} : (lib ? lib.default_risk || {} : {}),
+      is_active: false, mode: 'library', library_id: isTest ? 'QUICK_TEST' : strat,
+      custom_script: '',
       broker: broker
     };
     const r = await fetch(API + '/api/strategy', {
