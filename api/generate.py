@@ -8,6 +8,10 @@ from .bot_template import BOT_TEMPLATE
 from .bot_template_ibkr import IBKR_BOT_TEMPLATE
 from .bot_template_simple import SIMPLE_LP_TEMPLATE, SIMPLE_IBKR_TEMPLATE
 from .bot_template_ibkr_prod import IBKR_PROD_TEMPLATE
+try:
+    from .bot_template_options import OPTIONS_BOT_TEMPLATE
+except ImportError:
+    OPTIONS_BOT_TEMPLATE = None
 from .config import BOTS_DIR, LOGS_DIR, TRADES_DIR, STATE_DIR
 
 
@@ -327,6 +331,91 @@ def generate_ibkr_bot_prod(email: str, strategy_config: dict,
     # Verify
     written = script_path.read_text(encoding="utf-8")
     assert email in written, f"Template fill failed: email not in script"
+    import re
+    remaining = re.findall(r'__[A-Z_]{3,}__', written)
+    assert not remaining, f"Unfilled placeholders: {remaining}"
+
+    return str(script_path.resolve()), str(LOGS_DIR / log_name), trades_path
+
+
+# ── Options bot generator ────────────────────────────────────────────────────
+
+def generate_options_bot(email: str, options_config: dict,
+                         ibkr_config: dict) -> tuple[str, str, str]:
+    """Generate a production options bot script (SPX 0DTE etc).
+    Returns (script_path, log_path, trades_path)."""
+    if OPTIONS_BOT_TEMPLATE is None:
+        raise ValueError("Options bot template not available")
+
+    BOTS_DIR.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    TRADES_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    email_safe = email.replace("@", "_at_").replace(".", "_")
+    sid = options_config.get("strategy_id", "OPT_CUSTOM")
+    cid = int(hashlib.md5((email + sid).encode()).hexdigest(), 16) % 800 + 100
+
+    script_path = BOTS_DIR / f"{email_safe}_{sid}_opt.py"
+    log_name = f"{sid}.log"
+    trades_path = str(TRADES_DIR / f"trades_{sid}_all.csv")
+
+    content = OPTIONS_BOT_TEMPLATE
+    replacements = {
+        '__STRATEGY_NAME__': sid,
+        '__ACCOUNT_ID__': ibkr_config.get("account_id", ""),
+        '__PORT__': str(ibkr_config.get("port", 7497)),
+        '__CLIENT_ID__': str(cid),
+        '__EMAIL__': email,
+        '__CENTRAL_API_URL__': ibkr_config.get("central_api_url", ""),
+        '__UNDERLYING__': options_config.get("underlying", "SPX"),
+        '__UNDERLYING_SEC_TYPE__': options_config.get("underlying_sec_type", "IND"),
+        '__UNDERLYING_EXCHANGE__': options_config.get("underlying_exchange", "CBOE"),
+        '__OPTION_TRADING_CLASS__': options_config.get("option_trading_class", "SPXW"),
+        '__STRATEGY_TYPE__': options_config.get("strategy_type", "IRON_CONDOR"),
+        '__STRIKE_METHOD__': options_config.get("strike_method", "DELTA"),
+        '__PUT_DELTA__': str(options_config.get("put_delta", -0.16)),
+        '__CALL_DELTA__': str(options_config.get("call_delta", 0.16)),
+        '__PUT_PCT_OTM__': str(options_config.get("put_pct_otm", 0.03)),
+        '__CALL_PCT_OTM__': str(options_config.get("call_pct_otm", 0.03)),
+        '__PUT_POINTS_OTM__': str(options_config.get("put_points_otm", 50)),
+        '__CALL_POINTS_OTM__': str(options_config.get("call_points_otm", 50)),
+        '__PUT_WING_WIDTH__': str(options_config.get("put_wing_width", 5.0)),
+        '__CALL_WING_WIDTH__': str(options_config.get("call_wing_width", 5.0)),
+        '__MULTIPLIER__': str(options_config.get("multiplier", 100)),
+        '__ENTRY_TIME_ET__': options_config.get("entry_time_et", "13:30"),
+        '__EXIT_TIME_ET__': options_config.get("exit_time_et", "15:59"),
+        '__RESTART_TIME_ET__': options_config.get("restart_time_et", "09:30"),
+        '__SMA_FILTER__': str(options_config.get("sma_filter", False)),
+        '__SMA_PERIOD__': str(options_config.get("sma_period", 4)),
+        '__SMA_DIRECTION__': options_config.get("sma_direction", "above"),
+        '__IV_FILTER__': str(options_config.get("iv_filter", False)),
+        '__MIN_VIX__': str(options_config.get("min_vix", 15)),
+        '__MAX_VIX__': str(options_config.get("max_vix", 40)),
+        '__SKIP_FOMC__': str(options_config.get("skip_fomc", False)),
+        '__RISK_PCT__': str(options_config.get("risk_pct", 0.02)),
+        '__MIN_CONTRACTS__': str(options_config.get("min_contracts", 1)),
+        '__MAX_CONTRACTS__': str(options_config.get("max_contracts", 10)),
+        '__ACCOUNT_EQUITY__': str(options_config.get("account_equity", 100000)),
+        '__PROFIT_TARGET_PCT__': str(options_config.get("profit_target_pct", 0.50)),
+        '__LOSS_LIMIT_MULT__': str(options_config.get("loss_limit_mult", 2.0)),
+        '__EOD_EXIT__': str(options_config.get("eod_exit", True)),
+        '__MAX_DAILY_LOSS__': str(options_config.get("max_daily_loss", 5000)),
+        '__MAX_ORDERS_PER_DAY__': str(options_config.get("max_orders_per_day", 2)),
+        '__DRY_RUN__': str(options_config.get("dry_run", True)),
+        '__LOG_DIR__': str(LOGS_DIR).replace("\\", "/"),
+        '__TRADES_DIR__': str(TRADES_DIR).replace("\\", "/"),
+        '__STATE_DIR__': str(STATE_DIR).replace("\\", "/"),
+    }
+
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    script_path.write_text(content, encoding="utf-8")
+
+    # Verify
+    written = script_path.read_text(encoding="utf-8")
+    assert email in written, "Template fill failed: email not in script"
     import re
     remaining = re.findall(r'__[A-Z_]{3,}__', written)
     assert not remaining, f"Unfilled placeholders: {remaining}"
