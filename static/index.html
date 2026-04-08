@@ -551,6 +551,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
         </div>
       </div>
     </div>
+    <details style="margin-top:8px;margin-bottom:4px"><summary style="font-size:12px;color:var(--text-muted);cursor:pointer">Realism Settings</summary><div style="display:flex;gap:16px;margin-top:6px"><div class="form-group" style="margin:0"><label style="font-size:11px">Commission %</label><input type="number" id="bt-commission" value="0.1" step="0.01" min="0" style="width:80px"></div><div class="form-group" style="margin:0"><label style="font-size:11px">Slippage %</label><input type="number" id="bt-slippage" value="0.05" step="0.01" min="0" style="width:80px"></div><div class="form-group" style="margin:0;padding-top:16px"><span style="font-size:11px;color:var(--text-muted)">Execution: next bar open</span></div></div></details>
     <button class="btn btn-primary" id="bt-run-btn" onclick="runBacktest()" style="width:100%;margin-top:8px">Run Backtest</button>
     <div id="bt-progress" style="display:none;margin-top:8px;padding:10px 14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;font-size:13px;color:#1D4ED8;align-items:center;gap:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span><span id="bt-progress-msg">Checking local cache...</span></div>
   </div>
@@ -1377,7 +1378,7 @@ async function runBacktest() {
     console.log('[BT] Running on:', btBase);
     const r = await fetch(btBase + '/api/backtest/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: sym, strategy: strat, params: {}, initial_capital: cap, timeframe: tf, limit: _btLimit, email: EMAIL, use_ibkr: !!localStorage.getItem('ibkr_config'), skip_cache: false })
+      body: JSON.stringify({ symbol: sym, strategy: strat, params: {}, initial_capital: cap, timeframe: tf, limit: _btLimit, email: EMAIL, use_ibkr: !!localStorage.getItem('ibkr_config'), skip_cache: false, commission_pct: parseFloat(document.getElementById('bt-commission')?.value||'0.1'), slippage_pct: parseFloat(document.getElementById('bt-slippage')?.value||'0.05') })
     });
     const d = await r.json();
     if (d.status === 'error') throw new Error(d.message || 'Failed');
@@ -1396,7 +1397,8 @@ async function runBacktest() {
 function showBacktestResults(d, sym, strat, tf) {
   const m = d.metrics || {};
   const mf = (v, s = '') => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) + s : '—';
-  document.getElementById('btr-return').textContent = mf(m.total_return_pct, '%');
+  const hasGross = m.gross_return_pct !== undefined;
+  document.getElementById('btr-return').innerHTML = mf(m.total_return_pct, '%') + (hasGross ? `<div style="font-size:10px;color:var(--text-muted);font-weight:400">Gross: ${mf(m.gross_return_pct,'%')}</div>` : '');
   document.getElementById('btr-return').className = 'stat-value ' + ((m.total_return_pct || 0) >= 0 ? 'green' : 'red');
   document.getElementById('btr-cagr').textContent = mf(m.cagr_pct, '%');
   document.getElementById('btr-sharpe').textContent = mf(m.sharpe_ratio);

@@ -617,7 +617,7 @@ STRATEGY_MAP = {
 # ── Backtest engine ──────────────────────────────────────────────────────────
 
 def run_backtest(bars, strategy, params, initial_capital=10000,
-                 commission_pct=0.0, slippage_pct=0.0):
+                 commission_pct=0.1, slippage_pct=0.05):
     if len(bars) < 50:
         raise ValueError(f"Need 50+ bars, got {len(bars)}")
 
@@ -642,12 +642,12 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
 
     comm = float(commission_pct) / 100.0
     slip = float(slippage_pct) / 100.0
-    # Track portfolio value simply: when flat, portfolio = cash
-    # When long: portfolio = shares * current_price (all-in, no leftover cash)
     portfolio = float(initial_capital)
-    pos_dir = 0       # 0=flat, 1=long, -1=short
+    pos_dir = 0
     pos_shares = 0.0
-    entry_cost = 0.0  # total cost basis (including commission)
+    entry_cost = 0.0
+    total_commission = 0.0
+    total_slippage = 0.0
     trades, equity = [], []
 
     for i, (bar, sig) in enumerate(zip(bars, signals)):
@@ -673,36 +673,52 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
 
         # ── LONG ENTRY ──
         if sig == "buy" and pos_dir == 0 and portfolio > 0:
-            fill_px = next_open * (1 + slip)
-            cost_per = fill_px * (1 + comm)
+            slip_cost = next_open * slip
+            fill_px = next_open + slip_cost
+            comm_cost = fill_px * comm
+            cost_per = fill_px + comm_cost
             shares = int(portfolio / cost_per)
             if shares > 0:
+                total_slippage += slip_cost * shares
+                total_commission += comm_cost * shares
                 entry_cost = shares * cost_per
                 pos_dir, pos_shares = 1, shares
-                portfolio = shares * price  # immediate MTM
+                portfolio = shares * price
                 trades.append({"date": bars[i+1]["date"], "side": "buy", "price": round(fill_px, 4), "shares": shares, "pnl": None})
         # ── LONG EXIT ──
         elif sig == "sell" and pos_dir == 1:
-            fill_px = next_open * (1 - slip)
-            proceeds = pos_shares * fill_px * (1 - comm)
+            slip_cost = next_open * slip
+            fill_px = next_open - slip_cost
+            comm_cost = fill_px * comm
+            total_slippage += slip_cost * pos_shares
+            total_commission += comm_cost * pos_shares
+            proceeds = pos_shares * (fill_px - comm_cost)
             pnl = proceeds - entry_cost
             portfolio = proceeds
             trades.append({"date": bars[i+1]["date"], "side": "sell", "price": round(fill_px, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
             pos_dir, pos_shares, entry_cost = 0, 0, 0.0
         # ── SHORT ENTRY ──
         elif sig == "short" and pos_dir == 0 and portfolio > 0:
-            fill_px = next_open * (1 - slip)
-            shares = int(portfolio / (fill_px * (1 + comm)))
+            slip_cost = next_open * slip
+            fill_px = next_open - slip_cost
+            comm_cost = fill_px * comm
+            shares = int(portfolio / (fill_px + comm_cost))
             if shares > 0:
-                entry_cost = portfolio  # remember starting equity for short
+                total_slippage += slip_cost * shares
+                total_commission += comm_cost * shares
+                entry_cost = portfolio
                 pos_dir, pos_shares = -1, shares
                 trades.append({"date": bars[i+1]["date"], "side": "short", "price": round(fill_px, 4), "shares": shares, "pnl": None})
         # ── SHORT COVER ──
         elif sig == "cover" and pos_dir == -1:
-            fill_px = next_open * (1 + slip)
-            cover_cost = pos_shares * fill_px * (1 + comm)
-            short_proceeds = pos_shares * (entry_cost / pos_shares if pos_shares > 0 else 0)
-            pnl = short_proceeds - cover_cost
+            slip_cost = next_open * slip
+            fill_px = next_open + slip_cost
+            comm_cost = fill_px * comm
+            total_slippage += slip_cost * pos_shares
+            total_commission += comm_cost * pos_shares
+            cover_total = pos_shares * (fill_px + comm_cost)
+            short_entry_px = entry_cost / max(pos_shares, 1)
+            pnl = pos_shares * short_entry_px - cover_total
             portfolio = entry_cost + pnl
             portfolio = max(portfolio, 0)
             trades.append({"date": bars[i+1]["date"], "side": "cover", "price": round(fill_px, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
@@ -754,10 +770,16 @@ def run_backtest(bars, strategy, params, initial_capital=10000,
         "GRAHAM_BOT": "Graham Bot needs beaten-down stocks near 52-week lows. Try 9988.HK or during corrections.",
         "SIMONS_BOT": "Simons Bot needs statistically extreme deviations. Try liquid ETFs (TQQQ, SPY) on 1m-5m.",
     }
+    gross_ret = (final + total_commission + total_slippage - initial_capital) / initial_capital * 100
     result = {
         "metrics": {"total_return_pct": round(ret, 2), "cagr_pct": round(cagr, 2), "sharpe_ratio": round(sharpe, 2),
                      "max_drawdown_pct": round(max_dd, 2), "win_rate_pct": round(wr, 1), "total_trades": len(sells),
-                     "final_value": round(final, 2), "initial_capital": initial_capital, "bars_tested": len(bars)},
+                     "final_value": round(final, 2), "initial_capital": initial_capital, "bars_tested": len(bars),
+                     "gross_return_pct": round(gross_ret, 2),
+                     "total_commission": round(total_commission, 2),
+                     "total_slippage": round(total_slippage, 2),
+                     "commission_pct": commission_pct, "slippage_pct": slippage_pct,
+                     "execution_model": "next_bar_open"},
         "equity_curve": eq_s,
         "trades": trades[-20:],
     }
