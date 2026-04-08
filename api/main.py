@@ -961,6 +961,25 @@ async def deploy(req: DeployReq):
             lp_strats = [x for x in lp_strats if x["strategy_id"] != s["strategy_id"]]
             ibkr_strats = [x for x in ibkr_strats if x["strategy_id"] != s["strategy_id"]]
 
+    # Deploy options bots (sec_type=OPT)
+    for s in list(ibkr_strats):
+        conds = s.get("conditions", {})
+        if conds.get("sec_type") == "OPT" or s.get("mode") == "options":
+            try:
+                from api.generate import generate_options_bot
+                ibkr_cfg = get_ibkr_config(email) or {"host": "127.0.0.1", "port": 7497, "client_id": 1}
+                ibkr_cfg["central_api_url"] = central_url
+                ibkr_cfg["account_id"] = ibkr_cfg.get("account_id", "")
+                ibkr_cfg["port"] = conds.get("port", ibkr_cfg.get("port", 7497))
+                sp, lp, tp = generate_options_bot(email, conds, ibkr_cfg)
+                proc = _launch_bot(sp, lp)
+                save_process(email, proc.pid, "running", sp, lp)
+                _log.info("[DEPLOY] Options bot PID: %s for %s", proc.pid, s["strategy_id"])
+            except Exception as e:
+                import traceback
+                _log.error("[DEPLOY] Options bot FAILED: %s\n%s", e, traceback.format_exc())
+            ibkr_strats = [x for x in ibkr_strats if x["strategy_id"] != s["strategy_id"]]
+
     # If there are IBKR strategies, deploy each via production bot generator
     if ibkr_strats:
         ibkr_cfg = get_ibkr_config(email) or {"host": "127.0.0.1", "port": 7497, "client_id": 1}

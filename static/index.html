@@ -301,6 +301,13 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <button class="btn btn-primary" onclick="openNewBot()">+ New Bot</button>
     </div>
   </div>
+  <!-- Tab bar -->
+  <div class="tab-bar" style="margin-bottom:16px">
+    <button class="tab-btn active" onclick="switchBotsTab('equity')">Equity Bots</button>
+    <button class="tab-btn" onclick="switchBotsTab('options')">Options Bots</button>
+  </div>
+  <!-- Equity bots section -->
+  <div id="bots-equity-section">
   <div class="filter-bar">
     <span class="filter-pill active" onclick="filterBots('all',this)">All</span>
     <span class="filter-pill" onclick="filterBots('live',this)">Live</span>
@@ -323,6 +330,59 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <div class="empty-state-icon">🤖</div>
       <div class="empty-state-text">No bots yet. Create one to get started.</div>
       <button class="btn btn-primary" onclick="openNewBot()">+ New Bot</button>
+    </div>
+  </div>
+  </div><!-- /bots-equity-section -->
+  <!-- Options bots section -->
+  <div id="bots-options-section" style="display:none">
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:15px;margin-bottom:16px">New Options Bot</h3>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Underlying</label><div style="display:flex;gap:4px"><span class="filter-pill active" onclick="setOptUnderlying('SPX',this)">SPX</span><span class="filter-pill" onclick="setOptUnderlying('XSP',this)">XSP</span><span class="filter-pill" onclick="setOptUnderlying('SPY',this)">SPY</span></div><input type="hidden" id="opt-underlying" value="SPX"></div>
+        <div class="form-group"><label>Strategy</label><select id="opt-strategy-type"><option value="IRON_CONDOR">Iron Condor</option><option value="BULL_PUT_SPREAD">Short Put Spread</option><option value="BEAR_CALL_SPREAD">Short Call Spread</option><option value="SHORT_STRANGLE">Short Strangle</option><option value="SHORT_STRADDLE">Short Straddle</option></select></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">STRIKE SELECTION</div>
+      <div style="display:flex;gap:12px;margin-bottom:8px"><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="DELTA" checked onchange="document.getElementById('opt-strike-method').value=this.value"> By Delta</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="PCT_OTM" onchange="document.getElementById('opt-strike-method').value=this.value"> By % OTM</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="POINTS_OTM" onchange="document.getElementById('opt-strike-method').value=this.value"> By Points</label></div>
+      <input type="hidden" id="opt-strike-method" value="DELTA">
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Put Delta / %OTM / Points</label><input type="number" id="opt-put-val" value="-0.16" step="0.01"></div>
+        <div class="form-group"><label>Call Delta / %OTM / Points</label><input type="number" id="opt-call-val" value="0.16" step="0.01"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Put Wing Width ($)</label><input type="number" id="opt-put-wing" value="5" step="5"></div>
+        <div class="form-group"><label>Call Wing Width ($)</label><input type="number" id="opt-call-wing" value="5" step="5"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Entry Time (ET)</label><select id="opt-entry-time"><option value="09:35">9:35am</option><option value="10:00">10:00am</option><option value="11:00">11:00am</option><option value="12:00">12:00pm</option><option value="13:00">1:00pm</option><option value="13:30" selected>1:30pm</option><option value="14:00">2:00pm</option></select></div>
+        <div class="form-group"><label>Exit Time (ET)</label><select id="opt-exit-time"><option value="15:45">3:45pm</option><option value="15:50">3:50pm</option><option value="15:55">3:55pm</option><option value="15:59" selected>3:59pm</option></select></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin:12px 0 8px">FILTERS</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+        <label style="font-size:12px"><input type="checkbox" id="opt-sma-filter" checked> SMA filter: above SMA(<input type="number" id="opt-sma-period" value="4" style="width:40px;padding:1px 4px;font-size:12px">)</label>
+        <label style="font-size:12px"><input type="checkbox" id="opt-vix-filter"> VIX filter: <input type="number" id="opt-min-vix" value="15" style="width:40px;padding:1px 4px;font-size:12px"> to <input type="number" id="opt-max-vix" value="40" style="width:40px;padding:1px 4px;font-size:12px"></label>
+        <label style="font-size:12px"><input type="checkbox" id="opt-skip-fomc"> Skip FOMC days</label>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Risk per Trade (%)</label><input type="number" id="opt-risk-pct" value="2" step="0.5"></div>
+        <div class="form-group"><label>Max Contracts</label><input type="number" id="opt-max-contracts" value="10"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Profit Target (% credit)</label><input type="number" id="opt-profit-target" value="50" step="5"></div>
+        <div class="form-group"><label>Loss Limit (x credit)</label><input type="number" id="opt-loss-limit" value="2" step="0.5"></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group"><label>Max Daily Loss ($)</label><input type="number" id="opt-max-daily-loss" value="2000"></div>
+        <div class="form-group"><label>Max Orders/Day</label><input type="number" id="opt-max-orders" value="2"></div>
+      </div>
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Mode</label><div style="display:flex;gap:8px;margin-top:4px"><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="dry_run" checked> Dry Run</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="paper"> Paper</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="live"> Live</label></div></div>
+      <div class="form-group"><label>Bot Name</label><input type="text" id="opt-bot-name" value="SPX Iron Condor 0DTE"></div>
+      <div id="opt-deploy-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <button class="btn btn-primary" id="opt-deploy-btn" onclick="deployOptionsBot()" style="width:100%">Deploy Options Bot</button>
+    </div>
+    <!-- Options bots table -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <table><thead><tr><th>Bot Name</th><th>Strategy</th><th>Underlying</th><th>Mode</th><th style="width:100px">Status</th></tr></thead><tbody id="opt-bots-tbody"></tbody></table>
+      <div id="opt-bots-empty" class="empty-state" style="padding:20px"><div class="empty-state-text">No options bots yet.</div></div>
     </div>
   </div>
 </div>
@@ -1722,6 +1782,111 @@ async function runBuilderBacktest() {
   clearInterval(msgInt);
   if (prog) prog.style.display = 'none';
   btn.disabled = false; btn.textContent = 'Run Backtest';
+}
+
+/* ═══════════════════ BROKERS ═══════════════════ */
+/* ═══════════════════ OPTIONS BOTS ═══════════════════ */
+function switchBotsTab(tab) {
+  document.getElementById('bots-equity-section').style.display = tab === 'equity' ? '' : 'none';
+  document.getElementById('bots-options-section').style.display = tab === 'options' ? '' : 'none';
+  document.querySelectorAll('#page-bots .tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(tab)));
+  if (tab === 'options') loadOptionsBots();
+}
+
+function setOptUnderlying(val, el) {
+  document.getElementById('opt-underlying').value = val;
+  el.parentElement.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function deployOptionsBot() {
+  const btn = document.getElementById('opt-deploy-btn');
+  const errEl = document.getElementById('opt-deploy-error');
+  errEl.textContent = '';
+  if (!EMAIL) { errEl.textContent = 'Set up account first'; return; }
+  btn.disabled = true; btn.textContent = 'Deploying...';
+  const mode = document.querySelector('input[name="opt-mode"]:checked')?.value || 'dry_run';
+  const strikeMethod = document.getElementById('opt-strike-method').value;
+  const putVal = parseFloat(document.getElementById('opt-put-val').value);
+  const callVal = parseFloat(document.getElementById('opt-call-val').value);
+  const sid = 'OPT_' + Date.now().toString(36).slice(-4).toUpperCase();
+  const botName = document.getElementById('opt-bot-name').value || 'Options Bot';
+  const underlying = document.getElementById('opt-underlying').value;
+  try {
+    // First save as strategy
+    const stratPayload = {
+      email: EMAIL, strategy_id: sid, strategy_name: botName, symbol: underlying,
+      arena: 'US', timeframe: '1min', broker: 'ibkr', mode: 'options', library_id: '',
+      is_active: true, conditions: {
+        sec_type: 'OPT',
+        underlying: underlying,
+        underlying_sec_type: underlying === 'SPX' || underlying === 'NDX' ? 'IND' : 'STK',
+        underlying_exchange: underlying === 'SPX' || underlying === 'NDX' ? 'CBOE' : 'SMART',
+        option_trading_class: underlying === 'SPX' ? 'SPXW' : underlying === 'XSP' ? 'XSPW' : '',
+        strategy_type: document.getElementById('opt-strategy-type').value,
+        strike_method: strikeMethod,
+        put_delta: strikeMethod === 'DELTA' ? putVal : -0.16,
+        call_delta: strikeMethod === 'DELTA' ? callVal : 0.16,
+        put_pct_otm: strikeMethod === 'PCT_OTM' ? Math.abs(putVal) : 0.03,
+        call_pct_otm: strikeMethod === 'PCT_OTM' ? Math.abs(callVal) : 0.03,
+        put_points_otm: strikeMethod === 'POINTS_OTM' ? Math.abs(putVal) : 50,
+        call_points_otm: strikeMethod === 'POINTS_OTM' ? Math.abs(callVal) : 50,
+        put_wing_width: parseFloat(document.getElementById('opt-put-wing').value) || 5,
+        call_wing_width: parseFloat(document.getElementById('opt-call-wing').value) || 5,
+        multiplier: 100,
+        entry_time_et: document.getElementById('opt-entry-time').value,
+        exit_time_et: document.getElementById('opt-exit-time').value,
+        restart_time_et: '09:30',
+        sma_filter: document.getElementById('opt-sma-filter').checked,
+        sma_period: parseInt(document.getElementById('opt-sma-period').value) || 4,
+        sma_direction: 'above',
+        iv_filter: document.getElementById('opt-vix-filter').checked,
+        min_vix: parseInt(document.getElementById('opt-min-vix').value) || 15,
+        max_vix: parseInt(document.getElementById('opt-max-vix').value) || 40,
+        skip_fomc: document.getElementById('opt-skip-fomc').checked,
+        risk_pct: parseFloat(document.getElementById('opt-risk-pct').value) / 100 || 0.02,
+        min_contracts: 1,
+        max_contracts: parseInt(document.getElementById('opt-max-contracts').value) || 10,
+        account_equity: 100000,
+        profit_target_pct: parseFloat(document.getElementById('opt-profit-target').value) / 100 || 0.50,
+        loss_limit_mult: parseFloat(document.getElementById('opt-loss-limit').value) || 2.0,
+        eod_exit: true,
+        max_daily_loss: parseInt(document.getElementById('opt-max-daily-loss').value) || 2000,
+        max_orders_per_day: parseInt(document.getElementById('opt-max-orders').value) || 2,
+        dry_run: mode === 'dry_run',
+        port: mode === 'live' ? 7496 : 7497,
+      },
+      exit_rules: {}, risk: {},
+    };
+    // Save strategy
+    const sr = await fetch(API + '/api/strategy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stratPayload) });
+    if (!sr.ok) { const sd = await sr.json(); throw new Error(sd.detail || 'Save failed'); }
+    // Deploy
+    const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
+    const dd = await dr.json();
+    if (!dr.ok) throw new Error(dd.detail || 'Deploy failed');
+    showToast('Options bot deployed: ' + botName, 'success');
+    loadOptionsBots();
+  } catch (e) { errEl.textContent = e.message; }
+  btn.disabled = false; btn.textContent = 'Deploy Options Bot';
+}
+
+async function loadOptionsBots() {
+  if (!EMAIL) return;
+  try {
+    const r = await fetch(API + '/api/strategies/' + encodeURIComponent(EMAIL));
+    const d = await r.json();
+    const strats = (Array.isArray(d) ? d : d.strategies || []).filter(s => s.mode === 'options' || (s.conditions && s.conditions.sec_type === 'OPT'));
+    const tbody = document.getElementById('opt-bots-tbody');
+    const empty = document.getElementById('opt-bots-empty');
+    if (!strats.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    const modeLabel = s => { const c = s.conditions || {}; if (c.dry_run) return '<span class="badge" style="background:#FEF3C7;color:#92400E">DRY RUN</span>'; if (c.port === 7496) return '<span class="badge badge-red">LIVE</span>'; return '<span class="badge badge-blue">PAPER</span>'; };
+    tbody.innerHTML = strats.map(s => {
+      const c = s.conditions || {};
+      return `<tr><td><strong>${s.strategy_name || s.strategy_id}</strong></td><td>${c.strategy_type || '—'}</td><td>${c.underlying || s.symbol || '—'}</td><td>${modeLabel(s)}</td><td>${_renderDeployBtn(s)}</td></tr>`;
+    }).join('');
+  } catch (e) {}
 }
 
 /* ═══════════════════ BROKERS ═══════════════════ */
