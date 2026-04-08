@@ -11,6 +11,10 @@ bots/
 logs/
 *.log
 
+# Trade logs and state
+trades/
+state/
+
 # Python
 __pycache__/
 *.pyc

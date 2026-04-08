@@ -24,6 +24,8 @@ FERNET_KEY = os.environ.get("FERNET_KEY", "")
 # Generated scripts and logs
 BOTS_DIR = DATA_DIR / "bots"
 LOGS_DIR = DATA_DIR / "logs"
+TRADES_DIR = DATA_DIR / "trades"
+STATE_DIR = DATA_DIR / "state"
 
 # Central API
 CENTRAL_API_URL = os.environ.get("CENTRAL_API_URL", "http://localhost:8001")
@@ -46,3 +48,5 @@ PYTHON_EXE = sys.executable
 # Ensure directories exist
 BOTS_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+TRADES_DIR.mkdir(parents=True, exist_ok=True)
+STATE_DIR.mkdir(parents=True, exist_ok=True)

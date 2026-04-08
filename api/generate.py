@@ -1,12 +1,14 @@
 """QuantX Deployer — Unified master bot script generator."""
 
 import json
+import hashlib
 from pathlib import Path
 
 from .bot_template import BOT_TEMPLATE
 from .bot_template_ibkr import IBKR_BOT_TEMPLATE
 from .bot_template_simple import SIMPLE_LP_TEMPLATE, SIMPLE_IBKR_TEMPLATE
-from .config import BOTS_DIR, LOGS_DIR
+from .bot_template_ibkr_prod import IBKR_PROD_TEMPLATE
+from .config import BOTS_DIR, LOGS_DIR, TRADES_DIR, STATE_DIR
 
 
 def generate_master_bot(email: str, strategies: list[dict], credentials: dict) -> str:
@@ -119,3 +121,214 @@ def generate_simple_ibkr_bot(email: str, symbol: str, ibkr_config: dict,
     script_path.write_text(content, encoding="utf-8")
     assert email in script_path.read_text(encoding="utf-8"), "Template fill failed for IBKR bot"
     return str(script_path.resolve()), str(LOGS_DIR / log_name)
+
+
+# ── IBKR production bot generator ───────────────────────────────────────────
+
+_IND_CALC = {
+    'ema': lambda p: f'calc_ema(close, {p.get("period",20)})',
+    'sma': lambda p: f'calc_sma(close, {p.get("period",20)})',
+    'rsi': lambda p: f'calc_rsi(close, {p.get("period",14)})',
+    'roc': lambda p: f'calc_roc(close, {p.get("period",10)})',
+    'macd_line': lambda p: f'calc_macd(close, {p.get("fast",12)}, {p.get("slow",26)}, {p.get("signal",9)})[0]',
+    'macd_signal': lambda p: f'calc_macd(close, {p.get("fast",12)}, {p.get("slow",26)}, {p.get("signal",9)})[1]',
+    'stoch_k': lambda p: f'calc_stoch_k(high, low, close, {p.get("k",14)}, {p.get("d",3)})',
+    'bb_upper': lambda p: f'calc_bbands(close, {p.get("period",20)}, {p.get("std",2)})[0]',
+    'bb_mid': lambda p: f'calc_bbands(close, {p.get("period",20)}, {p.get("std",2)})[1]',
+    'bb_lower': lambda p: f'calc_bbands(close, {p.get("period",20)}, {p.get("std",2)})[2]',
+    'atr': lambda p: f'calc_atr(high, low, close, {p.get("period",14)})',
+    'williams_r': lambda p: f'calc_williams_r(high, low, close, {p.get("period",14)})',
+    'zscore': lambda p: f'calc_zscore(close, {p.get("period",20)})',
+    'donch_upper': lambda p: f'calc_donchian(high, low, {p.get("period",20)})[0]',
+    'donch_lower': lambda p: f'calc_donchian(high, low, {p.get("period",20)})[1]',
+}
+
+def _ind_var(ind_id, params):
+    if ind_id in ('close','open','high','low','volume'):
+        return 'volume' if ind_id == 'volume' else ind_id
+    suffix = '_'.join(str(v) for v in (params or {}).values())
+    return f'{ind_id}_{suffix}' if suffix else ind_id
+
+def _ind_calc(ind_id, params):
+    fn = _IND_CALC.get(ind_id)
+    return fn(params or {}) if fn else ind_id
+
+def _cond_code(cond, lv, rv, is_value=False):
+    L, Lp = f'{lv}[i]', f'{lv}[i-1]'
+    if is_value:
+        R, Rp = str(rv), str(rv)
+    else:
+        R, Rp = f'{rv}[i]', f'{rv}[i-1]'
+    if cond == 'crosses_above': return f'({L} > {R}) and ({Lp} <= {Rp})'
+    if cond == 'crosses_below': return f'({L} < {R}) and ({Lp} >= {Rp})'
+    if cond in ('is_above', 'gt', 'is_greater_than'): return f'{L} > {R}'
+    if cond in ('is_below', 'lt', 'is_less_than'): return f'{L} < {R}'
+    return 'True'
+
+
+def generate_signal_code(entry_long, exit_long, entry_short=None, exit_short=None,
+                         entry_long_logic='AND', exit_long_logic='OR', has_short=False):
+    """Convert builder conditions to compute_signals() Python function."""
+    all_conds = list(entry_long or []) + list(exit_long or [])
+    if has_short:
+        all_conds += list(entry_short or []) + list(exit_short or [])
+
+    # Collect unique indicators
+    vars_map = {}
+    for c in all_conds:
+        for side in [c.get('left', {}), c.get('right', {})]:
+            ind_id = side.get('id') or side.get('ind', '')
+            if not ind_id or ind_id in ('close','open','high','low','volume'):
+                continue
+            if side.get('type') == 'value':
+                continue
+            params = side.get('p') or side.get('params') or {}
+            vn = _ind_var(ind_id, params)
+            if vn not in vars_map:
+                vars_map[vn] = _ind_calc(ind_id, params)
+
+    lines = [
+        "def compute_signals(bars):",
+        "    if len(bars) < 60: return [None] * len(bars)",
+        "    close  = [b['close'] for b in bars]",
+        "    high   = [b['high']  for b in bars]",
+        "    low    = [b['low']   for b in bars]",
+        "    volume = [b['volume'] for b in bars]",
+        "    n = len(bars)",
+        "    signals = [None] * n",
+        "    in_long = False",
+    ]
+    if has_short:
+        lines.append("    in_short = False")
+    lines.append("")
+
+    for vn, calc in vars_map.items():
+        lines.append(f"    {vn} = {calc}")
+    lines.append("")
+
+    lines.append("    for i in range(1, n):")
+    # Null checks
+    if vars_map:
+        vlist = ', '.join(f'{v}[i]' for v in vars_map)
+        vlist_p = ', '.join(f'{v}[i-1]' for v in vars_map)
+        lines.append(f"        if any(v is None for v in [{vlist}]): continue")
+        lines.append(f"        if any(v is None for v in [{vlist_p}]): continue")
+    lines.append("")
+
+    def _build_cond_expr(conditions, logic):
+        parts = []
+        for c in conditions:
+            left = c.get('left', {})
+            right = c.get('right', {})
+            lid = left.get('id') or left.get('ind', 'close')
+            lp = left.get('p') or left.get('params') or {}
+            lv = _ind_var(lid, lp)
+            cond_type = c.get('cond', 'is_above')
+            is_val = right.get('type') == 'value'
+            if is_val:
+                rv = right.get('value', 0)
+                parts.append(_cond_code(cond_type, lv, rv, True))
+            else:
+                rid = right.get('id') or right.get('ind', 'close')
+                rp = right.get('p') or right.get('params') or {}
+                rv = _ind_var(rid, rp)
+                parts.append(_cond_code(cond_type, lv, rv, False))
+        joiner = ' and ' if logic == 'AND' else ' or '
+        return joiner.join(parts) if parts else 'False'
+
+    # Entry/exit conditions
+    el_expr = _build_cond_expr(entry_long or [], entry_long_logic)
+    xl_expr = _build_cond_expr(exit_long or [], exit_long_logic)
+    lines.append(f"        cond_entry_long = {el_expr}")
+    lines.append(f"        cond_exit_long = {xl_expr}")
+
+    if has_short:
+        es_expr = _build_cond_expr(entry_short or [], 'AND')
+        xs_expr = _build_cond_expr(exit_short or [], 'OR')
+        lines.append(f"        cond_entry_short = {es_expr}")
+        lines.append(f"        cond_exit_short = {xs_expr}")
+
+    lines.append("")
+    lines.append("        if not in_long and cond_entry_long:")
+    lines.append("            signals[i] = 'buy'; in_long = True")
+    lines.append("        elif in_long and cond_exit_long:")
+    lines.append("            signals[i] = 'sell'; in_long = False")
+
+    if has_short:
+        lines.append("        elif not in_short and cond_entry_short:")
+        lines.append("            signals[i] = 'short'; in_short = True")
+        lines.append("        elif in_short and cond_exit_short:")
+        lines.append("            signals[i] = 'cover'; in_short = False")
+
+    lines.append("")
+    lines.append("    return signals")
+    return "\n".join(lines)
+
+
+def generate_ibkr_bot_prod(email: str, strategy_config: dict,
+                           ibkr_config: dict) -> tuple[str, str, str]:
+    """Generate a production IBKR bot script.
+    Returns (script_path, log_path, trades_path)."""
+    BOTS_DIR.mkdir(parents=True, exist_ok=True)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    TRADES_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    email_safe = email.replace("@", "_at_").replace(".", "_")
+    sid = strategy_config.get("strategy_id", "CUSTOM")
+    cid = int(hashlib.md5((email + strategy_config.get("symbol", "")).encode()).hexdigest(), 16) % 800 + 100
+
+    script_path = BOTS_DIR / f"{email_safe}_{sid}_ibkr.py"
+    log_name = f"{sid}.log"
+    trades_path = str(TRADES_DIR / f"trades_{sid}_all.csv")
+
+    # Generate signal code
+    signal_code = generate_signal_code(
+        entry_long=strategy_config.get("entry_long", []),
+        exit_long=strategy_config.get("exit_long", []),
+        entry_short=strategy_config.get("entry_short", []),
+        exit_short=strategy_config.get("exit_short", []),
+        entry_long_logic=strategy_config.get("entry_long_logic", "AND"),
+        exit_long_logic=strategy_config.get("exit_long_logic", "OR"),
+        has_short=strategy_config.get("has_short", False),
+    )
+
+    content = IBKR_PROD_TEMPLATE
+    replacements = {
+        '__STRATEGY_NAME__': sid,
+        '__ACCOUNT_ID__': ibkr_config.get("account_id", ""),
+        '__PORT__': str(ibkr_config.get("port", 7497)),
+        '__CLIENT_ID__': str(cid),
+        '__EMAIL__': email,
+        '__CENTRAL_API_URL__': ibkr_config.get("central_api_url", ""),
+        '__SYMBOL__': strategy_config.get("symbol", "AAPL"),
+        '__SEC_TYPE__': strategy_config.get("sec_type", "STK"),
+        '__EXCHANGE__': strategy_config.get("exchange", "SMART"),
+        '__CURRENCY__': strategy_config.get("currency", "USD"),
+        '__LOT_SIZE__': str(strategy_config.get("lot_size", 1)),
+        '__MAX_CAPITAL__': str(strategy_config.get("max_capital", 1000)),
+        '__BAR_SIZE__': strategy_config.get("bar_size", "1 min"),
+        '__INTERVAL_MINUTES__': str(strategy_config.get("interval_minutes", 1)),
+        '__STOP_LOSS_PCT__': str(strategy_config.get("stop_loss_pct", 0.02)),
+        '__TAKE_PROFIT_PCT__': str(strategy_config.get("take_profit_pct", 0.05)),
+        '__HAS_SHORT__': str(strategy_config.get("has_short", False)),
+        '__KILL_SWITCH_PCT__': str(strategy_config.get("kill_switch_pct", 0.02)),
+        '__LOG_DIR__': str(LOGS_DIR).replace("\\", "/"),
+        '__TRADES_DIR__': str(TRADES_DIR).replace("\\", "/"),
+        '__STATE_DIR__': str(STATE_DIR).replace("\\", "/"),
+        '__SIGNAL_CODE__': signal_code,
+    }
+
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    script_path.write_text(content, encoding="utf-8")
+
+    # Verify
+    written = script_path.read_text(encoding="utf-8")
+    assert email in written, f"Template fill failed: email not in script"
+    import re
+    remaining = re.findall(r'__[A-Z_]{3,}__', written)
+    assert not remaining, f"Unfilled placeholders: {remaining}"
+
+    return str(script_path.resolve()), str(LOGS_DIR / log_name), trades_path
