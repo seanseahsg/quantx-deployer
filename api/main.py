@@ -286,8 +286,20 @@ if static_dir.exists():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
-    return {"ok": True}
+    from datetime import datetime as _dt
+    return {
+        "ok": True,
+        "version": VERSION,
+        "hosting": HOSTING,
+        "central_url": CENTRAL_API_URL,
+        "timestamp": _dt.utcnow().isoformat(),
+        "architecture": {
+            "backtest": "railway" if CENTRAL_API_URL else "local",
+            "trading": "local",
+        },
+    }
 
 
 @app.get("/api/debug-fmp")

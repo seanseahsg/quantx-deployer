@@ -88,15 +88,13 @@ try:
     order_id = resp.order_id
     log.info("ORDER PLACED! ID: %s", order_id)
 
+    _tp = {"email": EMAIL, "strategy_id": "SIMPLE_TEST", "symbol": SYMBOL,
+           "side": "BUY", "price": float(limit_price), "qty": 100, "pnl": 0}
+    try: requests.post('http://127.0.0.1:8080/api/trade', json=_tp, timeout=2)
+    except Exception: pass
     if CENTRAL_API_URL:
-        try:
-            requests.post(CENTRAL_API_URL + '/api/trade', json={
-                "email": EMAIL, "strategy_id": "SIMPLE_TEST",
-                "symbol": SYMBOL, "side": "BUY",
-                "price": float(limit_price), "qty": 100, "pnl": 0
-            }, timeout=5)
-        except Exception:
-            pass
+        try: requests.post(CENTRAL_API_URL + '/api/trade', json=_tp, timeout=3)
+        except Exception: pass
 
     log.info("Waiting 30 seconds before cancelling...")
     time.sleep(30)
@@ -211,13 +209,12 @@ try:
     ib.sleep(2)
     log.info("ORDER PLACED! ID: %s Status: %s", trade.order.orderId, trade.orderStatus.status)
 
+    _tp = {"email": EMAIL, "strategy_id": "IBKR_SIMPLE_TEST", "symbol": SYMBOL,
+           "side": "BUY", "price": float(price), "qty": 1, "pnl": 0}
+    try: requests.post('http://127.0.0.1:8080/api/trade', json=_tp, timeout=2)
+    except Exception: pass
     if CENTRAL_API_URL:
-        try:
-            requests.post(CENTRAL_API_URL + '/api/trade', json={
-                "email": EMAIL, "strategy_id": "IBKR_SIMPLE_TEST",
-                "symbol": SYMBOL, "side": "BUY",
-                "price": float(price), "qty": 1, "pnl": 0
-            }, timeout=5)
+        try: requests.post(CENTRAL_API_URL + '/api/trade', json=_tp, timeout=3)
         except Exception:
             pass
 

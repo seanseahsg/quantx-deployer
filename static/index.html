@@ -244,6 +244,12 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 
 <!-- Main Content -->
 <div id="main">
+<!-- Status bar -->
+<div id="arch-status" style="display:flex;gap:12px;padding:8px 32px;background:var(--surface);border-bottom:1px solid var(--border);font-size:12px">
+  <span id="arch-bt" style="display:flex;align-items:center;gap:4px;color:var(--text-muted)">Backtest: <span id="arch-bt-badge" style="padding:1px 8px;border-radius:10px;font-size:11px;background:#F3F4F6;color:#6B7280">checking...</span></span>
+  <span style="color:var(--border)">|</span>
+  <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted)">Trading: <span style="padding:1px 8px;border-radius:10px;font-size:11px;background:#DCFCE7;color:#166534">Local</span></span>
+</div>
 
 <!-- ══════════════════════════════════════ HOME ══════════════════════════════════════ -->
 <div class="page active" id="page-home">
@@ -780,11 +786,29 @@ let _savedBacktests = JSON.parse(localStorage.getItem('qx_backtests') || '[]');
 
   loadConfig();
   loadLibrary();
+  checkArchStatus();
   const lastTab = localStorage.getItem('qx_tab') || 'home';
   navigate(lastTab);
   renderSavedBacktests();
   _statusInterval = setInterval(() => { if (EMAIL) refreshStatus(); }, 10000);
 })();
+
+function checkArchStatus() {
+  const badge = document.getElementById('arch-bt-badge');
+  const base = getBacktestBaseUrl();
+  if (base === window.location.origin) {
+    if (badge) { badge.textContent = 'Local (Yahoo)'; badge.style.cssText = 'padding:1px 8px;border-radius:10px;font-size:11px;background:#FEF3C7;color:#92400E'; }
+    return;
+  }
+  fetch(base + '/api/health', {signal: AbortSignal.timeout(3000)})
+    .then(r => r.json())
+    .then(d => {
+      if (badge) { badge.textContent = 'Railway'; badge.style.cssText = 'padding:1px 8px;border-radius:10px;font-size:11px;background:#DCFCE7;color:#166534'; }
+    })
+    .catch(() => {
+      if (badge) { badge.textContent = 'Local (Yahoo)'; badge.style.cssText = 'padding:1px 8px;border-radius:10px;font-size:11px;background:#FEF3C7;color:#92400E'; }
+    });
+}
 
 /* ── License Activation ────────────────────────────────────────────── */
 function activateLicense() {

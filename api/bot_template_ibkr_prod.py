@@ -103,12 +103,16 @@ def log_trade(side, qty, price, commission, exec_id, pnl=0.0, signal=''):
             'quantity': qty, 'price': round(price, 6), 'commission': round(commission, 4),
             'pnl': round(pnl, 2), 'orderRef': STRATEGY_NAME, 'bar_size': BAR_SIZE, 'signal': signal})
     logger.info(f'[TRADE] {side} {qty} {SYMBOL} @ {price:.6f} | pnl=${pnl:+.2f} | signal={signal}')
-    try:
-        requests.post(f'{CENTRAL_API_URL}/api/trade', json={
-            'email': EMAIL, 'strategy_id': STRATEGY_NAME, 'symbol': SYMBOL,
-            'side': 'buy' if side=='BOT' else 'sell', 'price': float(price),
-            'qty': float(qty), 'pnl': float(pnl)}, timeout=5)
+    _trade_payload = {'email': EMAIL, 'strategy_id': STRATEGY_NAME, 'symbol': SYMBOL,
+                      'side': 'buy' if side=='BOT' else 'sell', 'price': float(price),
+                      'qty': float(qty), 'pnl': float(pnl)}
+    # Report to local app (so Trades tab updates live)
+    try: requests.post('http://127.0.0.1:8080/api/trade', json=_trade_payload, timeout=2)
     except Exception: pass
+    # Report to central (instructor dashboard) — optional, fire-and-forget
+    if CENTRAL_API_URL:
+        try: requests.post(f'{CENTRAL_API_URL}/api/trade', json=_trade_payload, timeout=3)
+        except Exception: pass
 
 def save_state():
     try:
