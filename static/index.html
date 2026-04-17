@@ -748,6 +748,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
       <div class="form-group"><label>Output Type</label><select id="ri-output-type" onchange="document.getElementById('ri-labels-row').style.display=this.value==='single'?'none':''"><option value="single">Single value (e.g. RSI, EMA)</option><option value="dual">Two values (e.g. Stochastic K+D)</option><option value="triple">Three values (e.g. MACD)</option><option value="multi">Multiple values (e.g. Ichimoku)</option></select></div>
       <div class="form-group" id="ri-labels-row" style="display:none"><label>Output Labels (comma-separated)</label><input type="text" id="ri-output-labels" placeholder="e.g. vi_plus, vi_minus"><div class="form-hint">Name each output line your function returns.</div></div>
     </div>
+    <div class="form-group"><label>Input Data (what your function needs)</label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ri-input-closes" checked> Close</label><label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ri-input-highs"> High</label><label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ri-input-lows"> Low</label><label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ri-input-volumes"> Volume</label><label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ri-input-opens"> Open</label></div><div class="form-hint">Check all data arrays your function's positional parameters use</div></div>
     <div class="form-group"><label>Python Code</label>
       <textarea id="ri-code" rows="10" placeholder="def calc_my_indicator(close, high, low, volume):
     # Must return a list same length as inputs
@@ -2262,20 +2263,48 @@ function _bldrGenCalc(id, params) {
   const outMatch = id.match(/^(.+)_out(\d+)$/);
   const baseId = outMatch ? outMatch[1] : id;
   const outIdx = outMatch ? outMatch[2] : null;
+  const inputMap = {
+    'closes':'close','close':'close','highs':'high','high':'high',
+    'lows':'low','low':'low','opens':'open_','open':'open_',
+    'volumes':'vol','volume':'vol',
+  };
   // Try to find in BLDR_INDICATORS (includes custom group)
-  const ind = _studioFindInd ? _studioFindInd(baseId) : null;
-  if (ind && ind.p) {
-    // Build input mapping from declared inputs
-    const inputMap = {'closes':'close','highs':'high','lows':'low','opens':'open_','volumes':'vol'};
+  let ind = (typeof _studioFindInd === 'function') ? _studioFindInd(baseId) : null;
+
+  // Enrich with _inputs from _studioCustomInds if missing (common after page reload)
+  if (ind && !ind._inputs && typeof _studioCustomInds !== 'undefined') {
+    const raw = _studioCustomInds.find(x => x.indicator_id.toLowerCase() === baseId.toLowerCase());
+    if (raw) {
+      let ri = raw.inputs;
+      if (typeof ri === 'string') { try { ri = JSON.parse(ri); } catch(e) { ri = ['closes']; } }
+      ind = {...ind, _inputs: ri || ['closes']};
+    }
+  }
+  // If not in BLDR_INDICATORS at all, try _studioCustomInds directly
+  if (!ind && typeof _studioCustomInds !== 'undefined') {
+    const raw = _studioCustomInds.find(x => x.indicator_id.toLowerCase() === baseId.toLowerCase());
+    if (raw) {
+      let ri = raw.inputs;
+      if (typeof ri === 'string') { try { ri = JSON.parse(ri); } catch(e) { ri = ['closes']; } }
+      ind = {
+        id: baseId, _inputs: ri || ['closes'],
+        p: (raw.params || []).map(pp => ({k: pp.k || pp.name, d: pp.default || pp.d || 14})),
+      };
+    }
+  }
+
+  if (ind) {
     const inputs = (ind._inputs || ['closes']).map(inp => inputMap[inp.toLowerCase()] || 'close');
-    const paramArgs = ind.p.map(pp => p[pp.k] || pp.d);
+    const paramArgs = (ind.p || []).map(pp => p[pp.k] ?? pp.d);
     const call = `calc_${baseId}(${[...inputs, ...paramArgs].join(', ')})`;
+    console.log('[CALC]', baseId, 'inputs:', ind._inputs, '->', inputs, 'params:', paramArgs, 'call:', call);
     return outIdx !== null ? call + '[' + outIdx + ']' : call;
   }
-  // Fallback: generate generic calc_ call with all params
+  // Last fallback: pass all data arrays
+  console.warn('[CALC] No indicator metadata found for', baseId, '- using fallback');
   const paramVals = Object.values(p);
-  if (paramVals.length) return `calc_${baseId}(close, ${paramVals.join(', ')})` + (outIdx !== null ? '['+outIdx+']' : '');
-  return `calc_${baseId}(close)` + (outIdx !== null ? '['+outIdx+']' : '');
+  if (paramVals.length) return `calc_${baseId}(close, high, low, vol, ${paramVals.join(', ')})` + (outIdx !== null ? '['+outIdx+']' : '');
+  return `calc_${baseId}(close, high, low, vol)` + (outIdx !== null ? '['+outIdx+']' : '');
 }
 
 function _bldrGenCond(c, varMap) {
@@ -2308,7 +2337,15 @@ function bldrGenerateScript() {
   let code = 'def generate_signals(df):\n';
   code += '    close = list(df["close"])\n    high = list(df["high"])\n    low = list(df["low"])\n    vol = list(df["volume"])\n    open_ = list(df["open"])\n';
   code += '    n = len(close)\n    signals = [0] * n\n\n';
-  vars.forEach((calc, vn) => { code += `    ${vn} = ${calc}\n`; });
+  // Emit calc lines, deduplicating multi-output calls
+  const _emitted = new Set();
+  vars.forEach((calc, vn) => {
+    const _om = vn.match(/^(.+)_out(\d+)$/);
+    if (_om && calc.match(/\[\d+\]$/)) {
+      if (!_emitted.has(_om[1])) { _emitted.add(_om[1]); code += `    ${_om[1]}_result = ${calc.replace(/\[\d+\]$/,'')}\n`; }
+      code += `    ${vn} = ${_om[1]}_result[${_om[2]}]\n`;
+    } else { code += `    ${vn} = ${calc}\n`; }
+  });
   code += '\n    in_position = False\n    for i in range(1, n):\n';
   // Null checks
   const allVars = [...vars.keys()];
@@ -3410,7 +3447,22 @@ function _studioGenerateScript(mode) {
   code += '    vol = list(df["volume"])\n';
   code += '    open_ = list(df["open"])\n';
   code += '    n = len(close)\n    signals = [0] * n\n\n';
-  vars.forEach((calc, vn) => { code += '    ' + vn + ' = ' + calc + '\n'; });
+  // Emit indicator calc lines, deduplicating multi-output calls
+  const emittedBases = new Set();
+  vars.forEach((calc, vn) => {
+    const outM = vn.match(/^(.+)_out(\d+)$/);
+    if (outM && calc.match(/\[\d+\]$/)) {
+      const base = outM[1];
+      if (!emittedBases.has(base)) {
+        emittedBases.add(base);
+        const baseCalc = calc.replace(/\[\d+\]$/, '');
+        code += '    ' + base + '_result = ' + baseCalc + '\n';
+      }
+      code += '    ' + vn + ' = ' + base + '_result[' + outM[2] + ']\n';
+    } else {
+      code += '    ' + vn + ' = ' + calc + '\n';
+    }
+  });
   code += '\n    in_position = False\n';
   code += '    for i in range(1, n):\n';
   const allVars = [...vars.keys()];
@@ -3420,6 +3472,7 @@ function _studioGenerateScript(mode) {
   }
   const varMap = {};
   vars.forEach((_, vn) => { varMap[vn] = vn; });
+  console.log('[STUDIO] varMap:', JSON.stringify(varMap), 'vars:', [...vars.entries()].map(([k,v]) => k + ' = ' + v));
   if (STUDIO.entry_long.conditions.length) {
     const j = STUDIO.entry_long.logic === 'OR' ? ' or ' : ' and ';
     code += '        entry = ' + STUDIO.entry_long.conditions.map(c => _bldrGenCond(c, varMap)).join(j) + '\n';
@@ -4003,6 +4056,11 @@ function openRegisterIndicatorModal() {
   document.getElementById('ri-output-type').value = 'single';
   document.getElementById('ri-output-labels').value = '';
   document.getElementById('ri-labels-row').style.display = 'none';
+  document.getElementById('ri-input-closes').checked = true;
+  document.getElementById('ri-input-highs').checked = false;
+  document.getElementById('ri-input-lows').checked = false;
+  document.getElementById('ri-input-volumes').checked = false;
+  document.getElementById('ri-input-opens').checked = false;
   document.getElementById('ri-feedback').innerHTML = '';
   openModal('register-ind-modal');
 }
@@ -4014,6 +4072,16 @@ function _riGetOutputFields() {
   return {output_type: ot, output_labels: labels.length ? labels : ['main']};
 }
 
+function _riGetInputs() {
+  const inputs = [];
+  if (document.getElementById('ri-input-closes')?.checked) inputs.push('closes');
+  if (document.getElementById('ri-input-highs')?.checked) inputs.push('highs');
+  if (document.getElementById('ri-input-lows')?.checked) inputs.push('lows');
+  if (document.getElementById('ri-input-volumes')?.checked) inputs.push('volumes');
+  if (document.getElementById('ri-input-opens')?.checked) inputs.push('opens');
+  return inputs.length ? inputs : ['closes'];
+}
+
 async function validateIndicator() {
   const fb = document.getElementById('ri-feedback');
   fb.innerHTML = '<span style="color:var(--text-muted)">Validating...</span>';
@@ -4023,6 +4091,7 @@ async function validateIndicator() {
     name: document.getElementById('ri-name').value.trim(),
     description: document.getElementById('ri-desc').value.trim(),
     calc_code: document.getElementById('ri-code').value,
+    inputs: _riGetInputs(),
     ...outFields,
   };
   if (!payload.id || !payload.name || !payload.calc_code) {
@@ -4052,6 +4121,7 @@ async function registerIndicator() {
     description: document.getElementById('ri-desc').value.trim(),
     calc_code: document.getElementById('ri-code').value,
     created_by: EMAIL || 'unknown',
+    inputs: _riGetInputs(),
     ...outFields,
   };
   if (!payload.id || !payload.name || !payload.calc_code) {

@@ -1183,10 +1183,13 @@ def _load_custom_indicators_for_sandbox(email, conn):
                 if not code:
                     continue
                 ns = {"math": __import__("math"), "__builtins__": {
-                    "len": len, "range": range, "list": list, "min": min, "max": max,
-                    "abs": abs, "sum": sum, "round": round, "zip": zip, "enumerate": enumerate,
-                    "int": int, "float": float, "True": True, "False": False, "None": None,
-                    "bool": bool, "isinstance": isinstance, "sorted": sorted,
+                    "len": len, "range": range, "list": list, "dict": dict, "tuple": tuple,
+                    "set": set, "min": min, "max": max, "abs": abs, "sum": sum, "round": round,
+                    "zip": zip, "enumerate": enumerate, "print": print, "int": int,
+                    "float": float, "True": True, "False": False, "None": None, "bool": bool,
+                    "str": str, "sorted": sorted, "reversed": reversed, "map": map,
+                    "filter": filter, "isinstance": isinstance, "any": any, "all": all,
+                    "type": type, "hasattr": hasattr,
                 }}
                 try:
                     ns["np"] = __import__("numpy")
@@ -1215,6 +1218,11 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
     # Security check
     for token in _FORBIDDEN_TOKENS:
         if token in script:
+            # Find the line containing the token for debugging
+            for i, line in enumerate(script.split('\n'), 1):
+                if token in line:
+                    print(f"[SECURITY] Forbidden token '{token.strip()}' found on line {i}: {line.strip()[:100]}")
+                    break
             raise ValueError(f"Forbidden token in script: '{token.strip()}'. Custom scripts cannot use imports or system calls.")
 
     # Sort bars oldest-first (standard backtest convention)
@@ -1291,6 +1299,8 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
     if email and db_conn:
         custom_fns = _load_custom_indicators_for_sandbox(email, db_conn)
         sandbox.update(custom_fns)
+        if custom_fns:
+            print(f"[SANDBOX] Custom indicators loaded: {list(custom_fns.keys())}")
 
     try:
         exec(script, sandbox)

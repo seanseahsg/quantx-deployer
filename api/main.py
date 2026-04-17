@@ -639,6 +639,9 @@ async def backtest_run_script(body: ScriptBacktestReq):
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)
         return result
     except Exception as e:
+        import traceback
+        print(f"[RUN-SCRIPT ERROR] {type(e).__name__}: {e}")
+        traceback.print_exc()
         raise HTTPException(400, str(e))
 
 
@@ -1665,11 +1668,15 @@ async def register_indicator(request: Request):
     if not errors and tree:
         try:
             import math
-            ns = {"math": math, "__builtins__": {"len": len, "range": range, "list": list, "sum": sum,
-                "max": max, "min": min, "abs": abs, "round": round, "None": None, "True": True, "False": False,
-                "int": int, "float": float, "enumerate": enumerate, "zip": zip,
-                "any": any, "all": all, "bool": bool, "str": str, "sorted": sorted,
-                "isinstance": isinstance, "type": type}}
+            ns = {"math": math, "__builtins__": {
+                "len": len, "range": range, "list": list, "dict": dict, "tuple": tuple,
+                "set": set, "min": min, "max": max, "abs": abs, "sum": sum, "round": round,
+                "zip": zip, "enumerate": enumerate, "print": print, "int": int,
+                "float": float, "True": True, "False": False, "None": None, "bool": bool,
+                "str": str, "sorted": sorted, "reversed": reversed, "map": map,
+                "filter": filter, "isinstance": isinstance, "any": any, "all": all,
+                "type": type, "hasattr": hasattr, "getattr": getattr,
+            }}
             exec(calc_code, ns)
             fn_name = f"calc_{ind_id.lower()}"
             if fn_name not in ns:
@@ -1704,13 +1711,14 @@ async def register_indicator(request: Request):
     try:
         conn.execute(
             """INSERT INTO indicators (indicator_id, name, display_name, category, description,
-               output_type, output_labels, params, calc_code, usage_example, created_by, is_builtin)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,0)""",
+               output_type, output_labels, params, calc_code, usage_example, inputs, created_by, is_builtin)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)""",
             (ind_id, body.get("name",""), body.get("display_name", body.get("name","")),
              body.get("category","custom"), body.get("description",""),
              body.get("output_type","single"), json.dumps(body.get("output_labels",["main"])),
              json.dumps(body.get("params",[])), calc_code,
-             body.get("usage_example",""), body.get("created_by","unknown")))
+             body.get("usage_example",""), json.dumps(body.get("inputs",["closes"])),
+             body.get("created_by","unknown")))
         conn.commit()
     finally:
         conn.close()

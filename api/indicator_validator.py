@@ -149,9 +149,11 @@ def _dry_run(data: dict, code: str, ind_id: str) -> tuple:
         "__builtins__": {
             "len": len, "range": range, "list": list, "dict": dict, "tuple": tuple,
             "set": set, "min": min, "max": max, "abs": abs, "sum": sum, "round": round,
-            "zip": zip, "enumerate": enumerate, "int": int, "float": float,
-            "True": True, "False": False, "None": None, "bool": bool, "str": str,
-            "isinstance": isinstance, "sorted": sorted, "reversed": reversed,
+            "zip": zip, "enumerate": enumerate, "print": print, "int": int,
+            "float": float, "True": True, "False": False, "None": None, "bool": bool,
+            "str": str, "sorted": sorted, "reversed": reversed, "map": map,
+            "filter": filter, "isinstance": isinstance, "any": any, "all": all,
+            "type": type, "hasattr": hasattr, "getattr": getattr,
         },
         "math": math,
     }
