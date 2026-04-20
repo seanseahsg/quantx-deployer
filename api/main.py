@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
@@ -692,6 +692,65 @@ async def backtest_sweep_script(body: SweepScriptReq):
         return result
     except Exception as e:
         raise HTTPException(400, str(e))
+
+
+@app.post("/api/backtest/optimize-stream")
+async def backtest_optimize_stream(request: Request):
+    """SSE streaming optimization with walk-forward and Monte Carlo."""
+    body = await request.json()
+    symbol = body.get("symbol", "")
+    timeframe = body.get("timeframe", "1day")
+    script = body.get("script", "")
+    combos = body.get("combos", [])
+    initial_capital = float(body.get("initial_capital", 10000))
+    limit = int(body.get("limit", 1260))
+    email = body.get("email", "")
+    enable_wf = body.get("enable_walk_forward", True)
+    enable_mc = body.get("enable_monte_carlo", True)
+    wf_window = int(body.get("wf_window", 252))
+    wf_step = int(body.get("wf_step", 126))
+    wf_min_oos_ratio = float(body.get("wf_min_oos_ratio", 0.0))
+    wf_pass_majority = bool(body.get("wf_pass_majority", True))
+    commission_pct = float(body.get("commission_pct", 0.0))
+    slippage_pct = float(body.get("slippage_pct", 0.0))
+    if not script or not combos:
+        raise HTTPException(400, "script and combos required")
+    # Fetch bars once
+    from api.data_manager import fetch_bars_waterfall_sync
+    def _get_bars():
+        lp_creds = None
+        if email:
+            student = get_student(email.lower().strip())
+            if student and student.get("app_key"):
+                lp_creds = {"app_key": student["app_key"],
+                            "app_secret": student["app_secret"],
+                            "access_token": student["access_token"]}
+        return fetch_bars_waterfall_sync(
+            symbol=symbol, timeframe=timeframe, limit=limit,
+            db_path=str(DB_PATH), lp_credentials=lp_creds)
+    bars_result = await asyncio.get_event_loop().run_in_executor(_executor, _get_bars)
+    bars = bars_result.get("bars", [])
+    if len(bars) < 50:
+        raise HTTPException(400, f"Insufficient data: {len(bars)} bars")
+
+    def event_stream():
+        from api.backtest import run_optimization_stream
+        try:
+            gen = run_optimization_stream(
+                bars=bars, script=script, combos=combos,
+                initial_capital=initial_capital,
+                enable_walk_forward=enable_wf, enable_monte_carlo=enable_mc,
+                wf_window=wf_window, wf_step=wf_step,
+                wf_min_oos_ratio=wf_min_oos_ratio,
+                wf_pass_majority=wf_pass_majority,
+                commission_pct=commission_pct, slippage_pct=slippage_pct)
+            for event in gen:
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/fundamentals/{symbol}")

@@ -295,7 +295,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     <div class="nav-item" data-page="bots" onclick="navigate('bots')">
       <span class="nav-icon">🤖</span><span class="nav-label">Bots</span>
     </div>
-    <div class="nav-item" data-page="backtester" onclick="navigate('backtester')">
+    <div class="nav-item" data-page="backtester" onclick="navigate('backtester')" style="display:none">
       <span class="nav-icon">📊</span><span class="nav-label">Backtester</span>
     </div>
     <div class="nav-item" data-page="studio" onclick="navigate('studio')">
@@ -413,54 +413,21 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div><!-- /bots-equity-section -->
   <!-- Options bots section -->
   <div id="bots-options-section" style="display:none">
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:15px;margin-bottom:16px">New Options Bot</h3>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Underlying</label><div style="display:flex;gap:4px"><span class="filter-pill active" onclick="setOptUnderlying('SPX',this)">SPX</span><span class="filter-pill" onclick="setOptUnderlying('XSP',this)">XSP</span><span class="filter-pill" onclick="setOptUnderlying('SPY',this)">SPY</span></div><input type="hidden" id="opt-underlying" value="SPX"></div>
-        <div class="form-group"><label>Strategy</label><select id="opt-strategy-type"><option value="IRON_CONDOR">Iron Condor</option><option value="BULL_PUT_SPREAD">Short Put Spread</option><option value="BEAR_CALL_SPREAD">Short Call Spread</option><option value="SHORT_STRANGLE">Short Strangle</option><option value="SHORT_STRADDLE">Short Straddle</option></select></div>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
+      <div style="font-size:56px;margin-bottom:16px">&#128200;</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px;color:var(--text-primary)">Options Trading &mdash; Coming Soon</div>
+      <div style="font-size:14px;color:var(--text-muted);max-width:480px;line-height:1.6;margin-bottom:24px">
+        Deploy automated options strategies including covered calls, cash-secured puts, iron condors, and vertical spreads. Fully integrated with IBKR.
       </div>
-      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">STRIKE SELECTION</div>
-      <div style="display:flex;gap:12px;margin-bottom:8px"><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="DELTA" checked onchange="document.getElementById('opt-strike-method').value=this.value"> By Delta</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="PCT_OTM" onchange="document.getElementById('opt-strike-method').value=this.value"> By % OTM</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-strike" value="POINTS_OTM" onchange="document.getElementById('opt-strike-method').value=this.value"> By Points</label></div>
-      <input type="hidden" id="opt-strike-method" value="DELTA">
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Put Delta / %OTM / Points</label><input type="number" id="opt-put-val" value="-0.16" step="0.01"></div>
-        <div class="form-group"><label>Call Delta / %OTM / Points</label><input type="number" id="opt-call-val" value="0.16" step="0.01"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:28px">
+        <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">Covered Calls</span>
+        <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">Cash-Secured Puts</span>
+        <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">Iron Condors</span>
+        <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">Vertical Spreads</span>
+        <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500">0DTE Strategies</span>
       </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Put Wing Width ($)</label><input type="number" id="opt-put-wing" value="5" step="5"></div>
-        <div class="form-group"><label>Call Wing Width ($)</label><input type="number" id="opt-call-wing" value="5" step="5"></div>
-      </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Entry Time (ET)</label><select id="opt-entry-time"><option value="09:35">9:35am</option><option value="10:00">10:00am</option><option value="11:00">11:00am</option><option value="12:00">12:00pm</option><option value="13:00">1:00pm</option><option value="13:30" selected>1:30pm</option><option value="14:00">2:00pm</option></select></div>
-        <div class="form-group"><label>Exit Time (ET)</label><select id="opt-exit-time"><option value="15:45">3:45pm</option><option value="15:50">3:50pm</option><option value="15:55">3:55pm</option><option value="15:59" selected>3:59pm</option></select></div>
-      </div>
-      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin:12px 0 8px">FILTERS</div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-        <label style="font-size:12px"><input type="checkbox" id="opt-sma-filter" checked> SMA filter: above SMA(<input type="number" id="opt-sma-period" value="4" style="width:40px;padding:1px 4px;font-size:12px">)</label>
-        <label style="font-size:12px"><input type="checkbox" id="opt-vix-filter"> VIX filter: <input type="number" id="opt-min-vix" value="15" style="width:40px;padding:1px 4px;font-size:12px"> to <input type="number" id="opt-max-vix" value="40" style="width:40px;padding:1px 4px;font-size:12px"></label>
-        <label style="font-size:12px"><input type="checkbox" id="opt-skip-fomc"> Skip FOMC days</label>
-      </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Risk per Trade (%)</label><input type="number" id="opt-risk-pct" value="2" step="0.5"></div>
-        <div class="form-group"><label>Max Contracts</label><input type="number" id="opt-max-contracts" value="10"></div>
-      </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Profit Target (% credit)</label><input type="number" id="opt-profit-target" value="50" step="5"></div>
-        <div class="form-group"><label>Loss Limit (x credit)</label><input type="number" id="opt-loss-limit" value="2" step="0.5"></div>
-      </div>
-      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
-        <div class="form-group"><label>Max Daily Loss ($)</label><input type="number" id="opt-max-daily-loss" value="2000"></div>
-        <div class="form-group"><label>Max Orders/Day</label><input type="number" id="opt-max-orders" value="2"></div>
-      </div>
-      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Mode</label><div style="display:flex;gap:8px;margin-top:4px"><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="dry_run" checked> Dry Run</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="paper"> Paper</label><label style="font-size:12px;cursor:pointer"><input type="radio" name="opt-mode" value="live"> Live</label></div></div>
-      <div class="form-group"><label>Bot Name</label><input type="text" id="opt-bot-name" value="SPX Iron Condor 0DTE"></div>
-      <div id="opt-deploy-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
-      <button class="btn btn-primary" id="opt-deploy-btn" onclick="deployOptionsBot()" style="width:100%">Deploy Options Bot</button>
-    </div>
-    <!-- Options bots table -->
-    <div class="card" style="padding:0;overflow:hidden">
-      <table><thead><tr><th>Bot Name</th><th>Strategy</th><th>Underlying</th><th>Mode</th><th style="width:100px">Status</th></tr></thead><tbody id="opt-bots-tbody"></tbody></table>
-      <div id="opt-bots-empty" class="empty-state" style="padding:20px"><div class="empty-state-text">No options bots yet.</div></div>
+      <button onclick="showToast('You will be notified when Options trading launches!', 'success')" style="padding:10px 24px;background:var(--blue-primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">&#128276; Notify Me When Available</button>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:16px">Requires Interactive Brokers account with options trading enabled</div>
     </div>
   </div>
 </div>
@@ -480,6 +447,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <div class="tab-bar" id="bd-tabs">
     <button class="tab-btn active" onclick="showBdTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" onclick="showBdTab('strategy')">Strategy</button>
     <button class="tab-btn" onclick="showBdTab('log')">Log</button>
     <button class="tab-btn" onclick="showBdTab('settings')">Settings</button>
   </div>
@@ -505,6 +473,18 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
         <div class="stat-card"><div class="stat-label">Last Trade</div><div class="stat-value" id="bd-live-last" style="font-size:12px">—</div></div>
       </div>
       <div id="bd-live-empty" style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;display:none">No trades yet. Bot will show trades here when live.</div>
+    </div>
+  </div>
+  <!-- Strategy -->
+  <div id="bd-strategy" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="font-size:14px;font-weight:600;margin:0">Strategy Configuration</h3>
+        <button class="btn btn-primary btn-sm" onclick="bdEditInStudio()" id="bd-edit-studio-btn" style="font-size:12px;padding:6px 14px">&#9999;&#65039; Edit in Studio</button>
+      </div>
+      <div id="bd-strategy-content">
+        <div style="color:var(--text-muted);font-size:13px">Loading strategy details...</div>
+      </div>
     </div>
   </div>
   <!-- Log -->
@@ -784,9 +764,26 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
         <div style="display:flex;align-items:center;gap:10px"><label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="opt-trailing-enabled" onchange="document.getElementById('opt-trailing-fields').style.display=this.checked?'flex':'none';_optUpdateComboCount()"> Enable</label>
         <div id="opt-trailing-fields" style="display:none;display:flex;gap:6px;align-items:center;font-size:11px"><span style="color:var(--text-muted)">Trail%</span><input type="number" id="opt-trail-min" value="1" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:11px" step="0.5"><span>to</span><input type="number" id="opt-trail-max" value="5" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:11px" step="0.5"><span>step</span><input type="number" id="opt-trail-step" value="1" style="width:50px;padding:3px;border:1px solid var(--border);border-radius:4px;font-size:11px" step="0.5"></div></div>
       </div>
+      <div style="margin-top:12px;padding:12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px">Robustness Tests</div>
+        <div style="margin-bottom:8px"><label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="opt-wf-enabled" checked> <strong>Walk-Forward</strong> <span style="color:var(--text-muted)">(Rolling windows)</span></label>
+          <div id="opt-wf-fields" style="margin-top:6px;margin-left:20px;display:flex;gap:10px;align-items:center;font-size:11px"><span style="color:var(--text-muted)">Window</span><select id="opt-wf-window" style="padding:2px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px"><option value="126">6 months</option><option value="252" selected>1 year</option><option value="504">2 years</option></select><span style="color:var(--text-muted)">OOS Period</span><select id="opt-wf-step" style="padding:2px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px"><option value="63">3 months</option><option value="126" selected>6 months</option><option value="252">1 year</option></select><span title="Each window backtests [Window] of data (IS), then tests the same parameters on the next [OOS Period] of unseen data. Repeats by sliding forward one OOS Period at a time. Pass = OOS Sharpe stays positive in majority of windows." style="cursor:help;color:var(--text-muted);font-size:13px;margin-left:2px">&#8505;&#65039;</span></div>
+          <div id="opt-wf-criteria" style="margin-top:6px;margin-left:20px;font-size:11px;color:var(--text-muted)">
+            <div style="margin-bottom:4px"><strong style="color:var(--text-primary)">Pass Criteria</strong><span style="margin-left:4px">-- OOS Sharpe must be</span>
+              <select id="opt-wf-criteria-type" onchange="document.getElementById('opt-wf-ratio-wrap').style.display=this.value==='ratio'?'inline':'none'" style="margin:0 4px;padding:2px 4px;font-size:11px;border:1px solid var(--border);border-radius:4px"><option value="positive">Positive (&gt; 0)</option><option value="ratio">&ge; % of IS Sharpe</option></select>
+              <span id="opt-wf-ratio-wrap" style="display:none"><input id="opt-wf-min-ratio" type="number" value="50" min="0" max="100" step="10" style="width:48px;padding:2px 4px;font-size:11px;border:1px solid var(--border);border-radius:4px"><span> % (recommended: 50%)</span></span>
+            </div>
+            <div style="margin-bottom:4px"><strong style="color:var(--text-primary)">Overall Pass</strong><span style="margin-left:4px">when</span>
+              <select id="opt-wf-majority" style="margin:0 4px;padding:2px 4px;font-size:11px;border:1px solid var(--border);border-radius:4px"><option value="majority" selected>Majority of windows pass</option><option value="all">All windows pass</option></select>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);font-style:italic">&#128161; Recommended: OOS Positive + Majority pass</div>
+          </div>
+        </div>
+        <div><label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="opt-mc-enabled" checked> <strong>Monte Carlo</strong> <span style="color:var(--text-muted)">(500 simulations)</span></label></div>
+      </div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:8px" id="opt-combo-count"></div>
       <button class="btn btn-primary" onclick="studioRunOptimize()" style="width:100%;margin-top:12px" id="opt-run-btn">Run Optimization</button>
-      <div id="opt-progress" style="display:none;margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
+      <div id="opt-progress" style="display:none;margin-top:8px"></div>
     </div>
     <div class="card">
       <h3 style="font-size:14px;margin-bottom:12px">Results</h3>
@@ -1626,8 +1623,172 @@ function openBotDetail(sid) {
   hideDeleteConfirm();
   // Load live trades
   loadBotLiveTrades();
-  showBdTab('dashboard');
+  // Auto-open Strategy tab for Studio-built bots
+  const _el = _bdGetSection(_currentBot, 'entry_long');
+  const isStudio = _currentBot.mode === 'studio' || _currentBot.mode === 'builder'
+    || (_el.conditions && _el.conditions.length > 0);
+  showBdTab(isStudio ? 'strategy' : 'dashboard');
   navigate('bot-detail');
+}
+
+function _bdGetSection(b, key) {
+  const cond = b.conditions || {};
+  const raw = cond[key] !== undefined ? cond[key] : b[key];
+  if (!raw) return {conditions:[], logic: key.startsWith('exit_')?'OR':'AND'};
+  // New format: {conditions:[...], logic:'AND'}
+  if (raw.conditions && Array.isArray(raw.conditions)) return raw;
+  // Old format: raw is the array directly
+  if (Array.isArray(raw)) {
+    const logicKey = key + '_logic';
+    return {conditions: raw, logic: cond[logicKey] || (key.startsWith('exit_')?'OR':'AND')};
+  }
+  return {conditions:[], logic: key.startsWith('exit_')?'OR':'AND'};
+}
+
+function _bdFormatSide(indOrObj, params) {
+  if (!indOrObj) return '--';
+  let id, p;
+  if (typeof indOrObj === 'object' && indOrObj.id) {
+    id = indOrObj.id;
+    p = indOrObj.p || {};
+  } else {
+    id = String(indOrObj);
+    p = params || {};
+  }
+  const friendly = {
+    'rsi':'RSI','ema':'EMA','sma':'SMA','wma':'WMA','hma':'HMA',
+    'macd_line':'MACD Line','macd_signal':'MACD Signal',
+    'bb_upper':'BB Upper','bb_lower':'BB Lower','bb_mid':'BB Mid',
+    'atr':'ATR','close':'Close','high':'High','low':'Low','open':'Open','volume':'Volume',
+    'stoch_k':'Stoch %K','stoch_d':'Stoch %D','roc':'ROC','zscore':'Z-Score',
+    'williams_r':'Williams %R','obv':'OBV','vwap':'VWAP',
+    'donch_upper':'Donchian Upper','donch_lower':'Donchian Lower',
+  };
+  const name = friendly[id?.toLowerCase()] || id?.toUpperCase() || '--';
+  const paramVals = Object.values(p||{}).join(', ');
+  return paramVals ? name + '(' + paramVals + ')' : name;
+}
+
+function renderBdStrategy() {
+  const el = document.getElementById('bd-strategy-content');
+  if (!el || !_currentBot) return;
+  const b = _currentBot;
+  const cond = b.conditions || {};
+  const entryLong  = _bdGetSection(b, 'entry_long');
+  const exitLong   = _bdGetSection(b, 'exit_long');
+  const entryShort = _bdGetSection(b, 'entry_short');
+  const exitShort  = _bdGetSection(b, 'exit_short');
+  const isStudio = b.mode === 'studio' || b.mode === 'builder'
+    || entryLong.conditions.length > 0
+    || exitLong.conditions.length > 0;
+
+  let html = '';
+  // Info grid
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">';
+  const sl = cond.stop_loss_pct ?? (b.risk && b.risk.sl_pct) ?? '--';
+  const tp = cond.take_profit_pct ?? (b.risk && b.risk.tp_pct) ?? '--';
+  const infoItems = [
+    ['Symbol', b.symbol || '--'],
+    ['Timeframe', b.timeframe || '1day'],
+    ['Direction', cond.direction || b.direction || 'long'],
+    ['Stop Loss', sl + (sl === '--' ? '' : '%')],
+    ['Take Profit', tp + (tp === '--' ? '' : '%')],
+    ['Capital', '$' + ((cond.capital || b.allocation || 10000)).toLocaleString()],
+  ];
+  infoItems.forEach(([label, val]) => {
+    html += '<div style="background:var(--surface-2);border-radius:6px;padding:8px 10px">'
+      + '<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">' + esc(label) + '</div>'
+      + '<div style="font-size:13px;font-weight:600">' + esc(String(val)) + '</div>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  const condMap = {
+    'crosses_above':'crosses above', 'crosses_below':'crosses below',
+    'is_above':'is above', 'is_below':'is below',
+    'is_greater_than':'>', 'is_less_than':'<', 'equals':'=',
+  };
+
+  if (isStudio) {
+    const sections = [
+      {key:'entry_long',  label:'Long Entry',  icon:'\uD83D\uDFE2', conds:entryLong},
+      {key:'exit_long',   label:'Long Exit',   icon:'\uD83D\uDD34', conds:exitLong},
+      {key:'entry_short', label:'Short Entry', icon:'\uD83D\uDD35', conds:entryShort},
+      {key:'exit_short',  label:'Short Exit',  icon:'\uD83D\uDFE0', conds:exitShort},
+    ].filter(s => s.conds && s.conds.conditions && s.conds.conditions.length > 0);
+
+    if (!sections.length) {
+      html += '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:16px">No rule conditions found for this bot.</div>';
+    } else {
+      sections.forEach(s => {
+        const logic = s.conds.logic || 'AND';
+        html += '<div style="margin-bottom:10px;padding:10px 12px;background:var(--surface-2);border-radius:8px;border-left:3px solid var(--border)">';
+        html += '<div style="font-size:11px;font-weight:600;margin-bottom:6px">' + s.icon + ' ' + s.label + '</div>';
+        s.conds.conditions.forEach((c, i) => {
+          if (i > 0) html += '<div style="font-size:10px;color:var(--text-muted);margin:2px 0 2px 8px;font-weight:600">' + esc(logic) + '</div>';
+          html += '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
+          const leftLabel = _bdFormatSide(c.left, null);
+          html += '<span style="background:var(--blue-pale);color:var(--blue-primary);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">' + esc(leftLabel) + '</span>';
+          const condLabel = condMap[c.cond] || c.cond || 'is above';
+          html += '<span style="font-size:11px;color:var(--text-muted);font-style:italic">' + esc(condLabel) + '</span>';
+          if (c.right && c.right.type === 'value') {
+            html += '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:4px;font-size:11px">' + esc(String(c.right.value ?? '--')) + '</span>';
+          } else {
+            const rightLabel = _bdFormatSide(c.right, null);
+            html += '<span style="background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:11px">' + esc(rightLabel) + '</span>';
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+    }
+
+    const comm = cond.commission_pct ?? b.commission_pct;
+    const slip = cond.slippage_pct ?? b.slippage_pct;
+    if (comm !== undefined) {
+      html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px">&#128176; Commission: ' + comm + '% \u00B7 Slippage: ' + (slip || 0) + '%</div>';
+    }
+    const btn = document.getElementById('bd-edit-studio-btn');
+    if (btn) btn.style.display = '';
+  } else {
+    // Library bot
+    html += '<div style="padding:12px;background:var(--surface-2);border-radius:8px;margin-bottom:12px">'
+      + '<div style="font-size:12px;color:var(--text-muted)">Strategy</div>'
+      + '<div style="font-size:14px;font-weight:600;margin-top:4px">' + esc(b.library_id || b.mode || 'Library Strategy') + '</div>'
+      + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">This is a library strategy. To modify it, create a new Studio strategy.</div>';
+    const btn = document.getElementById('bd-edit-studio-btn');
+    if (btn) btn.style.display = 'none';
+  }
+  el.innerHTML = html;
+}
+
+function bdEditInStudio() {
+  if (!_currentBot) return;
+  const b = _currentBot;
+  const cond = b.conditions || {};
+  STUDIO.name = b.strategy_name || '';
+  STUDIO.symbol = b.symbol || '';
+  STUDIO.timeframe = b.timeframe || '1day';
+  STUDIO.direction = cond.direction || b.direction || 'long';
+  STUDIO.entry_long  = _bdGetSection(b, 'entry_long');
+  STUDIO.exit_long   = _bdGetSection(b, 'exit_long');
+  STUDIO.entry_short = _bdGetSection(b, 'entry_short');
+  STUDIO.exit_short  = _bdGetSection(b, 'exit_short');
+  STUDIO.risk = {
+    stop_loss_pct: cond.stop_loss_pct || (b.risk && b.risk.sl_pct) || 3,
+    take_profit_pct: cond.take_profit_pct || (b.risk && b.risk.tp_pct) || 8,
+    capital: cond.capital || b.allocation || 10000,
+    trailing_stop_enabled: cond.trailing_stop_enabled || false,
+    trailing_stop_pct: cond.trailing_stop_pct || 2,
+  };
+  STUDIO.commission_pct = cond.commission_pct ?? 0.1;
+  STUDIO.slippage_pct = cond.slippage_pct ?? 0.05;
+  STUDIO._readOnly = false;
+  STUDIO._editingBotId = b.strategy_id;
+  showToast('Strategy loaded in Studio. Make changes and re-deploy.', 'info');
+  navigate('studio');
+  if (typeof studioRender === 'function') studioRender();
 }
 
 async function loadBotLiveTrades() {
@@ -1655,10 +1816,12 @@ async function loadBotLiveTrades() {
 }
 
 function showBdTab(tab) {
-  ['dashboard', 'log', 'settings'].forEach(t => {
-    document.getElementById('bd-' + t).style.display = t === tab ? '' : 'none';
+  ['dashboard', 'strategy', 'log', 'settings'].forEach(t => {
+    const el = document.getElementById('bd-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
     document.querySelectorAll('#bd-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === tab));
   });
+  if (tab === 'strategy' && _currentBot) renderBdStrategy();
   if (tab === 'log' && _currentBot) {
     loadBotLog();
     if (_logInterval) clearInterval(_logInterval);
@@ -2008,6 +2171,10 @@ function showBacktestResults(d, sym, strat, tf) {
       const range = (from && to) ? ' Chart shows <strong>' + esc(from) + ' to ' + esc(to) + '</strong>.' : '';
       warnEl.innerHTML = '&#9888;&#65039; Only <strong>' + avail + ' bars</strong> available (you requested ' + reqLabel + ').' + range + ' Results may be less reliable with limited data.';
       warnEl.style.display = '';
+    } else if (d.no_trades || (m.total_trades||0) === 0) {
+      const ntMsg = d.no_trades_message || 'No trades generated. Try adjusting parameters or selecting a longer time period.';
+      warnEl.innerHTML = '&#9888;&#65039; <strong>No trades.</strong> ' + esc(ntMsg);
+      warnEl.style.display = '';
     } else {
       warnEl.style.display = 'none';
     }
@@ -2346,7 +2513,7 @@ function bldrGenerateScript() {
       code += `    ${vn} = ${_om[1]}_result[${_om[2]}]\n`;
     } else { code += `    ${vn} = ${calc}\n`; }
   });
-  code += '\n    in_position = False\n    for i in range(1, n):\n';
+  code += '\n    for i in range(1, n):\n';
   // Null checks
   const allVars = [...vars.keys()];
   if (allVars.length) code += `        if any(v is None for v in [${allVars.map(v=>v+'[i]').join(', ')}]): continue\n        if any(v is None for v in [${allVars.map(v=>v+'[i-1]').join(', ')}]): continue\n\n`;
@@ -2363,8 +2530,10 @@ function bldrGenerateScript() {
     const exitConds = BLDR.exit_long.conditions.map(c => _bldrGenCond(c, varMap)).join(joiner);
     code += `        exit_l = ${exitConds}\n`;
   } else code += '        exit_l = False\n';
-  code += '\n        if not in_position and entry:\n            signals[i] = 1\n            in_position = True\n';
-  code += '        elif in_position and exit_l:\n            signals[i] = -1\n            in_position = False\n';
+  // Emit raw signals; engine gates by pos_dir so duplicate/invalid signals are ignored.
+  // This allows the engine's SL/TP force-exits to re-enter on the next crossover.
+  code += '\n        if entry:\n            signals[i] = 1\n';
+  code += '        elif exit_l:\n            signals[i] = -1\n';
   code += '\n    return signals\n';
   return code;
 }
@@ -2517,12 +2686,13 @@ async function deployOptionsBot() {
 
 async function loadOptionsBots() {
   if (!EMAIL) return;
+  const tbody = document.getElementById('opt-bots-tbody');
+  const empty = document.getElementById('opt-bots-empty');
+  if (!tbody || !empty) return; // Options Bots tab shows "Coming Soon" -- no table to populate
   try {
     const r = await fetch(API + '/api/strategies/' + encodeURIComponent(EMAIL));
     const d = await r.json();
     const strats = (Array.isArray(d) ? d : d.strategies || []).filter(s => s.mode === 'options' || (s.conditions && s.conditions.sec_type === 'OPT'));
-    const tbody = document.getElementById('opt-bots-tbody');
-    const empty = document.getElementById('opt-bots-empty');
     if (!strats.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
     empty.style.display = 'none';
     const modeLabel = s => { const c = s.conditions || {}; if (c.dry_run) return '<span class="badge" style="background:#FEF3C7;color:#92400E">DRY RUN</span>'; if (c.port === 7496) return '<span class="badge badge-red">LIVE</span>'; return '<span class="badge badge-blue">PAPER</span>'; };
@@ -2951,7 +3121,7 @@ function _sSetupBody() {
     <div class="form-group"><label>Symbol</label><div style="position:relative;max-width:280px"><input type="text" id="studio-symbol" value="${esc(STUDIO.symbol)}" placeholder="Search: AAPL, Tencent, 700..." autocomplete="off" oninput="searchTickers(this,'studio')" onfocus="searchTickers(this,'studio')" onchange="STUDIO.symbol=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();studioValidateSymbol(this.value)}" onblur="studioValidateSymbol(this.value)"><div id="ticker-dropdown-studio" class="ticker-dropdown"></div></div><div id="studio-symbol-confirm" style="display:${STUDIO._symbolInfo?'flex':'none'};margin-top:6px;padding:6px 10px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:6px;font-size:12px;color:#166534;align-items:center;gap:8px"><span>&#10003;</span><span id="studio-symbol-confirm-text">${STUDIO._symbolInfo||''}</span><span onclick="studioSymbolClear()" style="margin-left:auto;cursor:pointer;color:#6B7280">&#10005;</span></div></div>
     <div class="form-row" style="grid-template-columns:1fr 1fr;max-width:280px">
       <div class="form-group"><label>Timeframe</label><select onchange="STUDIO.timeframe=this.value;studioUpdatePills()">${['1min','5min','15min','30min','1hour','1day','1week'].map(t=>'<option value="'+t+'"'+(STUDIO.timeframe===t?' selected':'')+'>'+t.replace('min','m').replace('hour','h').replace('day','d').replace('week','W')+'</option>').join('')}</select></div>
-      <div class="form-group"><label>Direction</label><select onchange="STUDIO.direction=this.value;studioRender()"><option value="long"${STUDIO.direction==='long'?' selected':''}>Long only</option><option value="short"${STUDIO.direction==='short'?' selected':''}>Short only</option><option value="both"${STUDIO.direction==='both'?' selected':''}>Long + Short</option></select></div>
+      <div class="form-group"><label>Direction</label><select onchange="_studioSetDirection(this.value)"><option value="long"${STUDIO.direction==='long'?' selected':''}>Long only</option><option value="short"${STUDIO.direction==='short'?' selected':''}>Short only</option><option value="both"${STUDIO.direction==='both'?' selected':''}>Long + Short</option></select></div>
     </div>`;
 }
 
@@ -2964,29 +3134,114 @@ function _sTemplateBody() {
   ).join('') + '</div>';
 }
 
+let _studioViewIndId = null; // which indicator detail panel is open
+
 function _sCustomIndBody() {
   const catColors = {trend:'#1D4ED8',momentum:'#7C3AED',volatility:'#C2410C',volume:'#15803D',custom:'#6B7280'};
   let html = '';
   if (_studioCustomInds.length) {
-    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
     _studioCustomInds.forEach(ind => {
       const col = catColors[ind.category] || catColors.custom;
-      html += '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;background:' + col + '10;color:' + col + ';border:1px solid ' + col + '30">'
-        + '<span style="width:6px;height:6px;border-radius:50%;background:' + col + '"></span>'
-        + esc(ind.display_name || ind.name)
-        + '<span onclick="event.stopPropagation();studioDeleteCustomInd(\'' + esc(ind.indicator_id) + '\')" style="cursor:pointer;margin-left:2px;opacity:.5" title="Remove">&times;</span>'
-        + '</span>';
+      const id = ind.indicator_id;
+      const isOpen = _studioViewIndId === id;
+      // Row
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);border-radius:8px;margin-bottom:' + (isOpen?'0':'6') + 'px;border:1px solid var(--border);border-bottom-left-radius:' + (isOpen?'0':'8') + 'px;border-bottom-right-radius:' + (isOpen?'0':'8') + 'px">'
+        + '<span style="width:8px;height:8px;border-radius:50%;background:' + col + ';flex-shrink:0"></span>'
+        + '<span style="font-size:13px;font-weight:500;flex:1">' + esc(ind.display_name||ind.name) + '</span>'
+        + '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + col + '15;color:' + col + '">' + esc(ind.category||'custom') + '</span>'
+        + '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--border);color:var(--text-muted)">' + esc(ind.output_type||'single') + '</span>'
+        + '<button onclick="event.stopPropagation();studioViewEditInd(\'' + esc(id) + '\')" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;font-family:inherit">' + (isOpen?'Close':'View') + '</button>'
+        + '<span onclick="event.stopPropagation();studioDeleteCustomInd(\'' + esc(id) + '\')" style="cursor:pointer;color:var(--text-muted);font-size:16px;padding:0 2px" title="Delete">&times;</span>'
+        + '</div>';
+      // Expanded detail panel
+      if (isOpen) {
+        html += _sIndDetailPanel(ind, col);
+      }
     });
-    html += '</div>';
   } else {
     html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">No custom indicators loaded. Upload a .quantx file to add one.</div>';
   }
   html += '<div id="studio-ind-upload-msg" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:6px;font-size:12px"></div>';
-  html += '<div style="display:flex;gap:6px">';
+  html += '<div style="display:flex;gap:6px;margin-top:8px">';
   html += '<label class="btn btn-primary btn-sm" style="cursor:pointer;flex:1;justify-content:center"><input type="file" accept=".quantx,.json" onchange="studioUploadQuantx(this)" style="display:none"> Upload .quantx</label>';
   html += '<button class="btn btn-outline btn-sm" onclick="openRegisterIndicatorModal()" style="flex:1">+ Code</button>';
   html += '</div>';
   return html;
+}
+
+function _sIndDetailPanel(ind, col) {
+  const labels = Array.isArray(ind.output_labels) ? ind.output_labels : [];
+  const inputs = Array.isArray(ind.inputs) ? ind.inputs : (typeof ind.inputs === 'string' ? (function(){try{return JSON.parse(ind.inputs)}catch(e){return['closes']}})() : ['closes']);
+  const params = Array.isArray(ind.params) ? ind.params : [];
+  const code = ind.calc_code || '';
+  let h = '<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:12px;margin-bottom:6px;background:var(--surface);font-size:12px">';
+  // Metadata grid
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px">';
+  h += '<div><span style="color:var(--text-muted)">ID:</span> <strong>' + esc(ind.indicator_id) + '</strong></div>';
+  h += '<div><span style="color:var(--text-muted)">Name:</span> ' + esc(ind.display_name||ind.name) + '</div>';
+  h += '<div><span style="color:var(--text-muted)">Category:</span> ' + esc(ind.category||'custom') + '</div>';
+  h += '<div><span style="color:var(--text-muted)">Output:</span> ' + esc(ind.output_type||'single') + '</div>';
+  h += '</div>';
+  // Output labels
+  if (labels.length && labels[0] !== 'main') {
+    h += '<div style="margin-bottom:8px"><span style="color:var(--text-muted)">Output labels:</span> ';
+    h += labels.map(l => '<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--surface-2);border:1px solid var(--border);margin-right:4px">' + esc(l) + '</span>').join('');
+    h += '</div>';
+  }
+  // Inputs
+  h += '<div style="margin-bottom:8px"><span style="color:var(--text-muted)">Inputs:</span> ';
+  h += inputs.map(i => '<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;margin-right:4px">' + esc(i) + '</span>').join('');
+  h += '</div>';
+  // Params
+  if (params.length) {
+    h += '<div style="margin-bottom:8px"><span style="color:var(--text-muted)">Parameters:</span>';
+    h += '<table style="font-size:11px;margin-top:4px;width:100%"><thead><tr><th style="text-align:left;padding:2px 8px;color:var(--text-muted)">Name</th><th>Default</th><th>Min</th><th>Max</th></tr></thead><tbody>';
+    params.forEach(p => {
+      h += '<tr><td style="padding:2px 8px">' + esc(p.k||p.name||'?') + '</td><td style="text-align:center">' + (p.default||p.d||'--') + '</td><td style="text-align:center">' + (p.min||'--') + '</td><td style="text-align:center">' + (p.max||'--') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  // Code block
+  h += '<div style="margin-bottom:10px"><span style="color:var(--text-muted)">Python code:</span>';
+  h += '<pre style="background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:11px;padding:10px;border-radius:6px;max-height:300px;overflow-y:auto;margin-top:4px;white-space:pre-wrap">' + esc(code) + '</pre></div>';
+  // Buttons
+  h += '<div style="display:flex;gap:6px">';
+  h += '<button onclick="studioEditIndInModal(\'' + esc(ind.indicator_id) + '\')" class="btn btn-outline btn-sm" style="flex:1">Edit in + Code</button>';
+  h += '<button onclick="studioViewEditInd(null)" class="btn btn-outline btn-sm" style="flex:1">Close</button>';
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+function studioViewEditInd(id) {
+  _studioViewIndId = (_studioViewIndId === id) ? null : id;
+  studioRender();
+}
+
+function studioEditIndInModal(id) {
+  const ind = _studioCustomInds.find(x => x.indicator_id === id);
+  if (!ind) return;
+  // Pre-fill the + Code modal
+  document.getElementById('ri-id').value = ind.indicator_id || '';
+  document.getElementById('ri-name').value = ind.display_name || ind.name || '';
+  document.getElementById('ri-desc').value = ind.description || '';
+  document.getElementById('ri-output-type').value = ind.output_type || 'single';
+  const labels = Array.isArray(ind.output_labels) ? ind.output_labels : [];
+  document.getElementById('ri-output-labels').value = labels.join(', ');
+  document.getElementById('ri-labels-row').style.display = (ind.output_type||'single') === 'single' ? 'none' : '';
+  document.getElementById('ri-code').value = ind.calc_code || '';
+  // Input checkboxes
+  const inputs = Array.isArray(ind.inputs) ? ind.inputs : (typeof ind.inputs === 'string' ? (function(){try{return JSON.parse(ind.inputs)}catch(e){return['closes']}})() : ['closes']);
+  document.getElementById('ri-input-closes').checked = inputs.includes('closes');
+  document.getElementById('ri-input-highs').checked = inputs.includes('highs');
+  document.getElementById('ri-input-lows').checked = inputs.includes('lows');
+  document.getElementById('ri-input-volumes').checked = inputs.includes('volumes');
+  document.getElementById('ri-input-opens').checked = inputs.includes('opens');
+  document.getElementById('ri-feedback').innerHTML = '';
+  // Change modal title and button
+  const titleEl = document.querySelector('#register-ind-modal .modal-title');
+  if (titleEl) titleEl.textContent = 'Edit Custom Indicator';
+  openModal('register-ind-modal');
 }
 
 function _sRiskBody() {
@@ -3019,6 +3274,27 @@ function studioRenderRight() {
   if (!right) return;
   // Summary
   let html = '<div class="studio-card"><div style="padding:12px 16px"><div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px">STRATEGY SUMMARY</div><div class="studio-summary-box">' + studioPlainEnglish() + '</div></div></div>';
+  // Exit-safety warning: entry rules exist but no exit path (no exit rules AND no stop loss)
+  const _hasLongEntry = (STUDIO.entry_long?.conditions||[]).length > 0;
+  const _hasLongExit = (STUDIO.exit_long?.conditions||[]).length > 0;
+  const _hasShortEntry = (STUDIO.entry_short?.conditions||[]).length > 0;
+  const _hasShortExit = (STUDIO.exit_short?.conditions||[]).length > 0;
+  const _sl = parseFloat(STUDIO.risk?.stop_loss_pct)||0;
+  const _tp = parseFloat(STUDIO.risk?.take_profit_pct)||0;
+  const _noRisk = _sl === 0 && _tp === 0;
+  const _longRisky = _hasLongEntry && !_hasLongExit && _noRisk && STUDIO.direction !== 'short';
+  const _shortRisky = _hasShortEntry && !_hasShortExit && _noRisk && (STUDIO.direction === 'short' || STUDIO.direction === 'both');
+  if (_longRisky || _shortRisky) {
+    const _dirs = [];
+    if (_longRisky) _dirs.push('Long');
+    if (_shortRisky) _dirs.push('Short');
+    html += '<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400E">'
+      + '<strong>&#9888;&#65039; No exit path for ' + _dirs.join(' &amp; ') + '.</strong> '
+      + 'Your ' + _dirs.join('/').toLowerCase() + ' entry rules will open positions that <em>never close</em> -- '
+      + 'no exit rules are set and Stop Loss / Take Profit are both 0%. '
+      + 'Add an exit rule or set a Stop Loss in Risk Management to avoid holding forever.'
+      + '</div>';
+  }
   // Period pills
   html += '<div class="studio-card"><div style="padding:12px 16px"><div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px">BACKTEST PERIOD</div><div id="studio-period-pills" style="display:flex;flex-wrap:wrap;gap:6px"></div></div></div>';
   // Realism settings
@@ -3048,6 +3324,7 @@ function studioRenderRight() {
     const cagrSign = (cagrVal||0) >= 0 ? '+' : '';
     html += `<div class="studio-card"><div style="padding:12px 16px">
       <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px">RESULTS</div>
+      ${(m.total_trades===0||STUDIO.last_backtest?.no_trades)?'<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400E"><strong>No trades generated.</strong> Possible reasons:<ul style="margin:6px 0 0 16px;line-height:1.8"><li>Custom indicator returning all None values -- check warmup_bars</li><li>Entry condition never triggered in this time period</li><li>Try a longer period (Max 22Y) or different symbol</li><li>For Ichimoku: needs 52+ bars warmup, use daily timeframe</li></ul></div>':''}
       <div class="studio-metric-grid">
         <div class="studio-metric-card"><div style="font-size:10px;color:var(--text-muted)">CAGR</div><div style="font-size:18px;font-weight:700;${cagrCls}">${cagrSign}${mf(cagrVal)}%</div></div>
         <div class="studio-metric-card"><div style="font-size:10px;color:var(--text-muted)">Sharpe</div><div style="font-size:18px;font-weight:700">${mf(m.sharpe_ratio)}</div></div>
@@ -3084,7 +3361,7 @@ function studioRender() {
   html += _sCard('setup','&#9881;&#65039;','#EFF6FF','Setup', esc(STUDIO.symbol||'Select symbol') + ' / ' + STUDIO.timeframe, _sSetupBody(), _studioOpenCards.setup);
   html += _sCard('templates','&#10024;','#FEF3C7','Templates', 'Start from a proven strategy', _sTemplateBody(), _studioOpenCards.templates);
   const custCount = _studioCustomInds.length;
-  html += _sCard('custom_ind','&#128300;','#F5F3FF','Custom Indicators', custCount ? custCount + ' loaded' : 'None loaded', _sCustomIndBody(), _studioOpenCards.custom_ind || false);
+  html += _sCard('custom_ind','&#128300;','#F5F3FF','Custom Indicators', custCount ? custCount + ' indicator' + (custCount>1?'s':'') : 'None loaded', _sCustomIndBody(), _studioOpenCards.custom_ind || false);
   if (STUDIO.direction !== 'short') {
     html += _sCard('entry','&#9989;','#F0FDF4','Long Entry Rules', _sSectionSummary('entry_long'), _sRulesBody('entry_long'), _studioOpenCards.entry);
     html += _sCard('exit','&#10060;','#FEF2F2','Long Exit Rules', _sSectionSummary('exit_long'), _sRulesBody('exit_long'), _studioOpenCards.exit);
@@ -3100,6 +3377,18 @@ function studioRender() {
   if (_studioEditorDraft && _studioEditorSection) {
     _studioRenderEditor();
   }
+}
+
+function _studioSetDirection(dir) {
+  STUDIO.direction = dir;
+  if (dir === 'long') {
+    STUDIO.entry_short.conditions = [];
+    STUDIO.exit_short.conditions = [];
+  } else if (dir === 'short') {
+    STUDIO.entry_long.conditions = [];
+    STUDIO.exit_long.conditions = [];
+  }
+  studioRender();
 }
 
 function studioSelectTemplate(key) {
@@ -3412,12 +3701,16 @@ function _studioGenerateScript(mode) {
   //   varName  = _bldrGenVar with ORIGINAL literal params (e.g. "rsi_14")
   //   calcCall = _bldrGenCalc with SUBSTITUTED param keys (e.g. calc_rsi(close, rsi_0_period))
   const vars = new Map(); // varName -> calcCall
-  const allConds = [
-    ...(STUDIO.entry_long.conditions||[]),
-    ...(STUDIO.exit_long.conditions||[]),
-    ...(STUDIO.entry_short.conditions||[]),
-    ...(STUDIO.exit_short.conditions||[]),
-  ];
+  const _dir = STUDIO.direction || 'long';
+  const allConds = [];
+  if (_dir === 'long' || _dir === 'both') {
+    allConds.push(...(STUDIO.entry_long.conditions||[]));
+    allConds.push(...(STUDIO.exit_long.conditions||[]));
+  }
+  if (_dir === 'short' || _dir === 'both') {
+    allConds.push(...(STUDIO.entry_short.conditions||[]));
+    allConds.push(...(STUDIO.exit_short.conditions||[]));
+  }
 
   allConds.forEach(c => {
     [c.left, c.right].forEach(side => {
@@ -3463,32 +3756,62 @@ function _studioGenerateScript(mode) {
       code += '    ' + vn + ' = ' + calc + '\n';
     }
   });
-  code += '\n    in_position = False\n';
-  code += '    for i in range(1, n):\n';
   const allVars = [...vars.keys()];
-  if (allVars.length) {
-    code += '        if any(v is None for v in [' + allVars.map(v => v + '[i]').join(', ') + ']): continue\n';
-    code += '        if any(v is None for v in [' + allVars.map(v => v + '[i-1]').join(', ') + ']): continue\n\n';
-  }
   const varMap = {};
   vars.forEach((_, vn) => { varMap[vn] = vn; });
   console.log('[STUDIO] varMap:', JSON.stringify(varMap), 'vars:', [...vars.entries()].map(([k,v]) => k + ' = ' + v));
-  if (STUDIO.entry_long.conditions.length) {
-    const j = STUDIO.entry_long.logic === 'OR' ? ' or ' : ' and ';
-    code += '        entry = ' + STUDIO.entry_long.conditions.map(c => _bldrGenCond(c, varMap)).join(j) + '\n';
+  const dir = STUDIO.direction || 'long';
+  const condExpr = (conds, logic) => conds.length
+    ? conds.map(c => _bldrGenCond(c, varMap)).join(logic === 'OR' ? ' or ' : ' and ')
+    : 'False';
+
+  // Emit RAW signals (no in_position tracking). The engine gates by pos_dir,
+  // so duplicate buy/sell signals are ignored, and SL/TP force-exits in the
+  // engine can be followed by a fresh entry on the next crossover.
+  if (dir === 'short') {
+    code += '\n    for i in range(1, n):\n';
+    if (allVars.length) {
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i]').join(', ') + ']): continue\n';
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i-1]').join(', ') + ']): continue\n\n';
+    }
+    code += '        entry_s = ' + condExpr(STUDIO.entry_short.conditions, STUDIO.entry_short.logic) + '\n';
+    code += '        exit_s = ' + condExpr(STUDIO.exit_short.conditions, STUDIO.exit_short.logic) + '\n';
+    code += '\n        if entry_s:\n';
+    code += '            signals[i] = 2\n';
+    code += '        elif exit_s:\n';
+    code += '            signals[i] = -2\n';
+  } else if (dir === 'both') {
+    code += '\n    for i in range(1, n):\n';
+    if (allVars.length) {
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i]').join(', ') + ']): continue\n';
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i-1]').join(', ') + ']): continue\n\n';
+    }
+    code += '        entry = ' + condExpr(STUDIO.entry_long.conditions, STUDIO.entry_long.logic) + '\n';
+    code += '        exit_l = ' + condExpr(STUDIO.exit_long.conditions, STUDIO.exit_long.logic) + '\n';
+    code += '        entry_s = ' + condExpr(STUDIO.entry_short.conditions, STUDIO.entry_short.logic) + '\n';
+    code += '        exit_s = ' + condExpr(STUDIO.exit_short.conditions, STUDIO.exit_short.logic) + '\n';
+    code += '\n        if entry:\n';
+    code += '            signals[i] = 1\n';
+    code += '        elif exit_l:\n';
+    code += '            signals[i] = -1\n';
+    code += '        elif entry_s:\n';
+    code += '            signals[i] = 2\n';
+    code += '        elif exit_s:\n';
+    code += '            signals[i] = -2\n';
   } else {
-    code += '        entry = False\n';
+    // Long only (default)
+    code += '\n    for i in range(1, n):\n';
+    if (allVars.length) {
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i]').join(', ') + ']): continue\n';
+      code += '        if any(v is None for v in [' + allVars.map(v => v + '[i-1]').join(', ') + ']): continue\n\n';
+    }
+    code += '        entry = ' + condExpr(STUDIO.entry_long.conditions, STUDIO.entry_long.logic) + '\n';
+    code += '        exit_l = ' + condExpr(STUDIO.exit_long.conditions, STUDIO.exit_long.logic) + '\n';
+    code += '\n        if entry:\n';
+    code += '            signals[i] = 1\n';
+    code += '        elif exit_l:\n';
+    code += '            signals[i] = -1\n';
   }
-  if (STUDIO.exit_long.conditions.length) {
-    const j = STUDIO.exit_long.logic === 'OR' ? ' or ' : ' and ';
-    code += '        exit_l = ' + STUDIO.exit_long.conditions.map(c => _bldrGenCond(c, varMap)).join(j) + '\n';
-  } else {
-    code += '        exit_l = False\n';
-  }
-  code += '\n        if not in_position and entry:\n';
-  code += '            signals[i] = 1\n            in_position = True\n';
-  code += '        elif in_position and exit_l:\n';
-  code += '            signals[i] = -1\n            in_position = False\n';
   code += '\n    return signals\n';
   return code;
 }
@@ -3511,7 +3834,11 @@ async function studioRunBacktest() {
     if (d.status === 'error') throw new Error(d.message || 'Failed');
     STUDIO.last_backtest = d;
     studioRenderRight();
-    showToast('Backtest complete!', 'success');
+    if ((d.metrics?.total_trades || 0) === 0 || d.no_trades) {
+      showToast('No trades generated -- check indicator settings or try a longer period', 'info');
+    } else {
+      showToast('Backtest complete!', 'success');
+    }
   } catch (e) { showToast('Backtest error: ' + e.message, 'error'); }
   if (btn) { btn.disabled = false; btn.textContent = 'Run Backtest'; }
 }
@@ -3586,10 +3913,23 @@ async function studioDeployFromResults() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email:EMAIL, strategy_id:sid, strategy_name:STUDIO.name, symbol:STUDIO.symbol,
         arena:STUDIO.symbol.endsWith('.HK')?'HK':(STUDIO.symbol.endsWith('.SI')?'SG':'US'),
-        timeframe:STUDIO.timeframe, conditions:{entry_long:STUDIO.entry_long.conditions, exit_long:STUDIO.exit_long.conditions,
-          entry_long_logic:STUDIO.entry_long.logic, exit_long_logic:STUDIO.exit_long.logic},
+        timeframe:STUDIO.timeframe,
+        conditions:{
+          entry_long:  STUDIO.entry_long,
+          exit_long:   STUDIO.exit_long,
+          entry_short: STUDIO.entry_short,
+          exit_short:  STUDIO.exit_short,
+          direction: STUDIO.direction || 'long',
+          stop_loss_pct: STUDIO.risk.stop_loss_pct || 3,
+          take_profit_pct: STUDIO.risk.take_profit_pct || 8,
+          trailing_stop_enabled: STUDIO.risk.trailing_stop_enabled || false,
+          trailing_stop_pct: STUDIO.risk.trailing_stop_pct || 2,
+          capital: STUDIO.risk.capital || 10000,
+          commission_pct: STUDIO.commission_pct ?? 0.1,
+          slippage_pct: STUDIO.slippage_pct ?? 0.05,
+        },
         exit_rules:{}, risk:{lots:1, sl_pct:STUDIO.risk.stop_loss_pct, tp_pct:STUDIO.risk.take_profit_pct},
-        is_active:true, mode:'builder', library_id:'', broker:'longport'})
+        is_active:true, mode:'studio', library_id:'', broker:'longport'})
     });
     showToast('Strategy saved! Go to Bots to deploy.', 'success');
     navigate('bots');
@@ -3601,8 +3941,8 @@ async function studioLoadMySaved() {
   try {
     const r = await fetch(API + '/api/strategies/' + encodeURIComponent(EMAIL));
     const d = await r.json();
-    const strats = (d.strategies||[]).filter(s => s.mode==='builder' || (s.conditions && s.conditions.entry_long));
-    if (!strats.length) { showToast('No builder strategies found', 'info'); return; }
+    const strats = (d.strategies||[]).filter(s => s.mode==='studio' || s.mode==='builder' || (s.conditions && s.conditions.entry_long));
+    if (!strats.length) { showToast('No studio strategies found', 'info'); return; }
     const pick = prompt('Enter strategy name to load:\n' + strats.map(s => '  - ' + s.strategy_name).join('\n'));
     if (!pick) return;
     const found = strats.find(s => s.strategy_name.toLowerCase().includes(pick.toLowerCase()));
@@ -3611,10 +3951,21 @@ async function studioLoadMySaved() {
     STUDIO.symbol = found.symbol;
     STUDIO.timeframe = found.timeframe;
     const c = found.conditions || {};
-    STUDIO.entry_long = {conditions:c.entry_long||[], logic:c.entry_long_logic||'AND'};
-    STUDIO.exit_long = {conditions:c.exit_long||[], logic:c.exit_long_logic||'OR'};
+    STUDIO.direction = c.direction || found.direction || 'long';
+    STUDIO.entry_long  = _bdGetSection(found, 'entry_long');
+    STUDIO.exit_long   = _bdGetSection(found, 'exit_long');
+    STUDIO.entry_short = _bdGetSection(found, 'entry_short');
+    STUDIO.exit_short  = _bdGetSection(found, 'exit_short');
     const rk = found.risk || {};
-    STUDIO.risk = {stop_loss_pct:rk.sl_pct||3, take_profit_pct:rk.tp_pct||8, capital:10000};
+    STUDIO.risk = {
+      stop_loss_pct: c.stop_loss_pct || rk.sl_pct || 3,
+      take_profit_pct: c.take_profit_pct || rk.tp_pct || 8,
+      capital: c.capital || found.allocation || 10000,
+      trailing_stop_enabled: c.trailing_stop_enabled || false,
+      trailing_stop_pct: c.trailing_stop_pct || 2,
+    };
+    STUDIO.commission_pct = c.commission_pct ?? 0.1;
+    STUDIO.slippage_pct = c.slippage_pct ?? 0.05;
     STUDIO._readOnly = false;
     STUDIO.last_backtest = null;
     studioRender();
@@ -3626,23 +3977,37 @@ async function studioLoadMySaved() {
 let _optParams = []; // [{ind, param, current, min, max, step, include}]
 
 function _studioExtractParams() {
-  // Dedup by (ind_id + param_name + value) — same indicator+param+value = ONE row
-  // regardless of how many times it appears across all conditions.
-  // Different values (EMA(20) vs EMA(50)) = separate rows with unique keys.
-  const seen = {};  // "ind_param_value" -> param key (full dedup including value)
+  // Dedup rule: same indicator + same param + same value + same section = ONE row.
+  // Different sections (Long Entry vs Short Entry) stay as SEPARATE rows even
+  // if they share the same indicator/param/value — they represent different rules.
+  const seen = {};  // "section_ind_param_value" -> param key
   const params = [];
-  const sections = ['entry_long','exit_long','entry_short','exit_short'];
-  for (const sec of sections) {
-    for (const c of (STUDIO[sec]?.conditions || [])) {
-      for (const side of [c.left, c.right]) {
+  const activeKeys = new Set();
+  const dir = STUDIO.direction || 'long';
+  if (dir === 'long' || dir === 'both') { activeKeys.add('entry_long'); activeKeys.add('exit_long'); }
+  if (dir === 'short' || dir === 'both') { activeKeys.add('entry_short'); activeKeys.add('exit_short'); }
+  const sections = [
+    { key: 'entry_long',  label: 'Long Entry'  },
+    { key: 'exit_long',   label: 'Long Exit'   },
+    { key: 'entry_short', label: 'Short Entry' },
+    { key: 'exit_short',  label: 'Short Exit'  },
+  ].filter(s => activeKeys.has(s.key));
+  for (const s of sections) {
+    const sec = s.key;
+    const conds = STUDIO[sec]?.conditions || [];
+    for (let ri = 0; ri < conds.length; ri++) {
+      const c = conds[ri];
+      const condType = (c.cond && c.cond.includes('crosses')) ? 'crosses'
+        : (c.right?.type === 'value' ? 'threshold' : 'comparison');
+      for (const [sideName, side] of [['left', c.left], ['right', c.right]]) {
         if (!side || !side.id || !side.p || side.type === 'value') continue;
         if (['close','open','high','low','volume'].includes(side.id)) continue;
         for (const [pk, pv] of Object.entries(side.p || {})) {
           const v = typeof pv === 'number' ? pv : parseFloat(pv) || 0;
-          // Full dedup: same indicator + same param + same value = skip
-          const fullDedupKey = side.id + '_' + pk + '_' + v;
+          // Dedup includes section so same-value params from different sections are separate rows
+          const fullDedupKey = sec + '_' + side.id + '_' + pk + '_' + v;
           if (seen[fullDedupKey]) continue;
-          // Count how many DIFFERENT values exist for this indicator+param
+          // Count how many existing rows have same indicator+param (regardless of section) for unique key
           const occ = params.filter(p => p.ind === side.id && p.param === pk).length;
           const key = side.id + '_' + occ + '_' + pk;
           const obj = {
@@ -3651,6 +4016,8 @@ function _studioExtractParams() {
             max: Math.round(v * 2.5),
             step: Math.max(1, Math.round(v * 0.25)),
             include: true,
+            ruleSection: sec, ruleIndex: ri, side: sideName,
+            conditionType: condType,
           };
           seen[fullDedupKey] = key;
           params.push(obj);
@@ -3669,12 +4036,135 @@ function _studioExtractParams() {
     current: STUDIO.risk.take_profit_pct || 8,
     min: 1, max: 30, step: 1, include: false, isRisk: true,
   });
+  // Link cross-section duplicates: same indicator + same param + same value
+  // from different sections should move together. Auto-uncheck all but the first.
+  const valueSeen = {}; // "ind_param_value" -> first param's key
+  params.forEach(p => {
+    if (p.isRisk) return;
+    const vk = p.ind + '_' + p.param + '_' + p.current;
+    if (valueSeen[vk]) {
+      p.include = false;
+      p._linkedTo = valueSeen[vk];
+    } else {
+      valueSeen[vk] = p.key;
+    }
+  });
   return params;
 }
 
+function _optFriendlyIndName(id) {
+  if (!id) return '';
+  const friendly = {
+    rsi:'RSI', ema:'EMA', sma:'SMA', wma:'WMA', hma:'HMA',
+    macd_line:'MACD Line', macd_signal:'MACD Signal',
+    bb_upper:'BB Upper', bb_lower:'BB Lower', bb_mid:'BB Middle',
+    atr:'ATR', roc:'ROC', zscore:'Z-Score',
+    stoch_k:'Stoch %K', stoch_d:'Stoch %D',
+    williams_r:'Williams %R', obv:'OBV', vwap:'VWAP',
+    donch_upper:'Donchian Upper', donch_lower:'Donchian Lower',
+  };
+  return friendly[id.toLowerCase()] || id.toUpperCase();
+}
+
+function _optGetParamLabel(p) {
+  if (p.isRisk) {
+    return p.param.replace(/_/g,' ').replace(/pct/,'%');
+  }
+  const sectionLabel = {
+    'entry_long':  'Long Entry', 'exit_long': 'Long Exit',
+    'entry_short': 'Short Entry', 'exit_short': 'Short Exit',
+  }[p.ruleSection] || '';
+  // Crossover heuristic: left side = fast (if smaller), right = slow
+  let hint = '';
+  if (p.conditionType === 'crosses') {
+    // Find paired side to compare values
+    const sibs = _optParams.filter(x =>
+      x.ruleSection === p.ruleSection && x.ruleIndex === p.ruleIndex && x.param === p.param);
+    if (sibs.length === 2) {
+      const [a, b] = sibs;
+      if (a.current !== b.current) {
+        if (p.current === Math.min(a.current, b.current)) hint = ' (fast)';
+        else hint = ' (slow)';
+      }
+    }
+  }
+  const friendly = _optFriendlyIndName(p.ind);
+  const ruleNum = (p.ruleIndex !== undefined) ? ' #' + (p.ruleIndex + 1) : '';
+  const section = sectionLabel ? ' -- ' + sectionLabel + ruleNum : '';
+  return friendly + hint + section;
+}
+
+function _optFormatCondSide(indId, params) {
+  if (!indId) return '';
+  if (['close','open','high','low','volume'].includes(indId)) {
+    return '<span style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:500">'+esc(indId.charAt(0).toUpperCase()+indId.slice(1))+'</span>';
+  }
+  const displayName = _optFriendlyIndName(indId);
+  const paramVals = params ? Object.values(params).join(', ') : '';
+  const label = paramVals ? displayName + '(' + paramVals + ')' : displayName;
+  return '<span style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:500">'+esc(label)+'</span>';
+}
+
+function _optBuildRulePreview() {
+  const sections = [
+    { key: 'entry_long',  label: 'Long Entry',  icon: '\uD83D\uDFE2', color: '#16a34a' },
+    { key: 'exit_long',   label: 'Long Exit',   icon: '\uD83D\uDD34', color: '#dc2626' },
+    { key: 'entry_short', label: 'Short Entry', icon: '\uD83D\uDD35', color: '#2563eb' },
+    { key: 'exit_short',  label: 'Short Exit',  icon: '\uD83D\uDFE0', color: '#ea580c' },
+  ];
+  const active = sections.filter(s => (STUDIO[s.key]?.conditions || []).length > 0);
+  if (!active.length) return '';
+  let html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px">&#128203; Strategy Rules Being Optimized</div>';
+  active.forEach(s => {
+    const conds = STUDIO[s.key]?.conditions || [];
+    const logic = STUDIO[s.key]?.logic || 'AND';
+    html += '<div style="margin-bottom:8px">';
+    html += '<span style="font-size:11px;font-weight:600;color:'+s.color+';background:'+s.color+'15;padding:2px 8px;border-radius:4px;margin-right:8px">'+s.icon+' '+s.label+'</span>';
+    conds.forEach((cond, i) => {
+      if (i > 0) html += '<span style="font-size:10px;color:var(--text-muted);margin:0 4px;font-weight:600">'+logic+'</span>';
+      const leftSide = _optFormatCondSide(cond.left?.id, cond.left?.p);
+      const rightSide = cond.right?.type === 'value'
+        ? '<span style="font-size:11px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:4px;padding:2px 6px;color:#92400E">'+esc(cond.right.value)+'</span>'
+        : _optFormatCondSide(cond.right?.id, cond.right?.p);
+      const condMap = {
+        'crosses_above':'&#8599; crosses above', 'crosses_below':'&#8600; crosses below',
+        'is_above':'&gt; above', 'is_below':'&lt; below',
+        'is_greater_than':'&gt;', 'is_less_than':'&lt;', 'equals':'=',
+      };
+      const condLabel = condMap[cond.cond] || cond.cond || '?';
+      html += '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;flex-wrap:wrap">';
+      html += leftSide + '<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin:0 2px">'+condLabel+'</span>' + rightSide;
+      html += '</span>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function studioInitOptimize() {
+  if (!_optHasResults) {
+    _optAllResults = [];
+    const resEl = document.getElementById('opt-results');
+    if (resEl) resEl.innerHTML = '<div style="color:var(--text-muted)">Run optimization to see results.</div>';
+  }
   document.getElementById('opt-title').textContent = 'Optimize: ' + (STUDIO.name || 'Strategy');
   _optParams = _studioExtractParams();
+  // Inject rule preview card above parameter grid
+  const optPage = document.getElementById('page-optimize');
+  const existing = document.getElementById('opt-rule-preview');
+  if (existing) existing.remove();
+  const previewHtml = _optBuildRulePreview();
+  if (previewHtml && optPage) {
+    const grid = optPage.querySelector('div[style*="grid-template-columns:1fr 1fr"]');
+    if (grid) {
+      const wrap = document.createElement('div');
+      wrap.id = 'opt-rule-preview';
+      wrap.innerHTML = previewHtml;
+      grid.parentNode.insertBefore(wrap, grid);
+    }
+  }
   _renderOptParams();
   // Pre-populate trailing stop from Studio state
   const trailCb = document.getElementById('opt-trailing-enabled');
@@ -3691,9 +4181,13 @@ function studioInitOptimize() {
 }
 
 function _optParamRow(p, i) {
-  const label = p.isRisk ? p.param.replace(/_/g,' ').replace(/pct$/,'%') : p.ind.toUpperCase();
+  const topLabel = p.isRisk ? p.param.replace(/_/g,' ').replace(/pct$/,'%') : p.ind.toUpperCase();
+  const subLabel = p.isRisk ? '' : _optGetParamLabel(p);
+  const linkNote = p._linkedTo ? ' <span style="color:#F59E0B;font-style:italic">\u00B7 linked to ' + esc(p._linkedTo) + '</span>' : '';
+  const indCell = '<div style="font-size:12px;font-weight:500">' + esc(topLabel) + '</div>'
+    + (subLabel ? '<div style="font-size:10px;color:var(--text-muted);margin-top:1px">' + esc(subLabel) + linkNote + '</div>' : '');
   return '<tr><td><input type="checkbox" ' + (p.include?'checked':'') + ' onchange="_optParams['+i+'].include=this.checked;_optUpdateComboCount()"></td>'
-    + '<td>' + esc(label) + '</td><td>' + esc(p.param) + '</td><td style="font-weight:600">' + p.current + '</td>'
+    + '<td>' + indCell + '</td><td>' + esc(p.param) + '</td><td style="font-weight:600">' + p.current + '</td>'
     + '<td><input type="number" value="'+p.min+'" style="width:55px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px" onchange="_optParams['+i+'].min=parseFloat(this.value);_optUpdateComboCount()"></td>'
     + '<td><input type="number" value="'+p.max+'" style="width:55px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px" onchange="_optParams['+i+'].max=parseFloat(this.value);_optUpdateComboCount()"></td>'
     + '<td><input type="number" value="'+p.step+'" style="width:55px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px" onchange="_optParams['+i+'].step=parseFloat(this.value);_optUpdateComboCount()"></td></tr>';
@@ -3718,17 +4212,40 @@ function _renderOptParams() {
 }
 
 function _optUpdateComboCount() {
-  const combos = _optBuildCombos();
+  const included = (_optParams || []).filter(p => p.include);
+  let theoretical = 1;
+  included.forEach(p => {
+    let count = 0;
+    for (let v = p.min; v <= p.max && count < 10000; v += Math.max(0.01, p.step)) count++;
+    if (!count) count = 1;
+    theoretical *= count;
+  });
+  // Include trailing stop if enabled
+  const trailEnabled = document.getElementById('opt-trailing-enabled')?.checked;
+  if (trailEnabled) {
+    const tMin = parseFloat(document.getElementById('opt-trail-min')?.value || 1);
+    const tMax = parseFloat(document.getElementById('opt-trail-max')?.value || 5);
+    const tStep = parseFloat(document.getElementById('opt-trail-step')?.value || 1);
+    let tc = 0;
+    for (let v = tMin; v <= tMax && tc < 100; v += Math.max(0.1, tStep)) tc++;
+    if (tc) theoretical *= tc;
+  }
   const el = document.getElementById('opt-combo-count');
-  if (el) el.textContent = combos.length + ' combinations to test' + (combos.length > 500 ? ' (capped at 500)' : '');
+  if (!el) return;
+  if (theoretical > 2000) {
+    el.innerHTML = theoretical.toLocaleString() + ' combinations '
+      + '<span style="color:#F59E0B">(&#9888; may take a while -- consider reducing ranges)</span>';
+  } else {
+    el.innerHTML = theoretical.toLocaleString() + ' combinations to test';
+  }
 }
 
 function _optBuildCombos() {
   const included = _optParams.filter(p => p.include);
-  // Build value arrays per param
+  // Build value arrays per param (safety cap 200 per param)
   const ranges = included.map(p => {
     const vals = [];
-    for (let v = p.min; v <= p.max && vals.length < 50; v += Math.max(0.01, p.step)) {
+    for (let v = p.min; v <= p.max && vals.length < 200; v += Math.max(0.01, p.step)) {
       vals.push(Math.round(v * 100) / 100);
     }
     if (!vals.length) vals.push(p.current);
@@ -3741,94 +4258,379 @@ function _optBuildCombos() {
     const tMax = parseFloat(document.getElementById('opt-trail-max')?.value || 5);
     const tStep = parseFloat(document.getElementById('opt-trail-step')?.value || 1);
     const vals = [];
-    for (let v = tMin; v <= tMax && vals.length < 20; v += Math.max(0.1, tStep)) vals.push(Math.round(v*100)/100);
+    for (let v = tMin; v <= tMax && vals.length < 100; v += Math.max(0.1, tStep)) vals.push(Math.round(v*100)/100);
     if (vals.length) ranges.push({key: 'trail_pct', vals});
   }
   if (!ranges.length) return [{}];
-  // Cartesian product, capped at 500
+  // Full cartesian product (no cap)
   let combos = [{}];
   for (const r of ranges) {
     const next = [];
     for (const c of combos) {
       for (const v of r.vals) {
         next.push({...c, [r.key]: v});
-        if (next.length >= 500) break;
       }
-      if (next.length >= 500) break;
     }
     combos = next;
-    if (combos.length >= 500) break;
+  }
+  // Mirror linked params: for every _linkedTo param that is NOT included,
+  // copy the linked primary's value into that param key on every combo.
+  const linked = (_optParams || []).filter(p => !p.include && p._linkedTo);
+  if (linked.length) {
+    combos = combos.map(c => {
+      const out = {...c};
+      linked.forEach(p => {
+        if (p._linkedTo in out) out[p.key] = out[p._linkedTo];
+        else out[p.key] = p.current;
+      });
+      return out;
+    });
   }
   return combos;
 }
 
 // _studioGenerateParamScript removed — use _studioGenerateScript('sweep') instead
 
+let _optAllResults = [];
+let _optHasResults = false;
+let _optSortKey = null;  // null = default sort (WF pass first, then metric dropdown)
+let _optSortDir = 'desc'; // 'asc' or 'desc'
+let _optFilters = { minTrades: '', minSharpe: '', maxDD: '', wfPass: false, mcPass: false };
+let _optFiltersOpen = false;
+
+function _optSortBy(key) {
+  if (_optSortKey === key) {
+    _optSortDir = _optSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    _optSortKey = key;
+    _optSortDir = (key === 'max_drawdown_pct') ? 'asc' : 'desc';
+  }
+  const wf = document.getElementById('opt-wf-enable')?.checked;
+  const mc = document.getElementById('opt-mc-enable')?.checked;
+  _optRenderResultsLive(wf, mc);
+}
+
+function _optToggleFilters() {
+  _optFiltersOpen = !_optFiltersOpen;
+  const wf = document.getElementById('opt-wf-enable')?.checked;
+  const mc = document.getElementById('opt-mc-enable')?.checked;
+  _optRenderResultsLive(wf, mc);
+}
+
+function _optApplyFilters() {
+  _optFilters.minTrades = document.getElementById('opt-f-mintrades')?.value || '';
+  _optFilters.minSharpe = document.getElementById('opt-f-minsharpe')?.value || '';
+  _optFilters.maxDD = document.getElementById('opt-f-maxdd')?.value || '';
+  _optFilters.wfPass = !!document.getElementById('opt-f-wf')?.checked;
+  _optFilters.mcPass = !!document.getElementById('opt-f-mc')?.checked;
+  const wf = document.getElementById('opt-wf-enable')?.checked;
+  const mc = document.getElementById('opt-mc-enable')?.checked;
+  _optRenderResultsLive(wf, mc);
+}
+
+function _optClearFilters() {
+  _optFilters = { minTrades: '', minSharpe: '', maxDD: '', wfPass: false, mcPass: false };
+  const wf = document.getElementById('opt-wf-enable')?.checked;
+  const mc = document.getElementById('opt-mc-enable')?.checked;
+  _optRenderResultsLive(wf, mc);
+}
+
 async function studioRunOptimize() {
   const combos = _optBuildCombos();
   if (!combos.length) { showToast('No parameter combinations configured', 'error'); return; }
   const btn = document.getElementById('opt-run-btn');
-  const prog = document.getElementById('opt-progress');
-  if (btn) { btn.disabled = true; btn.textContent = 'Running ' + combos.length + ' combinations...'; }
-  if (prog) { prog.style.display = ''; prog.textContent = 'Testing ' + combos.length + ' parameter combinations...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+  _optAllResults = [];
+  _optHasResults = false;
+  _optShowProgress(combos.length);
+  const el = document.getElementById('opt-results');
+  if (el) el.innerHTML = '';
+  const enableWF = document.getElementById('opt-wf-enabled')?.checked ?? true;
+  const enableMC = document.getElementById('opt-mc-enabled')?.checked ?? true;
+  const wfWindow = parseInt(document.getElementById('opt-wf-window')?.value || '252');
+  const wfStep = parseInt(document.getElementById('opt-wf-step')?.value || '126');
+  const wfMinOosRatio = (() => {
+    const t = document.getElementById('opt-wf-criteria-type')?.value;
+    if (t === 'ratio') return (parseFloat(document.getElementById('opt-wf-min-ratio')?.value||50))/100;
+    return 0.0;
+  })();
+  const wfPassMajority = (document.getElementById('opt-wf-majority')?.value || 'majority') !== 'all';
+  const commPct = STUDIO.commission_mode==='flat' ? (STUDIO.commission_flat||0)/100 : (STUDIO.commission_pct ?? 0.1);
+  const slipPct = STUDIO.slippage_pct ?? 0.05;
+  const script = _studioGenerateScript('sweep');
+  console.log('[OPT] Script:\n', script);
+  console.log('[OPT] Combos:', combos.length, 'WF:', enableWF, 'MC:', enableMC, 'Comm:', commPct, 'Slip:', slipPct);
+  console.log('[OPT DEBUG] combos[0]:', JSON.stringify(combos[0]));
+  console.log('[OPT DEBUG] script first 500 chars:', script.slice(0, 500));
+  console.log('[OPT DEBUG] symbol:', STUDIO.symbol, 'timeframe:', STUDIO.timeframe);
   try {
-    const script = _studioGenerateScript('sweep');
-    console.log('[OPT] Script:\n', script);
-    console.log('[OPT] Total combos:', combos.length);
-    console.log('[OPT] First combo:', combos[0]);
-    const r = await fetch(API + '/api/backtest/sweep-script', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        symbol: STUDIO.symbol, timeframe: STUDIO.timeframe,
-        script: script, combos: combos,
-        initial_capital: STUDIO.risk.capital || 10000,
-        limit: _studioLimit || 1260,
-        stop_loss_pct: STUDIO.risk.stop_loss_pct || 0,
-        take_profit_pct: STUDIO.risk.take_profit_pct || 0,
-        email: EMAIL || '',
-      })
+    const response = await fetch(API + '/api/backtest/optimize-stream', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({symbol: STUDIO.symbol, timeframe: STUDIO.timeframe,
+        script: script, combos: combos, initial_capital: STUDIO.risk.capital || 10000,
+        limit: _studioLimit || 1260, email: EMAIL || '',
+        enable_walk_forward: enableWF, enable_monte_carlo: enableMC,
+        wf_window: wfWindow, wf_step: wfStep,
+        wf_min_oos_ratio: wfMinOosRatio, wf_pass_majority: wfPassMajority,
+        commission_pct: commPct, slippage_pct: slipPct})
     });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
-    _renderOptResults(d.results || []);
-    showToast('Optimization complete: ' + (d.results||[]).length + ' results', 'success');
-  } catch (e) { showToast('Optimization error: ' + e.message, 'error'); }
+    if (!response.ok) throw new Error('Optimization failed: ' + response.status);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { _optHandleEvent(JSON.parse(line.slice(6)), enableWF, enableMC); } catch(e) {}
+      }
+    }
+  } catch(e) { showToast('Optimization error: ' + e.message, 'error'); _optHideProgress(); }
   if (btn) { btn.disabled = false; btn.textContent = 'Run Optimization'; }
-  if (prog) prog.style.display = 'none';
 }
 
-function _renderOptResults(results) {
+function _optHandleEvent(event, enableWF, enableMC) {
+  console.log('[OPT EVENT]', event.type,
+    event.type === 'result' ? ('metrics:' + JSON.stringify(event.metrics)) :
+    event.type === 'combo_error' ? ('error:' + event.error) :
+    event.type === 'complete' ? ('total:' + event.total_results) :
+    event.message || '');
+  switch(event.type) {
+    case 'start': _optUpdateProgress(0, event.total, event.message, 0, 0); break;
+    case 'progress': _optUpdateProgress(event.done, event.total, event.message, event.elapsed, event.eta); break;
+    case 'result': _optAllResults.push(event); _optRenderResultsLive(enableWF, enableMC); break;
+    case 'complete':
+      _optHideProgress();
+      _optHasResults = _optAllResults.length > 0;
+      console.log('[OPT] Complete. _optAllResults length:', _optAllResults.length);
+      if (_optAllResults[0]) console.log('[OPT] First result sample:', JSON.stringify(_optAllResults[0]).slice(0, 200));
+      _optRenderResultsLive(enableWF, enableMC);
+      showToast(event.message, 'success');
+      break;
+    case 'error': _optHideProgress(); showToast('Error: ' + event.message, 'error'); break;
+    case 'combo_error': console.warn('[OPT] Combo error:', event.error, 'params:', event.params); break;
+  }
+}
+
+function _optShowProgress(total) {
+  const el = document.getElementById('opt-progress');
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = '<div style="margin-bottom:6px;font-size:12px;font-weight:500" id="opt-prog-msg">Preparing...</div>'
+    + '<div style="background:#E5E7EB;border-radius:4px;height:8px;overflow:hidden;margin-bottom:6px"><div id="opt-prog-bar" style="height:100%;width:0%;background:var(--blue-primary);border-radius:4px;transition:width .3s"></div></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span id="opt-prog-counts">0 / '+total+'</span><span id="opt-prog-eta">Calculating...</span></div>';
+}
+
+function _optUpdateProgress(done, total, message, elapsed, eta) {
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  const bar = document.getElementById('opt-prog-bar');
+  const msg = document.getElementById('opt-prog-msg');
+  const counts = document.getElementById('opt-prog-counts');
+  const etaEl = document.getElementById('opt-prog-eta');
+  if (bar) bar.style.width = pct + '%';
+  if (msg) msg.textContent = message || '';
+  if (counts) counts.textContent = done + ' / ' + total;
+  if (etaEl) etaEl.textContent = eta > 0 ? 'ETA: ~' + Math.round(eta) + 's' : elapsed + 's';
+}
+
+function _optHideProgress() {
+  const el = document.getElementById('opt-progress');
+  if (el) el.style.display = 'none';
+}
+
+function _optRenderResultsLive(enableWF, enableMC) {
   const el = document.getElementById('opt-results');
   if (!el) return;
   const metric = document.getElementById('opt-metric')?.value || 'sharpe_ratio';
-  const sorted = results.filter(r => r.metrics).sort((a, b) =>
-    (b.metrics[metric] || -999) - (a.metrics[metric] || -999));
-  if (!sorted.length) {
-    // Show error from first result if available
-    const firstErr = results[0]?.error || 'All combinations failed to run.';
-    el.innerHTML = '<div style="color:var(--text-muted)">No valid results. Error: ' + esc(String(firstErr).slice(0,200)) + '</div>';
-    return;
+  // Apply filters first
+  const minTrades = parseFloat(_optFilters.minTrades);
+  const minSharpe = parseFloat(_optFilters.minSharpe);
+  const maxDD = parseFloat(_optFilters.maxDD);
+  const totalRaw = _optAllResults.filter(r => r.metrics).length;
+  let filtered = _optAllResults.filter(r => {
+    if (!r.metrics) return false;
+    const m = r.metrics;
+    if (!isNaN(minTrades) && (m.total_trades||0) < minTrades) return false;
+    if (!isNaN(minSharpe) && (m.sharpe_ratio||-999) < minSharpe) return false;
+    if (!isNaN(maxDD) && Math.abs(m.max_drawdown_pct||0) > maxDD) return false;
+    if (_optFilters.wfPass && !(r.walk_forward?.pass === true)) return false;
+    if (_optFilters.mcPass && !(r.monte_carlo?.pass === true)) return false;
+    return true;
+  });
+  // Sort: user-chosen column overrides default
+  const sorted = [...filtered].sort((a, b) => {
+    if (_optSortKey) {
+      let av, bv;
+      if (_optSortKey === 'wf') { av = a.walk_forward?.pass?1:0; bv = b.walk_forward?.pass?1:0; }
+      else if (_optSortKey === 'mc') { av = a.monte_carlo?.pass?1:0; bv = b.monte_carlo?.pass?1:0; }
+      else { av = a.metrics?.[_optSortKey] ?? -Infinity; bv = b.metrics?.[_optSortKey] ?? -Infinity; }
+      return _optSortDir === 'asc' ? av - bv : bv - av;
+    }
+    if (enableWF) { const aw = a.walk_forward?.pass?1:0, bw = b.walk_forward?.pass?1:0; if (aw!==bw) return bw-aw; }
+    return (b.metrics[metric]||-999)-(a.metrics[metric]||-999);
+  });
+  console.log('[OPT] Render: allResults=' + _optAllResults.length + ' filtered=' + sorted.length);
+  const mf = v => v!=null ? (typeof v==='number'?v.toFixed(2):v) : '--';
+  function wfB(wf) { if(!wf||wf.pass===null) return '--'; return wf.pass?'<span style="color:var(--green)">Pass</span>':'<span style="color:var(--red)">Fail</span>'; }
+  function mcB(mc) { if(!mc||mc.pass===null) return '--'; return mc.pass?'<span style="color:var(--green)">Pass</span>':'<span style="color:var(--red)">Fail</span>'; }
+  const commPct = STUDIO.commission_mode==='flat' ? (STUDIO.commission_flat||0)/100 : (STUDIO.commission_pct ?? 0.1);
+  const slipPct = STUDIO.slippage_pct ?? 0.05;
+  const filterCount = (_optFilters.minTrades?1:0)+(_optFilters.minSharpe?1:0)+(_optFilters.maxDD?1:0)+(_optFilters.wfPass?1:0)+(_optFilters.mcPass?1:0);
+  // Header: result count + filter toggle
+  let h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    + '<div style="font-size:11px;color:var(--text-muted)">' + sorted.length + ' of ' + totalRaw + ' results' + (filterCount?' (' + filterCount + ' filter' + (filterCount>1?'s':'') + ' active)':'') + '</div>'
+    + '<button onclick="_optToggleFilters()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:' + (_optFiltersOpen?'#EFF6FF':'var(--surface)') + ';cursor:pointer;font-family:inherit">&#x1F50D; Filters' + (filterCount?' ('+filterCount+')':'') + '</button>'
+    + '</div>';
+  // Filter panel
+  if (_optFiltersOpen) {
+    h += '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">'
+      + '<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Min Trades</div><input type="number" id="opt-f-mintrades" value="'+esc(_optFilters.minTrades)+'" placeholder="e.g. 20" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>'
+      + '<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Min Sharpe</div><input type="number" id="opt-f-minsharpe" step="0.1" value="'+esc(_optFilters.minSharpe)+'" placeholder="e.g. 1.0" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>'
+      + '<div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Max DD %</div><input type="number" id="opt-f-maxdd" step="1" value="'+esc(_optFilters.maxDD)+'" placeholder="e.g. 20" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>'
+      + '<div style="display:flex;flex-direction:column;justify-content:flex-end;gap:4px"><label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="opt-f-wf"'+(_optFilters.wfPass?' checked':'')+'> WF Pass only</label><label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="opt-f-mc"'+(_optFilters.mcPass?' checked':'')+'> MC Pass only</label></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px">'
+      + '<button onclick="_optApplyFilters()" style="font-size:11px;padding:5px 12px;background:var(--blue-primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">Apply</button>'
+      + '<button onclick="_optClearFilters()" style="font-size:11px;padding:5px 12px;background:var(--surface);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:inherit">Clear</button>'
+      + '</div>'
+      + '</div>';
   }
-  const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(2) : v) : '--';
-  const paramKeys = Object.keys(sorted[0].params || {});
-  el.innerHTML = '<div style="max-height:400px;overflow-y:auto"><table style="font-size:11px;width:100%"><thead><tr><th>#</th>'
-    + '<th>Parameters</th>'
-    + '<th>CAGR</th><th>Sharpe</th><th>WR%</th><th>DD%</th><th>Trades</th><th></th></tr></thead><tbody>'
-    + sorted.slice(0, 50).map((r, i) => {
-      const m = r.metrics || {};
-      const bg = i === 0 ? 'background:#F0FDF4' : '';
-      const pStr = paramKeys.map(k => {
-        const short = k.replace('risk_','').replace('_pct','%').replace('_period','').replace('stop_loss','SL').replace('take_profit','TP');
-        return short + ':' + (r.params[k] ?? '--');
-      }).join(' ');
-      return '<tr style="' + bg + '"><td>' + (i+1) + '</td>'
-        + '<td style="font-size:10px;max-width:180px;word-break:break-all">' + esc(pStr) + '</td>'
-        + '<td>' + mf(m.cagr_pct) + '%</td><td>' + mf(m.sharpe_ratio) + '</td>'
-        + '<td>' + mf(m.win_rate_pct) + '</td><td>' + mf(m.max_drawdown_pct) + '</td>'
-        + '<td>' + (m.total_trades||0) + '</td>'
-        + '<td><button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:10px" onclick="_optLoadResult(' + i + ')">Load</button></td></tr>';
-    }).join('') + '</tbody></table></div>';
+  h += '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">&#10003; Fees applied: Commission ' + commPct + '% + Slippage ' + slipPct + '% per trade</div>';
+  if (!sorted.length) {
+    h += '<div style="color:var(--text-muted);padding:20px;text-align:center;font-size:12px">' + (totalRaw ? 'No results match current filters. <a href="#" onclick="event.preventDefault();_optClearFilters()" style="color:var(--blue-primary)">Clear filters</a>' : 'Running...') + '</div>';
+    el.innerHTML = h; return;
+  }
+  // Build key->friendly label map from _optParams
+  const keyLabel = {};
+  (_optParams || []).forEach(p => { keyLabel[p.key] = _optGetParamLabel(p); });
+  // Sortable header helper
+  const arrow = (k) => _optSortKey === k ? (_optSortDir === 'asc' ? ' &#9650;' : ' &#9660;') : ' <span style="color:var(--text-muted);opacity:.4">&#8597;</span>';
+  const thSort = (label, key, align) => '<th style="padding:4px;text-align:'+align+';cursor:pointer;user-select:none" onclick="_optSortBy(\''+key+'\')" title="Click to sort">' + label + arrow(key) + '</th>';
+  h += '<div style="max-height:400px;overflow-y:auto"><table style="font-size:11px;width:100%;border-collapse:collapse"><thead><tr style="border-bottom:2px solid var(--border);background:var(--surface)">'
+    + '<th style="padding:4px;text-align:left">#</th>'
+    + '<th style="padding:4px;text-align:left">Params</th>'
+    + thSort('CAGR', 'cagr_pct', 'right')
+    + thSort('Sharpe', 'sharpe_ratio', 'right')
+    + thSort('WR%', 'win_rate_pct', 'right')
+    + thSort('DD%', 'max_drawdown_pct', 'right')
+    + thSort('Trades', 'total_trades', 'right');
+  if (enableWF) h += thSort('WF', 'wf', 'center');
+  if (enableMC) h += thSort('MC', 'mc', 'center');
+  h += '<th style="padding:4px"></th></tr></thead><tbody>';
+  sorted.slice(0,50).forEach((r,i) => {
+    const m = r.metrics||{};
+    const bg = i===0?'background:#F0FDF4':(i%2===0?'background:var(--surface-2)':'');
+    const ps = Object.entries(r.params||{}).slice(0,4).map(([k,v]) => (keyLabel[k] || k) + ': ' + v).join(' \u00B7 ');
+    h += '<tr style="'+bg+';border-bottom:1px solid var(--border)">';
+    h += '<td style="padding:4px;font-weight:600">'+(i+1)+'</td>';
+    h += '<td style="padding:4px;font-size:10px;max-width:260px;word-break:break-word">'+esc(ps)+'</td>';
+    h += '<td style="padding:4px;text-align:right;color:'+((m.cagr_pct||0)>=0?'var(--green)':'var(--red)')+'">'+mf(m.cagr_pct)+'%</td>';
+    h += '<td style="padding:4px;text-align:right">'+mf(m.sharpe_ratio)+'</td>';
+    h += '<td style="padding:4px;text-align:right">'+mf(m.win_rate_pct)+'</td>';
+    h += '<td style="padding:4px;text-align:right;color:var(--red)">'+mf(m.max_drawdown_pct)+'</td>';
+    h += '<td style="padding:4px;text-align:right">'+(m.total_trades||0)+'</td>';
+    if (enableWF) h += '<td style="padding:4px;text-align:center">'+wfB(r.walk_forward)+'</td>';
+    if (enableMC) h += '<td style="padding:4px;text-align:center">'+mcB(r.monte_carlo)+'</td>';
+    h += '<td style="padding:4px"><button onclick="_optShowDetail('+i+')" style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);font-family:inherit">Detail</button> <button onclick="_optLoadResult('+i+')" style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);font-family:inherit">Load</button></td>';
+    h += '</tr>';
+    h += '<tr id="opt-detail-row-'+i+'" style="display:none"><td colspan="20" style="padding:0 8px 8px">'+_optBuildDetail(r)+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
   el._sortedResults = sorted;
+}
+
+function _optBuildDetail(r) {
+  const wf = r.walk_forward, mc = r.monte_carlo;
+  let h = '<div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-top:4px">';
+  if (wf) {
+    h += '<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:600;margin-bottom:6px;color:'+(wf.pass?'var(--green)':'#F59E0B')+'">Walk-Forward '+(wf.pass?'Pass':'Fail')+' (avg ratio: '+(wf.avg_ratio||0).toFixed(2)+')</div>';
+    if (wf.windows?.length) {
+      h += '<table style="font-size:11px;width:100%"><thead><tr><th>Window</th><th title="In-Sample: bars used to measure baseline">IS Bars</th><th title="Out-of-Sample: unseen bars tested">OOS Bars</th><th title="Sharpe on training window">IS Sharpe</th><th title="Sharpe on unseen data -- this is what matters">OOS Sharpe &#11088;</th><th title="OOS/IS ratio. 1.0 = no degradation. >0.5 = acceptable.">Ratio</th><th>Pass</th></tr></thead><tbody>';
+      wf.windows.forEach(w => {
+        if (w.error) { h += '<tr><td>'+w.window+'</td><td colspan="6" style="color:var(--red)">'+esc(w.error)+'</td></tr>'; }
+        else { h += '<tr><td>'+w.window+'</td><td>'+w.is_bars+'</td><td>'+w.oos_bars+'</td><td>'+w.is_sharpe+'</td><td style="color:'+(w.pass?'var(--green)':'var(--red)')+'">'+w.oos_sharpe+'</td><td>'+w.ratio+'</td><td>'+(w.pass?'Pass':'Fail')+'</td></tr>'; }
+      });
+      h += '</tbody></table><div style="font-size:11px;color:var(--text-muted)">'+wf.pass_count+'/'+wf.total_windows+' windows passed</div>';
+    }
+    h += '</div>';
+  }
+  if (mc) {
+    h += '<div><div style="font-size:12px;font-weight:600;margin-bottom:6px;color:'+(mc.pass?'var(--green)':'var(--red)')+'">Monte Carlo ('+mc.n_simulations+' sims) '+(mc.pass?'Pass':'Fail')+'</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+    h += '<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:10px;color:var(--text-muted)">P10 Ret</div><div style="font-size:13px;font-weight:600;color:'+((mc.p10_return||0)>=0?'var(--green)':'var(--red)')+'">'+(mc.p10_return||0).toFixed(1)+'%</div></div>';
+    h += '<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:10px;color:var(--text-muted)">P50 Ret</div><div style="font-size:13px;font-weight:600">'+(mc.p50_return||0).toFixed(1)+'%</div></div>';
+    h += '<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:10px;color:var(--text-muted)">P90 Ret</div><div style="font-size:13px;font-weight:600;color:var(--green)">'+(mc.p90_return||0).toFixed(1)+'%</div></div>';
+    h += '<div style="background:var(--surface);border-radius:6px;padding:6px;text-align:center"><div style="font-size:10px;color:var(--text-muted)">P10 DD</div><div style="font-size:13px;font-weight:600;color:var(--red)">'+(mc.p10_max_dd||0).toFixed(1)+'%</div></div>';
+    h += '</div></div>';
+  }
+  h += _optPlainEnglish(wf, mc, r.metrics);
+  h += '</div>';
+  return h;
+}
+
+function _optPlainEnglish(wf, mc, metrics) {
+  const lines = [];
+  const wfPass = wf?.pass === true;
+  const mcPass = mc?.pass === true;
+  // Overall verdict
+  if (wfPass && mcPass) {
+    lines.push("&#9989; <strong>Strong result.</strong> This strategy performed well on out-of-sample (unseen) data (walk-forward) and its returns are not dependent on a lucky sequence of trades (Monte Carlo). Worth considering for deployment.");
+  } else if (wfPass && !mcPass) {
+    lines.push("&#9888; <strong>Inconsistent returns.</strong> The strategy generalises across time periods, but Monte Carlo shows the returns depend somewhat on trade order. Consider running longer to accumulate more trades.");
+  } else if (!wfPass && mcPass) {
+    lines.push("&#9888; <strong>Possible curve-fitting.</strong> The strategy made money historically but underperformed on unseen data in at least one time period. The parameters may be too finely tuned to past market conditions.");
+  } else {
+    lines.push("&#10060; <strong>Not recommended.</strong> This strategy failed both walk-forward and Monte Carlo tests. The historical results are likely a product of curve-fitting and lucky trade sequencing rather than genuine edge.");
+  }
+  // Walk-forward detail
+  if (wf && wf.windows) {
+    const passing = wf.windows.filter(w => w.pass).length;
+    const total = wf.windows.filter(w => !w.error).length;
+    const avgRatio = wf.avg_ratio || 0;
+    if (avgRatio > 1.0) {
+      lines.push('&#128202; <strong>Walk-Forward:</strong> The strategy actually performed <em>better</em> on out-of-sample (unseen) data than in-sample data in most windows (avg ratio: '+avgRatio.toFixed(2)+'x). This is a very strong robustness signal.');
+    } else if (avgRatio >= 0.5) {
+      lines.push('&#128202; <strong>Walk-Forward:</strong> Performance degraded by '+Math.round((1-avgRatio)*100)+'% on average when tested on unseen data -- within the acceptable range. '+passing+'/'+total+' time windows passed.');
+    } else {
+      lines.push('&#128202; <strong>Walk-Forward:</strong> Performance dropped significantly ('+Math.round((1-avgRatio)*100)+'% degradation) on unseen data. Only '+passing+'/'+total+' windows passed. The strategy may only work in specific market conditions.');
+    }
+  }
+  // Monte Carlo detail
+  if (mc && mc.p10_return !== undefined) {
+    const p10 = mc.p10_return;
+    const p10dd = mc.p10_max_dd;
+    if (p10 > 0) {
+      lines.push('&#127922; <strong>Monte Carlo:</strong> In the worst 10% of 500 simulated scenarios, this strategy still returned +'+p10.toFixed(1)+'%. The returns are robust to trade order.');
+    } else {
+      lines.push('&#127922; <strong>Monte Carlo:</strong> In the worst 10% of scenarios, this strategy lost '+Math.abs(p10).toFixed(1)+'%. Returns depend significantly on which trades came first.');
+    }
+    if (Math.abs(p10dd) > 30) {
+      lines.push('&#9888; <strong>Drawdown warning:</strong> Worst-case drawdown could reach '+Math.abs(p10dd).toFixed(0)+'%. Make sure your stop loss is set appropriately.');
+    }
+  }
+  // Fees note
+  if (metrics?.commission_pct !== undefined) {
+    lines.push('&#128176; <strong>Fees included:</strong> Results shown after deducting '+metrics.commission_pct+'% commission and '+metrics.slippage_pct+'% slippage per trade.');
+  }
+  return '<div style="margin-top:10px;padding:10px 12px;background:#F8F9FA;border-radius:8px;border-left:3px solid var(--blue-primary)">'
+    + '<div style="font-size:11px;font-weight:600;margin-bottom:6px;color:var(--blue-primary)">&#128214; Plain English Interpretation</div>'
+    + '<div style="font-size:11px;line-height:1.7;color:var(--text-primary)">'
+    + lines.map(l => '<p style="margin:0 0 6px">'+l+'</p>').join('')
+    + '</div></div>';
+}
+
+function _optShowDetail(idx) {
+  const row = document.getElementById('opt-detail-row-'+idx);
+  if (!row) return;
+  const vis = row.style.display !== 'none';
+  document.querySelectorAll('[id^="opt-detail-row-"]').forEach(r => r.style.display = 'none');
+  if (!vis) row.style.display = '';
 }
 
 function _optLoadResult(idx) {
@@ -3836,26 +4638,20 @@ function _optLoadResult(idx) {
   const sorted = el?._sortedResults;
   if (!sorted || !sorted[idx]) return;
   const params = sorted[idx].params || {};
-  // Apply params back to STUDIO
-  // Keys are: "ema_0_period", "rsi_0_period", "stop_loss_pct", "take_profit_pct", "trail_pct"
   for (const [key, val] of Object.entries(params)) {
     if (key === 'stop_loss_pct') { STUDIO.risk.stop_loss_pct = val; continue; }
     if (key === 'take_profit_pct') { STUDIO.risk.take_profit_pct = val; continue; }
     if (key === 'trail_pct') { STUDIO.risk.trailing_stop_pct = val; continue; }
-    // Parse "ind_idx_param" format: e.g. "ema_0_period" -> ind=ema, idx=0, param=period
     const match = key.match(/^(.+?)_(\d+)_(.+)$/);
     if (!match) continue;
     const [, indId, idxStr, paramName] = match;
     const targetIdx = parseInt(idxStr);
-    // Walk conditions and find the Nth occurrence of this indicator
     let occurrence = 0;
     for (const sec of ['entry_long','exit_long','entry_short','exit_short']) {
       for (const c of (STUDIO[sec]?.conditions || [])) {
         for (const side of [c.left, c.right]) {
           if (side && side.id === indId && side.p && Object.keys(side.p).length) {
-            if (occurrence === targetIdx && paramName in side.p) {
-              side.p[paramName] = val;
-            }
+            if (occurrence === targetIdx && paramName in side.p) side.p[paramName] = val;
             occurrence++;
           }
         }
@@ -4061,6 +4857,8 @@ function openRegisterIndicatorModal() {
   document.getElementById('ri-input-lows').checked = false;
   document.getElementById('ri-input-volumes').checked = false;
   document.getElementById('ri-input-opens').checked = false;
+  const titleEl = document.querySelector('#register-ind-modal .modal-title');
+  if (titleEl) titleEl.textContent = 'Register Custom Indicator';
   document.getElementById('ri-feedback').innerHTML = '';
   openModal('register-ind-modal');
 }

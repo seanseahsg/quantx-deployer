@@ -850,6 +850,118 @@ def _monte_carlo_test(trades, capital, n_simulations=500, acceptable_dd=-0.30):
     }
 
 
+def _walk_forward_rolling(bars, script, params_override, initial_capital,
+                          window_bars=252, step_bars=126, min_oos=63,
+                          commission_pct=0.0, slippage_pct=0.0,
+                          wf_min_oos_ratio=0.0):
+    """Rolling walk-forward: slide a window across all data."""
+    results = []
+    n = len(bars)
+    start = 0
+    while True:
+        train_end = start + window_bars
+        test_end = train_end + min_oos
+        if test_end > n:
+            break
+        oos_end = min(start + window_bars + step_bars, n)
+        bars_is = bars[start:train_end]
+        bars_oos = bars[train_end:oos_end]
+        if len(bars_is) < 50 or len(bars_oos) < min_oos:
+            start += step_bars
+            continue
+        try:
+            r_is = run_backtest_script(bars_is, script, initial_capital,
+                                       params_override=params_override,
+                                       commission_pct=commission_pct,
+                                       slippage_pct=slippage_pct)
+            r_oos = run_backtest_script(bars_oos, script, initial_capital,
+                                        params_override=params_override,
+                                        commission_pct=commission_pct,
+                                        slippage_pct=slippage_pct)
+            is_sharpe = r_is["metrics"].get("sharpe_ratio", 0) or 0
+            oos_sharpe = r_oos["metrics"].get("sharpe_ratio", 0) or 0
+            ratio = oos_sharpe / max(abs(is_sharpe), 0.01)
+            results.append({
+                "window": len(results) + 1,
+                "is_bars": len(bars_is), "oos_bars": len(bars_oos),
+                "is_sharpe": round(is_sharpe, 3), "oos_sharpe": round(oos_sharpe, 3),
+                "ratio": round(ratio, 3),
+                "pass": oos_sharpe > 0 and ratio >= wf_min_oos_ratio
+            })
+        except Exception as e:
+            results.append({"window": len(results) + 1, "error": str(e)})
+        start += step_bars
+    if not results:
+        return {"pass": None, "reason": "insufficient data for rolling WF", "windows": []}
+    valid = [r for r in results if "error" not in r]
+    if not valid:
+        return {"pass": False, "windows": results, "avg_ratio": 0,
+                "pass_count": 0, "total_windows": 0}
+    avg_ratio = sum(r["ratio"] for r in valid) / len(valid)
+    pass_count = sum(1 for r in valid if r["pass"])
+    return {
+        "pass": pass_count >= len(valid) * 0.5,
+        "avg_ratio": round(avg_ratio, 3),
+        "windows": results,
+        "pass_count": pass_count,
+        "total_windows": len(valid),
+    }
+
+
+def run_optimization_stream(bars, script, combos, initial_capital,
+                            enable_walk_forward=True, enable_monte_carlo=True,
+                            wf_window=252, wf_step=126,
+                            wf_min_oos_ratio=0.0, wf_pass_majority=True,
+                            commission_pct=0.0, slippage_pct=0.0):
+    """Generator yielding progress dicts for SSE streaming."""
+    import time as _time
+    total = len(combos)
+    t0 = _time.time()
+    yield {"type": "start", "total": total,
+           "message": f"Starting optimization of {total} combinations..."}
+    for idx, combo in enumerate(combos):
+        elapsed = _time.time() - t0
+        eta = (elapsed / max(idx, 1)) * (total - idx) if idx > 0 else 0
+        param_str = ", ".join(f"{k}={v}" for k, v in list(combo.items())[:3])
+        yield {"type": "progress", "done": idx, "total": total,
+               "pct": int(idx / total * 100),
+               "message": f"Testing combo {idx+1}/{total}: {param_str}",
+               "elapsed": round(elapsed, 1), "eta": round(eta, 1)}
+        try:
+            r = run_backtest_script(bars, script, initial_capital,
+                                    params_override=combo,
+                                    commission_pct=commission_pct,
+                                    slippage_pct=slippage_pct)
+            entry = {"params": combo, "metrics": r["metrics"],
+                     "walk_forward": None, "monte_carlo": None}
+            if enable_walk_forward and len(bars) >= wf_window + 63:
+                entry["walk_forward"] = _walk_forward_rolling(
+                    bars, script, combo, initial_capital,
+                    window_bars=wf_window, step_bars=wf_step,
+                    commission_pct=commission_pct, slippage_pct=slippage_pct,
+                    wf_min_oos_ratio=wf_min_oos_ratio)
+                # Apply overall pass rule
+                wf = entry["walk_forward"]
+                if wf and wf.get("windows"):
+                    valid = [w for w in wf["windows"] if "error" not in w]
+                    passing = sum(1 for w in valid if w.get("pass"))
+                    if wf_pass_majority:
+                        wf["pass"] = passing >= len(valid) * 0.5 if valid else False
+                    else:
+                        wf["pass"] = passing == len(valid) if valid else False
+            if enable_monte_carlo:
+                entry["monte_carlo"] = _monte_carlo_test(
+                    r.get("trades", []), initial_capital)
+            yield {"type": "result", "index": idx, **entry}
+        except Exception as e:
+            yield {"type": "combo_error", "index": idx,
+                   "params": combo, "error": str(e)}
+    elapsed = _time.time() - t0
+    yield {"type": "complete", "total_results": total,
+           "elapsed": round(elapsed, 1),
+           "message": f"Done! {total} combinations tested in {elapsed:.1f}s"}
+
+
 def run_optimization(bars, strategy, param_grid, initial_capital=10000):
     import itertools
     keys = list(param_grid.keys())
@@ -1207,6 +1319,7 @@ def _load_custom_indicators_for_sandbox(email, conn):
 
 
 def run_backtest_script(bars, script, initial_capital=10000, params_override=None,
+                        commission_pct=0.0, slippage_pct=0.0,
                         email=None, db_conn=None):
     """Run a custom user script against bar data in a sandboxed exec()."""
     if not script or not script.strip():
@@ -1369,8 +1482,24 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
         else: bt_signals.append(None)
 
     # Run through backtest engine — portfolio-based tracking (no negative equity)
+    comm = float(commission_pct) / 100.0
+    slip = float(slippage_pct) / 100.0
+    # Read SL/TP/trailing stop from script globals and params_override
+    sl_pct = float(script_globals.get('stop_loss_pct', 0) or 0) / 100.0
+    tp_pct = float(script_globals.get('take_profit_pct', 0) or 0) / 100.0
+    trail_pct = float(script_globals.get('trail_pct', 0) or 0) / 100.0
+    if params_override:
+        if 'stop_loss_pct' in params_override:
+            sl_pct = float(params_override['stop_loss_pct']) / 100.0
+        if 'take_profit_pct' in params_override:
+            tp_pct = float(params_override['take_profit_pct']) / 100.0
+        if 'trail_pct' in params_override:
+            trail_pct = float(params_override['trail_pct']) / 100.0
+    total_commission = 0.0
+    total_slippage = 0.0
     portfolio = float(initial_capital)
     pos_dir, pos_shares, entry_cost = 0, 0.0, 0.0
+    _trail_peak = 0.0  # highest price seen while in long position
     trades, equity = [], []
     for i, (bar, sig) in enumerate(zip(bars, bt_signals)):
         price = bar["close"]
@@ -1383,52 +1512,109 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
         elif pos_dir == -1:
             portfolio = entry_cost + pos_shares * (entry_cost / max(pos_shares, 1) - price)
         portfolio = max(portfolio, 0)
+        # SL/TP/Trailing-stop check on long positions BEFORE signal processing
+        if pos_dir == 1 and pos_shares > 0 and entry_cost > 0:
+            entry_px = entry_cost / pos_shares
+            pnl_pct = (price - entry_px) / entry_px
+            # Update trailing peak
+            if trail_pct > 0:
+                if price > _trail_peak:
+                    _trail_peak = price
+            forced_exit = False
+            exit_reason = ""
+            if sl_pct > 0 and pnl_pct <= -sl_pct:
+                forced_exit = True; exit_reason = "SL"
+            elif tp_pct > 0 and pnl_pct >= tp_pct:
+                forced_exit = True; exit_reason = "TP"
+            elif trail_pct > 0 and _trail_peak > 0 and price <= _trail_peak * (1 - trail_pct):
+                forced_exit = True; exit_reason = "TRAIL"
+            if forced_exit:
+                exec_price = price * (1 - slip)
+                proceeds = pos_shares * exec_price
+                comm_cost_total = exec_price * comm * pos_shares
+                pnl = proceeds - entry_cost - comm_cost_total
+                total_commission += comm_cost_total
+                total_slippage += price * slip * pos_shares
+                portfolio = proceeds - comm_cost_total
+                trades.append({"date": bar["date"], "side": "sell (" + exit_reason + ")",
+                               "price": round(exec_price, 4),
+                               "shares": int(pos_shares),
+                               "pnl": round(pnl, 2)})
+                pos_dir, pos_shares, entry_cost = 0, 0, 0.0
+                _trail_peak = 0.0
+                equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
+                continue
         # Long entry
         if sig == "buy" and pos_dir == 0 and portfolio > 0:
-            shares = int(portfolio / price)
+            exec_price = price * (1 + slip)
+            shares = int(portfolio / exec_price)
             if shares > 0:
-                entry_cost = shares * price
+                comm_cost = exec_price * comm
+                total_slippage += price * slip * shares
+                total_commission += comm_cost * shares
+                entry_cost = shares * exec_price
                 pos_dir, pos_shares = 1, shares
-                portfolio = shares * price
-                trades.append({"date": bar["date"], "side": "buy", "price": round(price, 4), "shares": shares, "pnl": None})
+                _trail_peak = exec_price
+                portfolio = shares * exec_price
+                trades.append({"date": bar["date"], "side": "buy", "price": round(exec_price, 4), "shares": shares, "pnl": None})
         # Long exit
         elif sig == "sell" and pos_dir == 1:
-            proceeds = pos_shares * price
-            pnl = proceeds - entry_cost
-            portfolio = proceeds
-            trades.append({"date": bar["date"], "side": "sell", "price": round(price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            exec_price = price * (1 - slip)
+            proceeds = pos_shares * exec_price
+            comm_cost = exec_price * comm
+            total_commission += comm_cost * pos_shares
+            total_slippage += price * slip * pos_shares
+            pnl = proceeds - entry_cost - (comm_cost * pos_shares)
+            portfolio = proceeds - (comm_cost * pos_shares)
+            trades.append({"date": bar["date"], "side": "sell", "price": round(exec_price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
             pos_dir, pos_shares, entry_cost = 0, 0, 0.0
         # Short entry
         elif sig == "short" and pos_dir == 0 and portfolio > 0:
-            shares = int(portfolio / price)
+            exec_price = price * (1 - slip)
+            shares = int(portfolio / exec_price)
             if shares > 0:
+                comm_cost = exec_price * comm
+                total_slippage += price * slip * shares
+                total_commission += comm_cost * shares
                 entry_cost = portfolio
                 pos_dir, pos_shares = -1, shares
-                trades.append({"date": bar["date"], "side": "short", "price": round(price, 4), "shares": shares, "pnl": None})
+                trades.append({"date": bar["date"], "side": "short", "price": round(exec_price, 4), "shares": shares, "pnl": None})
         # Short cover
         elif sig == "cover" and pos_dir == -1:
+            exec_price = price * (1 + slip)
+            comm_cost = exec_price * comm
+            total_commission += comm_cost * pos_shares
+            total_slippage += price * slip * pos_shares
             short_entry_px = entry_cost / max(pos_shares, 1)
-            pnl = pos_shares * (short_entry_px - price)
+            pnl = pos_shares * (short_entry_px - exec_price) - (comm_cost * pos_shares)
             portfolio = entry_cost + pnl
             portfolio = max(portfolio, 0)
-            trades.append({"date": bar["date"], "side": "cover", "price": round(price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+            trades.append({"date": bar["date"], "side": "cover", "price": round(exec_price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
             pos_dir, pos_shares, entry_cost = 0, 0, 0.0
         equity.append({"date": bar["date"], "value": round(max(portfolio, 0), 2)})
 
     # Force close
     if pos_dir == 1 and pos_shares > 0:
         lp = bars[-1]["close"]
-        proceeds = pos_shares * lp
-        pnl = proceeds - entry_cost
-        portfolio = proceeds
-        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+        exec_price = lp * (1 - slip)
+        comm_cost = exec_price * comm
+        total_commission += comm_cost * pos_shares
+        total_slippage += lp * slip * pos_shares
+        proceeds = pos_shares * exec_price
+        pnl = proceeds - entry_cost - (comm_cost * pos_shares)
+        portfolio = proceeds - (comm_cost * pos_shares)
+        trades.append({"date": bars[-1]["date"], "side": "sell (close)", "price": round(exec_price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
     elif pos_dir == -1 and pos_shares > 0:
         lp = bars[-1]["close"]
+        exec_price = lp * (1 + slip)
+        comm_cost = exec_price * comm
+        total_commission += comm_cost * pos_shares
+        total_slippage += lp * slip * pos_shares
         short_entry_px = entry_cost / max(pos_shares, 1)
-        pnl = pos_shares * (short_entry_px - lp)
+        pnl = pos_shares * (short_entry_px - exec_price) - (comm_cost * pos_shares)
         portfolio = entry_cost + pnl
         portfolio = max(portfolio, 0)
-        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(lp, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
+        trades.append({"date": bars[-1]["date"], "side": "cover (close)", "price": round(exec_price, 4), "shares": int(pos_shares), "pnl": round(pnl, 2)})
 
     final = max(portfolio, 0)
     ret = (final - initial_capital) / initial_capital * 100
@@ -1456,6 +1642,8 @@ def run_backtest_script(bars, script, initial_capital=10000, params_override=Non
     return {
         "metrics": {"total_return_pct": round(ret, 2), "cagr_pct": round(cagr, 2), "sharpe_ratio": round(sharpe, 2),
                      "max_drawdown_pct": round(max_dd, 2), "win_rate_pct": round(wr, 1), "total_trades": len(sells),
-                     "final_value": round(final, 2), "initial_capital": initial_capital, "bars_tested": len(bars)},
+                     "final_value": round(final, 2), "initial_capital": initial_capital, "bars_tested": len(bars),
+                     "total_commission": round(total_commission, 2), "total_slippage": round(total_slippage, 2),
+                     "commission_pct": commission_pct, "slippage_pct": slippage_pct},
         "equity_curve": eq_s, "trades": trades[-50:],
     }
