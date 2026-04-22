@@ -262,6 +262,62 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 @keyframes toast-in { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:none} }
 @keyframes toast-out { to{opacity:0;transform:translateX(40px)} }
 
+/* ── Options Studio ───────────────────────────────────────── */
+.opts-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.opts-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-primary);user-select:none;background:var(--surface)}
+.opts-section-hdr:hover{background:var(--surface-2)}
+.opts-section-hdr .opts-chevron{font-size:11px;color:var(--text-muted);transition:transform .2s}
+.opts-section-hdr.collapsed .opts-chevron{transform:rotate(-90deg)}
+.opts-section-body{padding:16px;border-top:1px solid var(--border)}
+
+.opts-sym-pill{padding:6px 14px;border-radius:6px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all .15s;white-space:nowrap}
+.opts-sym-pill.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.opts-dte-pill,.opts-period-pill,.opts-freq-pill{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all .15s}
+.opts-dte-pill.active,.opts-period-pill.active,.opts-freq-pill.active{background:var(--blue-primary);color:#fff;border-color:var(--blue-primary)}
+
+.opts-leg-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;margin:2px}
+.opts-chip-sell{background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2}
+.opts-chip-buy{background:#E8F5E9;color:#2E7D32;border:1px solid #C8E6C9}
+.opts-chip-call{background:#E3F2FD;color:#1565C0}
+.opts-chip-put{background:#FFF3E0;color:#E65100}
+
+.opts-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.opts-metric-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.opts-metric-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:4px}
+.opts-metric-value{font-size:22px;font-weight:700;color:var(--text-primary)}
+.opts-metric-value.green{color:var(--green)}.opts-metric-value.red{color:var(--red)}
+
+.opts-progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:10px 0}
+.opts-progress-fill{height:100%;background:var(--blue-primary);transition:width .4s;border-radius:3px;width:0%}
+
+.opts-exit-badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.opts-exit-pt{background:#E8F5E9;color:#2E7D32}
+.opts-exit-sl{background:#FFEBEE;color:#C62828}
+.opts-exit-exp{background:#E3F2FD;color:#1565C0}
+.opts-exit-delta{background:#FFF3E0;color:#E65100}
+.opts-exit-eod{background:#F3F4F6;color:#6B7280}
+.opts-exit-dte{background:#F3E5F5;color:#6A1B9A}
+
+.opts-monthly-yr{font-weight:700;font-size:12px;color:var(--text-muted);background:var(--surface-2);padding:8px 14px;border-bottom:1px solid var(--border);letter-spacing:.5px}
+.opts-trade-row{cursor:pointer}
+.opts-trade-row:hover td{background:var(--blue-pale)}
+.opts-trade-detail{display:none;background:var(--surface-2)}
+.opts-trade-detail.open{display:table-row-group}
+.opts-cache-badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.opts-cache-warm{background:#E8F5E9;color:#2E7D32}
+.opts-cache-cold{background:#FFF3E0;color:#E65100}
+
+.opts-strike-row{display:grid;grid-template-columns:140px 100px 1fr;gap:8px;align-items:center;margin-bottom:10px}
+.opts-strike-label{font-size:12px;font-weight:600;color:var(--text-secondary)}
+
+/* ── Onboarding ────────────────────────────── */
+.onboard-sym-card{border:2px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;text-align:center;transition:all .15s;background:var(--surface)}
+.onboard-sym-card:hover{border-color:var(--blue-primary)}
+.onboard-sym-card.active{border-color:var(--blue-primary);background:var(--blue-pale)}
+.onboard-sym-ticker{font-size:14px;font-weight:700;color:var(--navy)}
+.onboard-sym-card.active .onboard-sym-ticker{color:var(--blue-primary)}
+.onboard-sym-desc{font-size:10px;color:var(--text-muted);margin-top:2px}
+
 /* ── Responsive ──────────────────────── */
 @media(max-width:1024px) { #sidebar{width:56px} #sidebar .nav-label,#sidebar .sidebar-logo-sub,#sidebar .sidebar-user-name{display:none} #main{margin-left:56px} }
 </style>
@@ -297,6 +353,9 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     </div>
     <div class="nav-item" data-page="backtester" onclick="navigate('backtester')" style="display:none">
       <span class="nav-icon">📊</span><span class="nav-label">Backtester</span>
+    </div>
+    <div class="nav-item" data-page="options-studio" onclick="navigate('options-studio')">
+      <span class="nav-icon">📐</span><span class="nav-label">Options Studio</span>
     </div>
     <div class="nav-item" data-page="studio" onclick="navigate('studio')">
       <span class="nav-icon">🪄</span><span class="nav-label">Studio</span>
@@ -811,7 +870,655 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
 </div>
 
+<!-- ═══════════════ OPTIONS STUDIO ═══════════════ -->
+<div class="page" id="page-options-studio">
+<div class="page-header" style="margin-bottom:16px">
+  <div>
+    <h1 class="page-title">Options Studio</h1>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#E8F5E9;color:#2E7D32;font-weight:600">Real options data</span>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--blue-pale);color:var(--blue-primary);font-weight:600">1-min resolution</span>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--surface-2);color:var(--text-muted);font-weight:600">2020-2026</span>
+      <span id="opts-cache-status" class="opts-cache-badge opts-cache-cold" style="display:none">&#128229; Cold cache</span>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+    <button class="btn btn-primary" id="opts-run-btn" onclick="optsRunBacktest()" style="padding:10px 24px;font-size:14px" disabled>&#9654; Run Backtest</button>
+    <div id="opts-runtime-hint" style="font-size:11px;color:var(--text-muted)"></div>
+  </div>
+</div>
+
+<!-- Setup View -->
+<div id="opts-setup-view">
+
+  <!-- SECTION A: POSITION (no collapse) -->
+  <div class="opts-section">
+    <div class="opts-section-hdr" style="cursor:default;pointer-events:none">
+      <span>&#128203; Position</span>
+    </div>
+    <div class="opts-section-body">
+
+      <div class="form-group">
+        <label>Underlying Symbol</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px" id="opts-sym-pills">
+          <span class="opts-sym-pill active" onclick="optsSelectSymbol('SPY',this)">SPY</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('SPXW',this)" title="SPX Weekly -- 0DTE capable">SPXW</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('AAPL',this)">AAPL</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('TSLA',this)">TSLA</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('META',this)">META</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('GLD',this)">GLD</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('SOXL',this)">SOXL</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('TQQQ',this)">TQQQ</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('TSM',this)">TSM</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('USO',this)">USO</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('NVDA',this)">NVDA</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('MSFT',this)">MSFT</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('IWM',this)">IWM</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('TLT',this)">TLT</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('MSTR',this)">MSTR</span>
+          <span class="opts-sym-pill" onclick="optsSelectSymbol('MU',this)">MU</span>
+        </div>
+        <div id="opts-data-range-note" style="font-size:11px;color:var(--text-muted);margin-top:6px"></div>
+      </div>
+
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group">
+          <label>Strategy Template</label>
+          <select id="opts-strategy-select" onchange="optsSelectStrategy(this.value)">
+            <option value="SHORT_PUT_SPREAD">Short Put Spread (Bull Put)</option>
+            <option value="SHORT_CALL_SPREAD">Short Call Spread (Bear Call)</option>
+            <option value="IRON_CONDOR">Iron Condor</option>
+            <option value="SHORT_STRANGLE">Short Strangle (Naked)</option>
+            <option value="LONG_CALL">Long Call</option>
+            <option value="LONG_PUT">Long Put</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Position Diagram</label>
+          <div id="opts-position-diagram" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;min-height:36px;padding:4px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2)"></div>
+        </div>
+      </div>
+
+      <div id="opts-strike-config">
+
+        <div id="opts-put-row" class="opts-strike-row">
+          <span class="opts-strike-label">Short Put</span>
+          <select id="opts-put-method" onchange="optsUpdateDiagram()">
+            <option value="DELTA">&#916; Delta</option>
+            <option value="PCT_OTM">% OTM</option>
+            <option value="POINTS_OTM">Points OTM</option>
+          </select>
+          <input type="number" id="opts-put-value" value="-0.30" step="0.01" placeholder="-0.30" oninput="optsUpdateDiagram()" style="width:100px">
+        </div>
+
+        <div id="opts-put-wing-row" class="opts-strike-row">
+          <span class="opts-strike-label">Put Wing Width</span>
+          <select id="opts-put-wing-method" onchange="optsUpdateDiagram()">
+            <option value="POINTS_OTM">$ Points</option>
+            <option value="PCT_OTM">% OTM</option>
+          </select>
+          <input type="number" id="opts-put-wing-value" value="5" step="0.5" placeholder="5" oninput="optsUpdateDiagram()" style="width:100px">
+        </div>
+
+        <div id="opts-call-row" class="opts-strike-row" style="display:none">
+          <span class="opts-strike-label">Short Call</span>
+          <select id="opts-call-method" onchange="optsUpdateDiagram()">
+            <option value="DELTA">&#916; Delta</option>
+            <option value="PCT_OTM">% OTM</option>
+            <option value="POINTS_OTM">Points OTM</option>
+          </select>
+          <input type="number" id="opts-call-value" value="0.30" step="0.01" placeholder="0.30" oninput="optsUpdateDiagram()" style="width:100px">
+        </div>
+
+        <div id="opts-call-wing-row" class="opts-strike-row" style="display:none">
+          <span class="opts-strike-label">Call Wing Width</span>
+          <select id="opts-call-wing-method" onchange="optsUpdateDiagram()">
+            <option value="POINTS_OTM">$ Points</option>
+            <option value="PCT_OTM">% OTM</option>
+          </select>
+          <input type="number" id="opts-call-wing-value" value="5" step="0.5" placeholder="5" oninput="optsUpdateDiagram()" style="width:100px">
+        </div>
+
+        <div id="opts-ic-symmetric" style="display:none;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-secondary)">
+            <input type="checkbox" id="opts-symmetric-cb" onchange="optsToggleSymmetric()" checked>
+            Symmetric condor (call side mirrors put side)
+          </label>
+        </div>
+
+        <div id="opts-single-row" class="opts-strike-row" style="display:none">
+          <span class="opts-strike-label" id="opts-single-label">Long Strike</span>
+          <select id="opts-single-method" onchange="optsUpdateDiagram()">
+            <option value="DELTA">&#916; Delta</option>
+            <option value="PCT_OTM">% OTM</option>
+            <option value="POINTS_OTM">Points OTM</option>
+          </select>
+          <input type="number" id="opts-single-value" value="0.50" step="0.01" placeholder="0.50" oninput="optsUpdateDiagram()" style="width:100px">
+        </div>
+
+      </div>
+
+      <div class="form-group" style="margin-top:8px">
+        <label>Target DTE (Days to Expiration)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="opts-dte-pills">
+          <span class="opts-dte-pill" onclick="optsSelectDTE(0,this)">0DTE</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE(1,this)">1</span>
+          <span class="opts-dte-pill active" onclick="optsSelectDTE(7,this)">7</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE(14,this)">14</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE(21,this)">21</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE(30,this)">30</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE(45,this)">45</span>
+          <span class="opts-dte-pill" onclick="optsSelectDTE('custom',this)">Custom</span>
+        </div>
+        <input type="number" id="opts-dte-custom" min="2" max="90" placeholder="Enter DTE" style="display:none;width:120px;margin-top:8px" oninput="OPTS.target_dte=parseInt(this.value)||7">
+        <div id="opts-dte-hint" class="form-hint" style="margin-top:6px;color:var(--blue-primary)"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Backtest Period</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="opts-period-pills">
+          <span class="opts-period-pill active" data-years="1" onclick="optsSelectPeriod(1,this)">1Y</span>
+          <span class="opts-period-pill" data-years="2" onclick="optsSelectPeriod(2,this)">2Y</span>
+          <span class="opts-period-pill" data-years="3" onclick="optsSelectPeriod(3,this)">3Y</span>
+          <span class="opts-period-pill" data-years="5" onclick="optsSelectPeriod(5,this)">5Y</span>
+          <span class="opts-period-pill" data-years="6" onclick="optsSelectPeriod(6,this)">All (6Y)</span>
+          <span class="opts-period-pill" data-years="custom" onclick="optsSelectPeriod('custom',this)">Custom</span>
+        </div>
+        <div id="opts-period-custom" style="display:none;margin-top:8px">
+          <div class="form-row" style="grid-template-columns:1fr 1fr;max-width:300px">
+            <div class="form-group"><label>Start</label><input type="date" id="opts-start-date" onchange="optsSetCustomDates()"></div>
+            <div class="form-group"><label>End</label><input type="date" id="opts-end-date" onchange="optsSetCustomDates()"></div>
+          </div>
+        </div>
+        <div id="opts-period-display" class="form-hint" style="margin-top:6px"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTION B: ENTRY (collapsible, default open) -->
+  <div class="opts-section">
+    <div class="opts-section-hdr" onclick="optsToggleSection('opts-entry-body')">
+      <span>&#9889; Entry Conditions</span><span class="opts-chevron">&#9660;</span>
+    </div>
+    <div class="opts-section-body" id="opts-entry-body">
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
+        <div class="form-group">
+          <label>Entry Time (ET)</label>
+          <input type="text" id="opts-entry-time" value="09:45" placeholder="HH:MM" oninput="OPTS.entry_time=this.value">
+          <div class="form-hint">e.g. 09:45 / 10:00 / 14:00</div>
+        </div>
+        <div class="form-group">
+          <label>Frequency</label>
+          <select id="opts-frequency" onchange="OPTS.entry_frequency=this.value">
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly (Mon only)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>DTE Tolerance</label>
+          <input type="number" id="opts-dte-tol" value="2" min="0" max="5" oninput="OPTS.dte_tolerance=parseInt(this.value)||2">
+          <div class="form-hint">&plusmn;N days from target DTE</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Trading Days</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="opts-day-checkboxes">
+          <label style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:13px;cursor:pointer"><input type="checkbox" value="Mon" checked onchange="optsUpdateDays()">Mon</label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:13px;cursor:pointer"><input type="checkbox" value="Tue" checked onchange="optsUpdateDays()">Tue</label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:13px;cursor:pointer"><input type="checkbox" value="Wed" checked onchange="optsUpdateDays()">Wed</label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:13px;cursor:pointer"><input type="checkbox" value="Thu" checked onchange="optsUpdateDays()">Thu</label>
+          <label style="display:flex;align-items:center;gap:4px;font-weight:500;font-size:13px;cursor:pointer"><input type="checkbox" value="Fri" checked onchange="optsUpdateDays()">Fri</label>
+          <a href="#" style="font-size:11px;margin-left:8px" onclick="optsSetAllDays(true);return false">All</a>
+          <a href="#" style="font-size:11px" onclick="optsSetAllDays(false);return false">None</a>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="opts-iv-toggle" onchange="optsToggleIVFilter()">
+          IV Filter (ATM implied volatility at entry)
+        </label>
+        <div id="opts-iv-filter-body" style="display:none;margin-top:8px">
+          <div class="form-row" style="grid-template-columns:1fr 1fr;max-width:280px">
+            <div class="form-group"><label>Min IV %</label><input type="number" id="opts-min-iv" placeholder="e.g. 15" oninput="OPTS.min_entry_iv=parseFloat(this.value)/100||null"></div>
+            <div class="form-group"><label>Max IV %</label><input type="number" id="opts-max-iv" placeholder="e.g. 50" oninput="OPTS.max_entry_iv=parseFloat(this.value)/100||null"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="opts-prem-toggle" onchange="optsTogglePremFilter()">
+          Minimum Premium Filter
+        </label>
+        <div id="opts-prem-filter-body" style="display:none;margin-top:8px">
+          <div class="form-group" style="max-width:180px">
+            <label>Min credit $</label>
+            <input type="number" id="opts-min-prem" placeholder="e.g. 0.50" step="0.05" oninput="OPTS.min_entry_premium=parseFloat(this.value)||null">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION C: EXIT (collapsible, default open) -->
+  <div class="opts-section">
+    <div class="opts-section-hdr" onclick="optsToggleSection('opts-exit-body')">
+      <span>&#128682; Exit Conditions</span><span class="opts-chevron">&#9660;</span>
+    </div>
+    <div class="opts-section-body" id="opts-exit-body">
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opts-pt-toggle" checked onchange="optsTogglePT()">
+            Profit Target
+          </label>
+          <div id="opts-pt-body" style="margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="opts-pt-value" value="50" min="0" max="100" style="width:80px" oninput="OPTS.profit_target_pct=parseFloat(this.value)||null">
+              <span style="font-size:13px;color:var(--text-secondary)">% of max profit</span>
+            </div>
+            <div class="form-hint">Close at 50% = keep half the credit</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opts-sl-toggle" checked onchange="optsToggleSL()">
+            Stop Loss
+          </label>
+          <div id="opts-sl-body" style="margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="opts-sl-value" value="200" min="0" style="width:80px" oninput="OPTS.stop_loss_pct=parseFloat(this.value)||null">
+              <span style="font-size:13px;color:var(--text-secondary)">% of credit received</span>
+            </div>
+            <div class="form-hint">200% = lose 2&times; what you collected</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opts-dte-exit-toggle" onchange="optsToggleDTEExit()">
+            Close Before Expiry (DTE)
+          </label>
+          <div id="opts-dte-exit-body" style="display:none;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="opts-dte-exit-value" value="1" min="0" style="width:70px" oninput="OPTS.exit_on_dte=parseInt(this.value)||null">
+              <span style="font-size:13px;color:var(--text-secondary)">DTE remaining</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="opts-delta-exit-toggle" onchange="optsToggleDeltaExit()">
+            Delta-Based Exit
+          </label>
+          <div id="opts-delta-exit-body" style="display:none;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:13px;color:var(--text-secondary)">|&Delta;| &ge;</span>
+              <input type="number" id="opts-delta-exit-value" value="0.50" step="0.05" min="0" max="1" style="width:80px" oninput="OPTS.exit_delta_threshold=parseFloat(this.value)||null">
+            </div>
+            <div class="form-hint">Close when short leg goes deep ITM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>EOD Exit Time (ET)</label>
+          <input type="text" id="opts-exit-time" value="15:45" placeholder="15:45" oninput="OPTS.exit_time=this.value">
+          <div class="form-hint">Force-close at this time on expiry day</div>
+        </div>
+        <div class="form-group">
+          <label>Exit Check Frequency</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="opts-check-freq-pills">
+            <span class="opts-freq-pill active" onclick="optsUpdateCheckTimes('1hr',this)">1 hour</span>
+            <span class="opts-freq-pill" onclick="optsUpdateCheckTimes('30min',this)">30 min</span>
+            <span class="opts-freq-pill" onclick="optsUpdateCheckTimes('15min',this)">15 min</span>
+          </div>
+          <div class="form-hint" style="margin-top:4px">More frequent = more accurate exits, slower run</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION D: CAPITAL & COSTS (collapsible, default closed) -->
+  <div class="opts-section">
+    <div class="opts-section-hdr collapsed" onclick="optsToggleSection('opts-capital-body')">
+      <span>&#128176; Capital &amp; Costs</span><span class="opts-chevron">&#9660;</span>
+    </div>
+    <div class="opts-section-body" id="opts-capital-body" style="display:none">
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group"><label>Starting Capital ($)</label><input type="number" id="opts-capital" value="10000" min="1000" oninput="OPTS.starting_capital=parseFloat(this.value)||10000"></div>
+        <div class="form-group"><label>Contracts per Trade</label><input type="number" id="opts-contracts" value="1" min="1" max="100" oninput="OPTS.contracts=parseInt(this.value)||1"></div>
+        <div class="form-group"><label>Commission per Contract ($)</label><input type="number" id="opts-commission" value="0.65" step="0.05" min="0" oninput="OPTS.commission_per_contract=parseFloat(this.value)||0"><div class="form-hint">Charged per leg per contract</div></div>
+        <div class="form-group"><label>Slippage (%)</label><input type="number" id="opts-slippage" value="0" step="0.01" min="0" oninput="OPTS.slippage_pct=parseFloat(this.value)||0"><div class="form-hint">% of mid added as slippage</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION E: ADVANCED (collapsible, default closed) -->
+  <div class="opts-section">
+    <div class="opts-section-hdr collapsed" onclick="optsToggleSection('opts-advanced-body')">
+      <span>&#128300; Advanced Options</span><span class="opts-chevron">&#9660;</span>
+    </div>
+    <div class="opts-section-body" id="opts-advanced-body" style="display:none">
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>Max Bid/Ask Spread</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:12px;cursor:pointer">
+            <input type="checkbox" id="opts-spread-toggle" onchange="optsToggleSpreadFilter()">
+            Enable spread filter
+          </label>
+          <div id="opts-spread-body" style="display:none;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="opts-spread-value" value="2.0" step="0.1" style="width:80px" oninput="OPTS.max_bid_ask_spread_pct=parseFloat(this.value)||null">
+              <span style="font-size:13px;color:var(--text-secondary)">% of mid</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fill Price Method</label>
+          <select id="opts-fill-method" onchange="OPTS.fill_method=this.value">
+            <option value="conservative">Conservative (sell=bid, buy=ask)</option>
+            <option value="mid">Mid price (optimistic)</option>
+          </select>
+          <div class="form-hint">Conservative = realistic; Mid = upper bound</div>
+        </div>
+      </div>
+
+      <!-- ── Cache Manager ── -->
+      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px">
+          &#128190; Cache Manager
+          <span style="font-weight:400;color:var(--text-muted);margin-left:6px">
+            Pre-warm data so student backtests run instantly
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:10px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Symbol</label>
+            <select id="opts-cache-sym">
+              <option>SPY</option><option>SPXW</option><option>AAPL</option>
+              <option>TSLA</option><option>META</option><option>GLD</option>
+              <option>NVDA</option><option>MSFT</option><option>IWM</option>
+              <option>TQQQ</option><option>SOXL</option><option>TSM</option>
+              <option>USO</option><option>TLT</option><option>MSTR</option><option>MU</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Period</label>
+            <select id="opts-cache-period">
+              <option value="1y">Last 1 year</option>
+              <option value="2y" selected>Last 2 years</option>
+              <option value="3y">Last 3 years</option>
+              <option value="all">All (2020-now)</option>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="optsCachePreload()" id="opts-cache-preload-btn">
+            &#128229; Pre-warm
+          </button>
+        </div>
+
+        <div id="opts-cache-progress" style="display:none">
+          <div class="opts-progress-bar" style="margin-bottom:6px">
+            <div class="opts-progress-fill" id="opts-cache-progress-fill"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)">
+            <span id="opts-cache-progress-msg">Starting...</span>
+            <span id="opts-cache-progress-pct">0%</span>
+          </div>
+        </div>
+
+        <div id="opts-cache-stats-display" style="margin-top:10px;font-size:11px;color:var(--text-muted)">
+          <span id="opts-cache-stats-text">Loading cache info...</span>
+          <a href="#" onclick="optsClearCache();return false" style="margin-left:12px;color:var(--red);font-size:11px">Clear cache</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /opts-setup-view -->
+
+<!-- PROGRESS SECTION (hidden until run) -->
+<div id="opts-progress-section" style="display:none">
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="spinner"></div>
+        <span style="font-size:14px;font-weight:600">Running backtest...</span>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="optsCancelBacktest()">Cancel</button>
+    </div>
+    <div class="opts-progress-bar"><div class="opts-progress-fill" id="opts-progress-fill"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--text-muted)">
+      <span id="opts-progress-date">Starting...</span>
+      <span id="opts-progress-count">0 trades found</span>
+      <span id="opts-progress-pct">0%</span>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS VIEW (hidden until complete) -->
+<div id="opts-results-view" style="display:none">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="optsGoBackToSetup()">&larr; Setup</button>
+      <div id="opts-results-summary" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" style="background:#7C3AED;color:#fff" onclick="showToast('Optimizer coming soon -- confirm backtest results first','info')">&#9881; Optimize</button>
+      <button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="optsOpenDeployModal()">&#128640; Deploy</button>
+    </div>
+  </div>
+
+  <div class="opts-metric-grid">
+    <div class="opts-metric-tile"><div class="opts-metric-label">Total P&amp;L</div><div class="opts-metric-value" id="opts-m-pnl">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">CAGR</div><div class="opts-metric-value" id="opts-m-cagr">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Max Drawdown</div><div class="opts-metric-value red" id="opts-m-dd">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Win Rate</div><div class="opts-metric-value" id="opts-m-wr">--</div></div>
+  </div>
+  <div class="opts-metric-grid" style="margin-bottom:8px">
+    <div class="opts-metric-tile"><div class="opts-metric-label">Avg P&amp;L / Trade</div><div class="opts-metric-value" id="opts-m-avg">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Avg Winner</div><div class="opts-metric-value green" id="opts-m-win">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Avg Loser</div><div class="opts-metric-value red" id="opts-m-loss">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Profit Factor</div><div class="opts-metric-value" id="opts-m-pf">--</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+    <div class="opts-metric-tile"><div class="opts-metric-label">Total Premium</div><div style="font-size:16px;font-weight:700" id="opts-m-prem">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">Avg DTE at Entry</div><div style="font-size:16px;font-weight:700" id="opts-m-dte">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">% Expired Worthless</div><div style="font-size:16px;font-weight:700;color:var(--green)" id="opts-m-exp">--</div></div>
+    <div class="opts-metric-tile"><div class="opts-metric-label">% Closed at PT</div><div style="font-size:16px;font-weight:700" id="opts-m-pt">--</div></div>
+  </div>
+
+  <div id="opts-advisory"></div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:14px;font-weight:600">Equity Curve</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="opts-freq-pill active" onclick="optsToggleChartScale('linear',this)" id="opts-chart-linear">Linear</span>
+        <span class="opts-freq-pill" onclick="optsToggleChartScale('log',this)" id="opts-chart-log">Log</span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:250px"><canvas id="opts-equity-chart"></canvas></div>
+  </div>
+
+  <div class="opts-section" style="margin-bottom:16px">
+    <div class="opts-section-hdr" onclick="optsToggleSection('opts-monthly-body')">
+      <span>&#128197; Monthly Breakdown</span><span class="opts-chevron">&#9660;</span>
+    </div>
+    <div class="opts-section-body" id="opts-monthly-body" style="padding:0">
+      <table style="width:100%">
+        <thead><tr><th>Month</th><th>P&amp;L</th><th>Trades</th><th>Win %</th><th>Avg P&amp;L</th><th>Best</th><th>Worst</th></tr></thead>
+        <tbody id="opts-monthly-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="opts-section" style="margin-bottom:16px">
+    <div class="opts-section-hdr" onclick="optsToggleSection('opts-tradelog-body')">
+      <span>&#128203; Trade Log</span>
+      <div style="display:flex;align-items:center;gap:8px" onclick="event.stopPropagation()">
+        <span id="opts-tradelog-count" style="font-size:11px;color:var(--text-muted)"></span>
+        <button class="btn btn-outline btn-sm" onclick="optsExportCSV()">&#128229; Export CSV</button>
+        <span class="opts-chevron">&#9660;</span>
+      </div>
+    </div>
+    <div class="opts-section-body" id="opts-tradelog-body" style="padding:0">
+      <table style="width:100%">
+        <thead><tr><th>Date</th><th>Underlying</th><th>Legs</th><th>Premium</th><th>Close $</th><th>Days</th><th>Exit</th><th>P&amp;L</th><th>P&amp;L %</th></tr></thead>
+        <tbody id="opts-tradelog-tbody"></tbody>
+      </table>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border)">
+        <span id="opts-page-info" style="font-size:12px;color:var(--text-muted)"></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" id="opts-prev-btn" onclick="optsTradeLogPage(-1)">&lsaquo; Prev</button>
+          <button class="btn btn-outline btn-sm" id="opts-next-btn" onclick="optsTradeLogPage(1)">Next &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:12px;color:var(--text-muted);padding:8px 0" id="opts-skip-summary"></div>
+
+</div><!-- /opts-results-view -->
+
+<!-- DEPLOY MODAL -->
+<div class="modal-overlay" id="opts-deploy-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">&#128640; Deploy Options Bot</span>
+      <button class="modal-close" onclick="document.getElementById('opts-deploy-modal').classList.remove('open')">&times;</button>
+    </div>
+    <div class="card" style="background:var(--blue-pale);border-color:var(--blue-border);margin-bottom:16px">
+      <div style="font-size:13px;color:var(--blue-primary)">
+        <strong>LongPort options deployment</strong> is coming in the next release.<br>
+        When ready, this will generate a bot script using your backtest parameters and deploy it to your LongPort account.
+      </div>
+    </div>
+    <div id="opts-deploy-summary" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></div>
+    <button class="btn btn-outline" onclick="document.getElementById('opts-deploy-modal').classList.remove('open')">Close</button>
+  </div>
+</div>
+
+</div><!-- /page-options-studio -->
+
 </div><!-- /main -->
+
+<!-- ═══════════════ ONBOARDING MODAL ═══════════════ -->
+<div class="modal-overlay" id="onboarding-modal">
+  <div class="modal" style="max-width:560px">
+    <!-- Step 1: Welcome + symbol selection -->
+    <div id="onboard-step-1">
+      <div style="text-align:center;padding:8px 0 20px">
+        <div style="font-size:40px;margin-bottom:12px">&#128208;</div>
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:8px">Welcome to Options Studio</h2>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+          QuantX uses <strong>real 1-minute options data</strong> from 2020-2026 for backtesting.
+          Select which symbols you want to study and we'll download the data in the background
+          while you explore the app.
+        </p>
+      </div>
+
+      <div style="background:var(--blue-pale);border-radius:8px;padding:14px;margin-bottom:20px;font-size:12px;color:var(--blue-primary)">
+        <strong>&#128161; How it works:</strong> Data downloads once (~2-5 min per symbol)
+        and is stored on your computer. After that, backtests run in under 60 seconds.
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px">
+        SELECT SYMBOLS TO STUDY:
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px">
+        <label class="onboard-sym-card active" onclick="onboardToggleSym('SPY',this)">
+          <input type="checkbox" value="SPY" checked style="display:none">
+          <div class="onboard-sym-ticker">SPY</div><div class="onboard-sym-desc">S&amp;P 500 ETF</div>
+        </label>
+        <label class="onboard-sym-card active" onclick="onboardToggleSym('SPXW',this)">
+          <input type="checkbox" value="SPXW" checked style="display:none">
+          <div class="onboard-sym-ticker">SPXW</div><div class="onboard-sym-desc">SPX Weekly (0DTE)</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('AAPL',this)">
+          <input type="checkbox" value="AAPL" style="display:none">
+          <div class="onboard-sym-ticker">AAPL</div><div class="onboard-sym-desc">Apple</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('TSLA',this)">
+          <input type="checkbox" value="TSLA" style="display:none">
+          <div class="onboard-sym-ticker">TSLA</div><div class="onboard-sym-desc">Tesla</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('NVDA',this)">
+          <input type="checkbox" value="NVDA" style="display:none">
+          <div class="onboard-sym-ticker">NVDA</div><div class="onboard-sym-desc">NVIDIA</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('META',this)">
+          <input type="checkbox" value="META" style="display:none">
+          <div class="onboard-sym-ticker">META</div><div class="onboard-sym-desc">Meta</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('GLD',this)">
+          <input type="checkbox" value="GLD" style="display:none">
+          <div class="onboard-sym-ticker">GLD</div><div class="onboard-sym-desc">Gold ETF</div>
+        </label>
+        <label class="onboard-sym-card" onclick="onboardToggleSym('IWM',this)">
+          <input type="checkbox" value="IWM" style="display:none">
+          <div class="onboard-sym-ticker">IWM</div><div class="onboard-sym-desc">Russell 2000</div>
+        </label>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:12px">
+        <div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500">
+            <input type="checkbox" id="onboard-period-3y" checked onchange="onboardUpdateEstimate()">
+            Include 3 years of data (recommended)
+          </label>
+          <div style="color:var(--text-muted);margin-top:2px;margin-left:18px">
+            ~2-4 min per symbol &middot; covers 2022 bear + 2023-2024 bull
+          </div>
+        </div>
+        <div id="onboard-size-estimate" style="font-weight:600;color:var(--blue-primary);font-size:13px">~150 MB</div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="onboardStartDownload()">&#128229; Download &amp; Continue</button>
+        <button class="btn btn-outline" onclick="onboardSkip()">Skip for now</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Download in progress -->
+    <div id="onboard-step-2" style="display:none">
+      <div style="text-align:center;padding:8px 0 20px">
+        <div style="font-size:40px;margin-bottom:12px">&#128229;</div>
+        <h2 style="font-size:18px;font-weight:700;margin-bottom:8px">Downloading market data...</h2>
+        <p style="font-size:13px;color:var(--text-secondary)">
+          You can explore the rest of the app while this runs in the background.
+        </p>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px">
+          <span id="onboard-dl-symbol">Starting...</span>
+          <span id="onboard-dl-overall">&nbsp;</span>
+        </div>
+        <div class="opts-progress-bar"><div class="opts-progress-fill" id="onboard-dl-fill"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px">
+          <span id="onboard-dl-date">&nbsp;</span>
+          <span id="onboard-dl-pct">0%</span>
+        </div>
+      </div>
+
+      <div id="onboard-sym-status" style="margin-bottom:20px"></div>
+
+      <button class="btn btn-primary" style="width:100%" onclick="onboardGoToApp()">
+        &#9989; Go to App (download continues in background)
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════ NEW BOT MODAL ══════════════════════════════════════ -->
 <!-- Studio Full Results Modal -->
@@ -1082,6 +1789,7 @@ function navigate(page) {
   if (page === 'brokers') loadBrokerAccounts();
   // Custom indicators now managed in Studio page, not Settings
   if (page === 'studio') { studioLoadCustomInds().then(() => { _studioRebuildIndDropdowns(); studioRender(); }); }
+  if (page === 'options-studio') optsInit();
   if (page === 'optimize') studioInitOptimize();
   if (page === 'backtester') {
     populateStrategySelects(); renderSavedBacktests();
@@ -1214,6 +1922,152 @@ async function loadHome() {
     document.getElementById('home-strategies').textContent = USER_STRATEGIES.length;
     document.getElementById('home-getstarted').style.display = USER_STRATEGIES.length === 0 ? 'block' : 'none';
   } catch (e) {}
+  // First-launch onboarding: no cache + haven't dismissed
+  checkFirstLaunch();
+}
+
+/* ══════════════════════════════════════════════════════
+   ONBOARDING WIZARD  (first-launch options-data preload)
+   ══════════════════════════════════════════════════════ */
+
+let _onboardSymbols = ['SPY', 'SPXW'];
+
+async function checkFirstLaunch() {
+  if (!EMAIL) return;
+  if (localStorage.getItem('qx_onboarding_done')) return;
+  try {
+    const r = await fetch(API + '/api/options/cache/stats');
+    const d = await r.json();
+    if ((d.total_files || 0) <= 10) {
+      showOnboarding();
+    }
+  } catch (e) {}  // if cache endpoint errors, don't block user
+}
+
+function showOnboarding() {
+  document.getElementById('onboarding-modal').classList.add('open');
+  onboardUpdateEstimate();
+}
+
+function onboardToggleSym(sym, el) {
+  el.classList.toggle('active');
+  const cb = el.querySelector('input');
+  cb.checked = !cb.checked;
+  if (cb.checked) {
+    if (!_onboardSymbols.includes(sym)) _onboardSymbols.push(sym);
+  } else {
+    _onboardSymbols = _onboardSymbols.filter(s => s !== sym);
+  }
+  onboardUpdateEstimate();
+}
+
+function onboardUpdateEstimate() {
+  // Rough: each symbol-year = ~12 GB full source, but local cache after
+  // 13-col + zstd compression is ~50 MB/day * 252 days = ~12 GB. Quote a
+  // conservative 25 MB/symbol-year since students rarely hit every day.
+  const years = document.getElementById('onboard-period-3y')?.checked ? 3 : 1;
+  const mb = _onboardSymbols.length * years * 25;
+  const el = document.getElementById('onboard-size-estimate');
+  if (el) el.textContent = '~' + mb + ' MB';
+}
+
+function onboardSkip() {
+  localStorage.setItem('qx_onboarding_done', '1');
+  document.getElementById('onboarding-modal').classList.remove('open');
+}
+
+function onboardGoToApp() {
+  // Dismiss modal; in-flight downloads continue server-side.
+  document.getElementById('onboarding-modal').classList.remove('open');
+}
+
+async function onboardStartDownload() {
+  if (_onboardSymbols.length === 0) { onboardSkip(); return; }
+
+  document.getElementById('onboard-step-1').style.display = 'none';
+  document.getElementById('onboard-step-2').style.display = '';
+
+  const years = document.getElementById('onboard-period-3y')?.checked ? 3 : 1;
+  const toISO = d => new Date(d).toISOString().slice(0, 10);
+  const end = toISO(Date.now());
+  const start = toISO(Date.now() - years * 365 * 86400000);
+
+  const statusEl = document.getElementById('onboard-sym-status');
+  statusEl.innerHTML = _onboardSymbols.map(s =>
+    '<div id="onboard-status-' + s + '" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">' +
+      '<span id="onboard-icon-' + s + '">&#9203;</span>' +
+      '<span style="font-weight:600;width:50px">' + s + '</span>' +
+      '<div style="flex:1"><div class="opts-progress-bar" style="height:4px;margin:0">' +
+        '<div class="opts-progress-fill" id="onboard-fill-' + s + '" style="width:0%"></div></div></div>' +
+      '<span id="onboard-pct-' + s + '" style="width:35px;text-align:right;color:var(--text-muted)">0%</span>' +
+    '</div>'
+  ).join('');
+
+  // Sequential to avoid saturating R2 bandwidth and client disk I/O
+  for (let i = 0; i < _onboardSymbols.length; i++) {
+    const sym = _onboardSymbols[i];
+    document.getElementById('onboard-dl-symbol').textContent = 'Downloading ' + sym + '...';
+    document.getElementById('onboard-dl-overall').textContent = (i + 1) + ' of ' + _onboardSymbols.length + ' symbols';
+    document.getElementById('onboard-icon-' + sym).textContent = '\u{1F4E5}';
+
+    try {
+      const resp = await fetch(API + '/api/options/cache/preload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: sym, start_date: start, end_date: end }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = frame.split('\n').find(l => l.startsWith('data:'));
+          if (!line) continue;
+          let evt;
+          try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+          if (evt.type === 'progress') {
+            const pct = evt.total > 0 ? Math.round(evt.done / evt.total * 100) : 0;
+            document.getElementById('onboard-fill-' + sym).style.width = pct + '%';
+            document.getElementById('onboard-pct-' + sym).textContent = pct + '%';
+            // Overall progress: finished symbols + fractional current
+            const overall = Math.round((i + pct / 100) / _onboardSymbols.length * 100);
+            document.getElementById('onboard-dl-fill').style.width = overall + '%';
+            document.getElementById('onboard-dl-pct').textContent = overall + '%';
+            if (evt.date) document.getElementById('onboard-dl-date').textContent = evt.date;
+          } else if (evt.type === 'complete') {
+            document.getElementById('onboard-icon-' + sym).textContent = '\u2705';
+            document.getElementById('onboard-fill-' + sym).style.width = '100%';
+            document.getElementById('onboard-pct-' + sym).textContent = '\u2705';
+          } else if (evt.type === 'error') {
+            throw new Error(evt.message || 'preload failed');
+          }
+        }
+      }
+    } catch (e) {
+      document.getElementById('onboard-icon-' + sym).textContent = '\u274C';
+      document.getElementById('onboard-pct-' + sym).textContent = 'fail';
+      console.warn('Preload failed for ' + sym + ':', e);
+    }
+  }
+
+  document.getElementById('onboard-dl-symbol').textContent = '\u2705 All downloads complete!';
+  document.getElementById('onboard-dl-fill').style.width = '100%';
+  document.getElementById('onboard-dl-pct').textContent = '100%';
+  document.getElementById('onboard-dl-overall').textContent = _onboardSymbols.length + ' symbols ready';
+  localStorage.setItem('qx_onboarding_done', '1');
+
+  setTimeout(() => {
+    document.getElementById('onboarding-modal').classList.remove('open');
+    showToast('Options Studio ready. Data downloaded successfully.', 'success');
+  }, 3000);
 }
 
 /* ═══════════════════ BOTS ═══════════════════ */
@@ -4953,6 +5807,914 @@ async function deleteIndicator(id) {
     _studioRebuildIndDropdowns();
     studioRender();
   } catch (e) { showToast('Delete failed: ' + e.message, 'error'); }
+}
+
+/* ══════════════════════════════════════════════════════
+   OPTIONS STUDIO
+   ══════════════════════════════════════════════════════ */
+
+const OPTS = {
+  symbol: 'SPY',
+  strategy_type: 'SHORT_PUT_SPREAD',
+  target_dte: 7,
+  dte_tolerance: 2,
+  short_strike_method: 'DELTA',
+  short_strike_value: -0.30,
+  wing_width_method: 'POINTS_OTM',
+  wing_width_value: 5.0,
+  short_call_strike_method: 'DELTA',
+  short_call_strike_value: 0.30,
+  call_wing_width_method: 'POINTS_OTM',
+  call_wing_width_value: 5.0,
+  entry_time: '09:45',
+  entry_days: ['Mon','Tue','Wed','Thu','Fri'],
+  entry_frequency: 'DAILY',
+  min_entry_iv: null,
+  max_entry_iv: null,
+  min_entry_premium: null,
+  max_bid_ask_spread_pct: null,
+  profit_target_pct: 50,
+  stop_loss_pct: 200,
+  exit_time: '15:45',
+  exit_on_dte: null,
+  exit_delta_threshold: null,
+  check_exit_times: ['10:00','11:00','12:00','13:00','14:00','15:00','15:45'],
+  starting_capital: 10000,
+  contracts: 1,
+  commission_per_contract: 0.65,
+  slippage_pct: 0.0,
+  fill_method: 'conservative',
+  start_date: null,
+  end_date: null,
+};
+
+let _optsResults = null;
+let _optsTradeLog = [];
+let _optsTradeLogPage = 1;
+const OPTS_PAGE_SIZE = 25;
+let _optsEquityChart = null;
+let _optsAbortController = null;
+let _optsChartScale = 'linear';
+
+/* ── Init ────────────────────────────────────────────── */
+function optsInit() {
+  optsSelectPeriod(1, document.querySelector('#opts-period-pills .active'));
+  optsUpdateDiagram();
+  optsCheckRunButton();
+  fetch(API + '/api/options/cache/stats')
+    .then(r => r.json())
+    .then(d => {
+      const badge = document.getElementById('opts-cache-status');
+      if (!badge) return;
+      const syms = (d.symbols || []).map(s => s.symbol);
+      const warm = syms.includes(OPTS.symbol);
+      badge.style.display = '';
+      badge.className = 'opts-cache-badge ' + (warm ? 'opts-cache-warm' : 'opts-cache-cold');
+      badge.textContent = warm ? '\u26A1 Cache warm' : '\u{1F4E5} First run will download data';
+      optsUpdateRuntimeEstimate();
+    }).catch(() => {});
+  // Load actual R2 date range for the default symbol so period-pill picks
+  // a window that ends at real data, not today.
+  optsLoadSymbolDates(OPTS.symbol);
+  // Populate the Cache Manager stats line (inside Advanced collapsible)
+  optsCacheLoadStats();
+}
+
+/* Runtime estimate shown below the Run button; refreshed on period/DTE change. */
+function optsUpdateRuntimeEstimate() {
+  const hint = document.getElementById('opts-runtime-hint');
+  if (!hint) return;
+  if (!OPTS.start_date || !OPTS.end_date) { hint.textContent = ''; return; }
+  const dayMs = 86400000;
+  const calDays = Math.max(1, Math.round((new Date(OPTS.end_date) - new Date(OPTS.start_date)) / dayMs));
+  const days = Math.round(calDays * 5 / 7);  // trading days estimate
+  const checkTimes = (OPTS.check_exit_times || []).length || 7;
+  const warmSecs = Math.round(days * 0.13 * checkTimes / 7);
+  const cacheEl = document.getElementById('opts-cache-status');
+  const warm = cacheEl && cacheEl.classList.contains('opts-cache-warm');
+  const estSecs = warm ? warmSecs : warmSecs * 4;
+  const estStr = estSecs < 60 ? estSecs + 's' : Math.round(estSecs / 60) + 'min';
+  hint.textContent = (warm ? '\u26A1' : '\u{1F4E5}') + ' Est. ~' + estStr +
+    (warm ? ' (cache warm)' : ' (first run -- downloading data)');
+}
+
+/* Fetch actual date range from R2 for a symbol and update the UI boundary.
+   Sets window._optsDataStart / _optsDataEnd so optsSelectPeriod clamps to
+   real data, not today's date (which may run past what R2 has). */
+async function optsLoadSymbolDates(symbol) {
+  const note = document.getElementById('opts-data-range-note');
+  if (note) note.textContent = '\u23F3 Checking available dates...';
+  try {
+    const r = await fetch(API + '/api/options/dates/' + symbol);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!d.last) {
+      if (note) note.textContent = '\u26A0\uFE0F No data in bucket for ' + symbol;
+      window._optsDataStart = null; window._optsDataEnd = null;
+      return;
+    }
+    window._optsDataStart = d.first;
+    window._optsDataEnd = d.last;
+    if (note) {
+      note.textContent = '\u{1F4C5} Data: ' + d.first + ' \u2192 ' + d.last +
+        '  (' + d.count.toLocaleString() + ' trading days)';
+      note.style.color = 'var(--text-muted)';
+    }
+    // Re-trigger the active period pill so dates get clamped to the new boundary.
+    const active = document.querySelector('#opts-period-pills .opts-period-pill.active');
+    if (active) {
+      const y = active.dataset.years;
+      if (y === 'custom') optsSelectPeriod('custom', active);
+      else if (y) optsSelectPeriod(y === '6' ? 6 : parseInt(y), active);
+    }
+    optsUpdateRuntimeEstimate();
+  } catch (e) {
+    if (note) note.textContent = '\u26A0\uFE0F Could not load date range';
+  }
+}
+
+/* ── Symbol / strategy / DTE / period / days ─────────── */
+function optsSelectSymbol(sym, el) {
+  OPTS.symbol = sym;
+  document.querySelectorAll('#opts-sym-pills .opts-sym-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const hint = document.getElementById('opts-dte-hint');
+  if (hint) {
+    if (sym === 'SPXW') hint.textContent = 'SPXW has daily expirations -- 0DTE works every trading day';
+    else if (OPTS.target_dte === 0) hint.textContent = '0DTE availability varies for ' + sym + ' -- use 7 DTE+ for reliability';
+    else hint.textContent = '';
+  }
+  // Refresh cache status for the new symbol
+  fetch(API + '/api/options/cache/stats')
+    .then(r => r.json())
+    .then(d => {
+      const badge = document.getElementById('opts-cache-status');
+      if (!badge) return;
+      const warm = (d.symbols || []).some(s => s.symbol === sym);
+      badge.className = 'opts-cache-badge ' + (warm ? 'opts-cache-warm' : 'opts-cache-cold');
+      badge.textContent = warm ? '\u26A1 Cache warm' : '\u{1F4E5} First run will download data';
+    }).catch(() => {});
+  // Fetch live date range for this symbol (handles stale index.csv)
+  optsLoadSymbolDates(sym);
+  optsCheckRunButton();
+}
+
+function optsSelectStrategy(type) {
+  OPTS.strategy_type = type;
+  const show = (id, vis) => { const el = document.getElementById(id); if (el) el.style.display = vis ? '' : 'none'; };
+  const hasPut      = ['SHORT_PUT_SPREAD','IRON_CONDOR','SHORT_STRANGLE'].includes(type);
+  const hasCall     = ['SHORT_CALL_SPREAD','IRON_CONDOR','SHORT_STRANGLE'].includes(type);
+  const hasPutWing  = ['SHORT_PUT_SPREAD','IRON_CONDOR'].includes(type);
+  const hasCallWing = ['SHORT_CALL_SPREAD','IRON_CONDOR'].includes(type);
+  const isSingle    = ['LONG_CALL','LONG_PUT'].includes(type);
+  show('opts-put-row', hasPut);
+  show('opts-put-wing-row', hasPutWing);
+  show('opts-call-row', hasCall);
+  show('opts-call-wing-row', hasCallWing);
+  show('opts-ic-symmetric', type === 'IRON_CONDOR');
+  show('opts-single-row', isSingle);
+  if (isSingle) {
+    const lbl = document.getElementById('opts-single-label');
+    if (lbl) lbl.textContent = type === 'LONG_CALL' ? 'Long Call Strike' : 'Long Put Strike';
+    const val = document.getElementById('opts-single-value');
+    if (val) val.value = type === 'LONG_CALL' ? '0.50' : '-0.50';
+  }
+  optsUpdateDiagram();
+}
+
+function optsToggleSymmetric() {
+  const cb = document.getElementById('opts-symmetric-cb');
+  if (!cb || !cb.checked) return;
+  const pv = parseFloat(document.getElementById('opts-put-value').value) || -0.30;
+  document.getElementById('opts-call-value').value = Math.abs(pv).toFixed(2);
+  document.getElementById('opts-call-wing-value').value = document.getElementById('opts-put-wing-value').value;
+  optsUpdateDiagram();
+}
+
+function optsUpdateDiagram() {
+  const el = document.getElementById('opts-position-diagram');
+  if (!el) return;
+  const type = OPTS.strategy_type;
+  const putVal = document.getElementById('opts-put-value')?.value || '-0.30';
+  const callVal = document.getElementById('opts-call-value')?.value || '0.30';
+  const putMeth = document.getElementById('opts-put-method')?.value || 'DELTA';
+  const callMeth = document.getElementById('opts-call-method')?.value || 'DELTA';
+  const putWingMeth = document.getElementById('opts-put-wing-method')?.value || 'POINTS_OTM';
+  const putWing = document.getElementById('opts-put-wing-value')?.value || '5';
+  const callWingMeth = document.getElementById('opts-call-wing-method')?.value || 'POINTS_OTM';
+  const callWing = document.getElementById('opts-call-wing-value')?.value || '5';
+  const singleVal = document.getElementById('opts-single-value')?.value || '0.50';
+
+  const strikeLabel = (meth, val) => {
+    if (meth === 'DELTA') return val + '\u0394';
+    if (meth === 'PCT_OTM') return (parseFloat(val) * 100).toFixed(0) + '% OTM';
+    return val + ' pts';
+  };
+  const wingLabel = (meth, val) => (meth === 'PCT_OTM' ? (parseFloat(val)*100).toFixed(0)+'%' : '$'+val) + ' wide';
+
+  const legs = [];
+  if (['SHORT_PUT_SPREAD','IRON_CONDOR'].includes(type)) {
+    legs.push({action:'SELL',right:'PUT',label:'SELL P ' + strikeLabel(putMeth, putVal)});
+    legs.push({action:'BUY', right:'PUT',label:'BUY P ' + wingLabel(putWingMeth, putWing)});
+  }
+  if (['SHORT_CALL_SPREAD','IRON_CONDOR'].includes(type)) {
+    legs.push({action:'SELL',right:'CALL',label:'SELL C ' + strikeLabel(callMeth, callVal)});
+    legs.push({action:'BUY', right:'CALL',label:'BUY C ' + wingLabel(callWingMeth, callWing)});
+  }
+  if (type === 'SHORT_STRANGLE') {
+    legs.push({action:'SELL',right:'PUT', label:'SELL P ' + strikeLabel(putMeth, putVal)});
+    legs.push({action:'SELL',right:'CALL',label:'SELL C ' + strikeLabel(callMeth, callVal)});
+  }
+  if (type === 'LONG_CALL') {
+    legs.push({action:'BUY',right:'CALL',label:'BUY C ' + singleVal + '\u0394'});
+  }
+  if (type === 'LONG_PUT') {
+    legs.push({action:'BUY',right:'PUT',label:'BUY P ' + singleVal + '\u0394'});
+  }
+
+  el.innerHTML = legs.map(l => {
+    const ac = l.action === 'SELL' ? 'opts-chip-sell' : 'opts-chip-buy';
+    const rc = l.right === 'CALL' ? 'opts-chip-call' : 'opts-chip-put';
+    return '<span class="opts-leg-chip ' + ac + ' ' + rc + '">' + esc(l.label) + '</span>';
+  }).join('<span style="color:var(--text-muted);font-size:11px;padding:0 4px">\u00B7</span>');
+}
+
+function optsSelectDTE(dte, el) {
+  document.querySelectorAll('#opts-dte-pills .opts-dte-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const customInput = document.getElementById('opts-dte-custom');
+  if (dte === 'custom') {
+    if (customInput) customInput.style.display = '';
+    OPTS.target_dte = parseInt(customInput?.value) || 7;
+  } else {
+    if (customInput) customInput.style.display = 'none';
+    OPTS.target_dte = dte;
+  }
+  const hint = document.getElementById('opts-dte-hint');
+  if (hint && OPTS.symbol === 'SPXW' && dte === 0) {
+    hint.textContent = '0DTE: enters and expires same day. Fast simulation.';
+  } else if (hint) {
+    hint.textContent = '';
+  }
+  optsCheckRunButton();
+  optsUpdateRuntimeEstimate();
+}
+
+function optsSelectPeriod(years, el) {
+  document.querySelectorAll('#opts-period-pills .opts-period-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const customDiv = document.getElementById('opts-period-custom');
+  if (years === 'custom') {
+    if (customDiv) customDiv.style.display = '';
+    return;
+  }
+  if (customDiv) customDiv.style.display = 'none';
+  // Clamp end to whichever is earlier: today, or the last date actually in R2.
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dataEnd = window._optsDataEnd ? new Date(window._optsDataEnd + 'T00:00:00') : today;
+  const end = dataEnd < today ? dataEnd : today;
+  const start = new Date(end);
+  if (years === 6) { start.setFullYear(2020); start.setMonth(0); start.setDate(2); }
+  else { start.setFullYear(start.getFullYear() - years); }
+  OPTS.start_date = start.toISOString().slice(0,10);
+  OPTS.end_date = end.toISOString().slice(0,10);
+  const display = document.getElementById('opts-period-display');
+  if (display) {
+    const days = Math.round((end - start) / 86400000);
+    const tdDays = Math.round(days * 5/7);
+    display.textContent = OPTS.start_date + ' \u2192 ' + OPTS.end_date + '  \u00B7  ~' + tdDays + ' trading days';
+  }
+  optsCheckRunButton();
+  optsUpdateRuntimeEstimate();
+}
+
+function optsSetCustomDates() {
+  OPTS.start_date = document.getElementById('opts-start-date')?.value || null;
+  OPTS.end_date = document.getElementById('opts-end-date')?.value || null;
+  optsCheckRunButton();
+  optsUpdateRuntimeEstimate();
+}
+
+function optsToggleSection(bodyId) {
+  const body = document.getElementById(bodyId);
+  if (!body) return;
+  const hdr = body.previousElementSibling;
+  const isCollapsed = body.style.display === 'none';
+  body.style.display = isCollapsed ? '' : 'none';
+  if (hdr) hdr.classList.toggle('collapsed', !isCollapsed);
+}
+
+function optsUpdateDays() {
+  OPTS.entry_days = Array.from(document.querySelectorAll('#opts-day-checkboxes input[type=checkbox]:checked')).map(cb => cb.value);
+  optsCheckRunButton();
+}
+
+function optsSetAllDays(checked) {
+  document.querySelectorAll('#opts-day-checkboxes input[type=checkbox]').forEach(cb => cb.checked = checked);
+  optsUpdateDays();
+}
+
+function optsToggleIVFilter() {
+  const on = document.getElementById('opts-iv-toggle').checked;
+  document.getElementById('opts-iv-filter-body').style.display = on ? '' : 'none';
+  if (!on) { OPTS.min_entry_iv = null; OPTS.max_entry_iv = null; }
+}
+function optsTogglePremFilter() {
+  const on = document.getElementById('opts-prem-toggle').checked;
+  document.getElementById('opts-prem-filter-body').style.display = on ? '' : 'none';
+  if (!on) OPTS.min_entry_premium = null;
+}
+function optsTogglePT() {
+  const on = document.getElementById('opts-pt-toggle').checked;
+  document.getElementById('opts-pt-body').style.opacity = on ? '1' : '.4';
+  OPTS.profit_target_pct = on ? (parseFloat(document.getElementById('opts-pt-value').value) || 50) : null;
+}
+function optsToggleSL() {
+  const on = document.getElementById('opts-sl-toggle').checked;
+  document.getElementById('opts-sl-body').style.opacity = on ? '1' : '.4';
+  OPTS.stop_loss_pct = on ? (parseFloat(document.getElementById('opts-sl-value').value) || 200) : null;
+}
+function optsToggleDTEExit() {
+  const on = document.getElementById('opts-dte-exit-toggle').checked;
+  document.getElementById('opts-dte-exit-body').style.display = on ? '' : 'none';
+  if (!on) OPTS.exit_on_dte = null;
+  else OPTS.exit_on_dte = parseInt(document.getElementById('opts-dte-exit-value').value) || 1;
+}
+function optsToggleDeltaExit() {
+  const on = document.getElementById('opts-delta-exit-toggle').checked;
+  document.getElementById('opts-delta-exit-body').style.display = on ? '' : 'none';
+  if (!on) OPTS.exit_delta_threshold = null;
+  else OPTS.exit_delta_threshold = parseFloat(document.getElementById('opts-delta-exit-value').value) || 0.50;
+}
+function optsToggleSpreadFilter() {
+  const on = document.getElementById('opts-spread-toggle').checked;
+  document.getElementById('opts-spread-body').style.display = on ? '' : 'none';
+  if (!on) OPTS.max_bid_ask_spread_pct = null;
+  else OPTS.max_bid_ask_spread_pct = parseFloat(document.getElementById('opts-spread-value').value) || 2.0;
+}
+
+function optsUpdateCheckTimes(freq, el) {
+  document.querySelectorAll('#opts-check-freq-pills .opts-freq-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (freq === '1hr') {
+    OPTS.check_exit_times = ['10:00','11:00','12:00','13:00','14:00','15:00','15:45'];
+  } else if (freq === '30min') {
+    const times = [];
+    for (let h = 9; h <= 15; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === 9 && m < 30) continue;
+        times.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+      }
+    }
+    times.push('15:45');
+    OPTS.check_exit_times = [...new Set(times)].sort();
+  } else if (freq === '15min') {
+    const times = [];
+    for (let min = 9*60+45; min <= 15*60+45; min += 15) {
+      const h = Math.floor(min/60), m = min%60;
+      times.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+    }
+    OPTS.check_exit_times = times;
+  }
+  optsUpdateRuntimeEstimate();
+}
+
+function optsCheckRunButton() {
+  const btn = document.getElementById('opts-run-btn');
+  if (!btn) return;
+  const ok = OPTS.symbol && OPTS.target_dte !== null && OPTS.target_dte !== undefined &&
+             OPTS.start_date && OPTS.end_date && OPTS.entry_days.length > 0;
+  btn.disabled = !ok;
+}
+
+/* ── RUN BACKTEST (SSE streaming) ────────────────────── */
+async function optsRunBacktest() {
+  if (!EMAIL) { showToast('Please set up your account on the Home page first', 'error'); return; }
+
+  // Sync OPTS fields from all inputs
+  OPTS.short_strike_method = document.getElementById('opts-put-method')?.value || 'DELTA';
+  OPTS.short_strike_value  = parseFloat(document.getElementById('opts-put-value')?.value) || -0.30;
+  OPTS.wing_width_method   = document.getElementById('opts-put-wing-method')?.value || 'POINTS_OTM';
+  OPTS.wing_width_value    = parseFloat(document.getElementById('opts-put-wing-value')?.value) || 5;
+  OPTS.short_call_strike_method = document.getElementById('opts-call-method')?.value || 'DELTA';
+  OPTS.short_call_strike_value  = parseFloat(document.getElementById('opts-call-value')?.value) || 0.30;
+  OPTS.call_wing_width_method   = document.getElementById('opts-call-wing-method')?.value || 'POINTS_OTM';
+  OPTS.call_wing_width_value    = parseFloat(document.getElementById('opts-call-wing-value')?.value) || 5;
+  OPTS.entry_time  = document.getElementById('opts-entry-time')?.value || '09:45';
+  OPTS.exit_time   = document.getElementById('opts-exit-time')?.value  || '15:45';
+  OPTS.dte_tolerance = parseInt(document.getElementById('opts-dte-tol')?.value) || 2;
+  OPTS.starting_capital        = parseFloat(document.getElementById('opts-capital')?.value) || 10000;
+  OPTS.contracts               = parseInt(document.getElementById('opts-contracts')?.value) || 1;
+  OPTS.commission_per_contract = parseFloat(document.getElementById('opts-commission')?.value) || 0.65;
+  OPTS.slippage_pct            = parseFloat(document.getElementById('opts-slippage')?.value) || 0;
+  OPTS.fill_method             = document.getElementById('opts-fill-method')?.value || 'conservative';
+
+  const config = { ...OPTS };
+
+  // Reset UI
+  _optsTradeLog = [];
+  _optsTradeLogPage = 1;
+  _optsResults = null;
+  document.getElementById('opts-progress-section').style.display = '';
+  document.getElementById('opts-results-view').style.display = 'none';
+  document.getElementById('opts-progress-fill').style.width = '0%';
+  document.getElementById('opts-progress-date').textContent = 'Starting...';
+  document.getElementById('opts-progress-count').textContent = '0 trades found';
+  document.getElementById('opts-progress-pct').textContent = '0%';
+  document.getElementById('opts-run-btn').disabled = true;
+
+  _optsAbortController = new AbortController();
+
+  try {
+    const r = await fetch(API + '/api/options/backtest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(config),
+      signal: _optsAbortController.signal,
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) !== -1) {
+        const frame = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const line = frame.split('\n').find(l => l.startsWith('data: '));
+        if (!line) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+        _optsHandleEvent(ev);
+      }
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      showToast('Backtest cancelled', 'info');
+    } else {
+      showToast('Backtest failed: ' + e.message, 'error');
+    }
+    document.getElementById('opts-progress-section').style.display = 'none';
+  } finally {
+    _optsAbortController = null;
+    document.getElementById('opts-run-btn').disabled = false;
+  }
+}
+
+function optsCancelBacktest() {
+  if (_optsAbortController) _optsAbortController.abort();
+}
+
+function _optsHandleEvent(ev) {
+  switch (ev.type) {
+    case 'start': {
+      document.getElementById('opts-progress-date').textContent =
+        'Scanning ' + ev.total + ' trading days...';
+      // Cold-cache first-run hint -- download is the bottleneck, set expectations
+      const cacheBadge = document.getElementById('opts-cache-status');
+      const cold = cacheBadge && cacheBadge.classList.contains('opts-cache-cold');
+      if (cold && ev.entry_dates > 0) {
+        const mins = Math.max(1, Math.round(ev.entry_dates * 2 / 60));
+        document.getElementById('opts-progress-count').textContent =
+          '\u{1F4E5} First run: downloading ' + ev.entry_dates +
+          ' days of data (~' + mins + ' min). Subsequent runs will be instant.';
+      }
+      break;
+    }
+    case 'progress': {
+      const pct = ev.total > 0 ? Math.round(ev.done / ev.total * 100) : 0;
+      document.getElementById('opts-progress-fill').style.width = pct + '%';
+      document.getElementById('opts-progress-pct').textContent = pct + '%';
+      // Prefer backend's message (e.g. "Downloading data...") over the raw date
+      document.getElementById('opts-progress-date').textContent = ev.message || ev.date || '';
+      // Keep the cold-cache hint until the first trade actually lands; then swap to count
+      const countEl = document.getElementById('opts-progress-count');
+      if (countEl) {
+        const showingHint = countEl.textContent.includes('First run');
+        if (!showingHint || _optsTradeLog.length > 0) {
+          countEl.textContent = _optsTradeLog.length + ' trades found';
+        }
+      }
+      break;
+    }
+    case 'trade':
+      _optsTradeLog.push(ev.trade);
+      document.getElementById('opts-progress-count').textContent =
+        _optsTradeLog.length + ' trades found';
+      break;
+    case 'complete': {
+      _optsResults = { metrics: ev.metrics, trade_log: ev.trade_log };
+      if (ev.trade_log && ev.trade_log.length) _optsTradeLog = ev.trade_log;
+      // 0-trades guard: don't render NaN-filled tiles; show a clear toast + inline hint
+      const totalTrades = (ev.metrics && ev.metrics.total_trades) || 0;
+      if (totalTrades === 0) {
+        document.getElementById('opts-progress-section').style.display = 'none';
+        document.getElementById('opts-results-view').style.display = 'none';
+        document.getElementById('opts-run-btn').disabled = false;
+        showToast('No trades found for this period. Try a different date range, DTE, or pre-warm the cache for this symbol.', 'error');
+        const hint = document.getElementById('opts-runtime-hint');
+        if (hint) {
+          hint.textContent = '\u26A0\uFE0F No trades found \u2014 try different settings or pre-warm the cache';
+          hint.style.color = 'var(--red)';
+        }
+        break;
+      }
+      _optsRenderResults();
+      document.getElementById('opts-progress-section').style.display = 'none';
+      document.getElementById('opts-results-view').style.display = '';
+      // Reset the runtime hint color in case a prior run left it red
+      const hint = document.getElementById('opts-runtime-hint');
+      if (hint) hint.style.color = 'var(--text-muted)';
+      break;
+    }
+    case 'error':
+      showToast('Backtest error: ' + (ev.message || 'unknown'), 'error');
+      document.getElementById('opts-progress-section').style.display = 'none';
+      break;
+  }
+}
+
+/* ── Render results ──────────────────────────────────── */
+function _optsRenderResults() {
+  if (!_optsResults) return;
+  const m = _optsResults.metrics;
+  const $ = v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString(undefined, {maximumFractionDigits:0});
+
+  // CAGR from equity curve
+  let cagr = 0;
+  if (m.equity_curve && m.equity_curve.length >= 2) {
+    const startCap = m.equity_curve[0].capital;
+    const endCap = m.equity_curve[m.equity_curve.length - 1].capital;
+    const years = (new Date(m.equity_curve[m.equity_curve.length - 1].date) -
+                   new Date(m.equity_curve[0].date)) / (365.25 * 86400000);
+    if (startCap > 0 && years > 0 && endCap > 0) {
+      cagr = (Math.pow(endCap / startCap, 1 / years) - 1) * 100;
+    }
+  }
+
+  const setCls = (id, v) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('green','red');
+    if (v > 0) el.classList.add('green');
+    else if (v < 0) el.classList.add('red');
+  };
+
+  document.getElementById('opts-m-pnl').textContent = $(m.total_pnl); setCls('opts-m-pnl', m.total_pnl);
+  document.getElementById('opts-m-cagr').textContent = cagr.toFixed(1) + '%'; setCls('opts-m-cagr', cagr);
+  document.getElementById('opts-m-dd').textContent = '-' + (m.max_drawdown_pct || 0).toFixed(1) + '%';
+  document.getElementById('opts-m-wr').textContent = (m.win_rate || 0).toFixed(1) + '%';
+  document.getElementById('opts-m-avg').textContent = $(m.avg_pnl_per_trade); setCls('opts-m-avg', m.avg_pnl_per_trade);
+  document.getElementById('opts-m-win').textContent = '+$' + Math.abs(m.avg_winner || 0).toFixed(0);
+  document.getElementById('opts-m-loss').textContent = '-$' + Math.abs(m.avg_loser || 0).toFixed(0);
+  document.getElementById('opts-m-pf').textContent = (m.profit_factor || 0).toFixed(2);
+  document.getElementById('opts-m-prem').textContent = '$' + (m.total_premium_collected || 0).toLocaleString(undefined,{maximumFractionDigits:0});
+  document.getElementById('opts-m-dte').textContent = (m.avg_dte_at_entry || 0).toFixed(1);
+  document.getElementById('opts-m-exp').textContent = (m.pct_expired_worthless || 0).toFixed(1) + '%';
+  document.getElementById('opts-m-pt').textContent = (m.pct_closed_profit_target || 0).toFixed(1) + '%';
+
+  // 1Y teaser: invite the student to extend to 3Y/5Y if the short-period result looks promising
+  const advisory = document.getElementById('opts-advisory');
+  if (advisory) {
+    const periodDays = (OPTS.start_date && OPTS.end_date)
+      ? Math.round((new Date(OPTS.end_date) - new Date(OPTS.start_date)) / 86400000)
+      : 9999;
+    const winRate = (m.win_rate || 0) / 100;
+    if ((m.total_trades || 0) > 0 && periodDays < 400 && winRate > 0.55) {
+      advisory.innerHTML =
+        '<div style="background:var(--blue-pale);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--blue-primary)">' +
+        '\u{1F4A1} <strong>1Y results look good?</strong> Extend to 3Y or 5Y to stress-test across different market regimes (2022 bear market, 2020 COVID crash).' +
+        '</div>';
+    } else {
+      advisory.innerHTML = '';
+    }
+  }
+
+  _optsRenderSummary();
+  _optsRenderEquityChart();
+  _optsRenderMonthly();
+  _optsRenderTradeLog();
+  _optsRenderSkipSummary();
+}
+
+function _optsRenderSummary() {
+  const m = _optsResults.metrics;
+  const el = document.getElementById('opts-results-summary');
+  if (!el) return;
+  const pill = (txt, bg, fg) =>
+    '<span style="font-size:11px;padding:3px 8px;border-radius:6px;background:' + bg + ';color:' + fg + ';font-weight:600">' + esc(txt) + '</span>';
+  const sharpeTxt = (m.sharpe_ratio || 0).toFixed(2);
+  el.innerHTML =
+    pill(OPTS.symbol + ' \u00B7 ' + OPTS.strategy_type.replace(/_/g,' '), 'var(--surface-2)', 'var(--text-secondary)') +
+    pill(OPTS.target_dte + ' DTE', 'var(--blue-pale)', 'var(--blue-primary)') +
+    pill(m.total_trades + ' trades', 'var(--surface-2)', 'var(--text-secondary)') +
+    pill('Sharpe ' + sharpeTxt, 'var(--surface-2)', 'var(--text-secondary)');
+}
+
+function _optsRenderEquityChart() {
+  const m = _optsResults.metrics;
+  const curve = m.equity_curve || [];
+  const canvas = document.getElementById('opts-equity-chart');
+  if (!canvas || !curve.length) return;
+  if (_optsEquityChart) { _optsEquityChart.destroy(); _optsEquityChart = null; }
+  const ctx = canvas.getContext('2d');
+  _optsEquityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: curve.map(p => p.date),
+      datasets: [{
+        data: curve.map(p => p.capital),
+        borderColor: '#1565C0', borderWidth: 2, pointRadius: 0,
+        fill: true, backgroundColor: 'rgba(21,101,192,0.08)', tension: 0.1,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+                 tooltip: { callbacks: { label: c => '$' + Number(c.raw).toLocaleString() } } },
+      scales: {
+        x: { ticks: { color: '#8BA3C7', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        y: { type: _optsChartScale,
+             ticks: { color: '#8BA3C7', callback: v => '$' + Number(v).toLocaleString(), font: { size: 10 } },
+             grid: { color: 'rgba(0,0,0,0.04)' } },
+      },
+    },
+  });
+}
+
+function optsToggleChartScale(scale, el) {
+  _optsChartScale = scale;
+  document.querySelectorAll('#opts-chart-linear, #opts-chart-log').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  _optsRenderEquityChart();
+}
+
+function _optsRenderMonthly() {
+  const m = _optsResults.metrics;
+  const tbody = document.getElementById('opts-monthly-tbody');
+  if (!tbody) return;
+  const stats = m.monthly_stats || [];
+  if (!stats.length) { tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted)">No months</td></tr>'; return; }
+  let lastYear = null;
+  const rows = [];
+  stats.forEach(s => {
+    if (s.year !== lastYear) {
+      rows.push('<tr><td colspan="7" class="opts-monthly-yr">' + s.year + '</td></tr>');
+      lastYear = s.year;
+    }
+    const mName = new Date(2000, s.month - 1, 1).toLocaleString('en-US', { month: 'short' });
+    const pnlCls = s.pnl > 0 ? 'green' : s.pnl < 0 ? 'red' : '';
+    rows.push('<tr>' +
+      '<td>' + mName + '</td>' +
+      '<td class="stat-value ' + pnlCls + '" style="font-size:13px">' +
+        (s.pnl >= 0 ? '+' : '') + '$' + s.pnl.toFixed(0) + '</td>' +
+      '<td>' + s.trades + '</td>' +
+      '<td>' + s.win_rate.toFixed(1) + '%</td>' +
+      '<td>' + (s.avg_pnl >= 0 ? '+' : '') + '$' + s.avg_pnl.toFixed(0) + '</td>' +
+      '<td style="color:var(--green)">+$' + s.best.toFixed(0) + '</td>' +
+      '<td style="color:var(--red)">$' + s.worst.toFixed(0) + '</td>' +
+      '</tr>');
+  });
+  tbody.innerHTML = rows.join('');
+}
+
+function _optsRenderTradeLog() {
+  const trades = _optsTradeLog || [];
+  const tbody = document.getElementById('opts-tradelog-tbody');
+  const countEl = document.getElementById('opts-tradelog-count');
+  const pageInfo = document.getElementById('opts-page-info');
+  if (!tbody) return;
+  if (countEl) countEl.textContent = trades.length + ' trades';
+  if (!trades.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-muted)">No trades</td></tr>';
+    if (pageInfo) pageInfo.textContent = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(trades.length / OPTS_PAGE_SIZE));
+  if (_optsTradeLogPage > totalPages) _optsTradeLogPage = totalPages;
+  if (_optsTradeLogPage < 1) _optsTradeLogPage = 1;
+  const start = (_optsTradeLogPage - 1) * OPTS_PAGE_SIZE;
+  const slice = trades.slice(start, start + OPTS_PAGE_SIZE);
+
+  const exitClass = {
+    'PROFIT_TARGET':'opts-exit-pt', 'STOP_LOSS':'opts-exit-sl', 'EXPIRED':'opts-exit-exp',
+    'DELTA_EXIT':'opts-exit-delta', 'EOD':'opts-exit-eod', 'DTE_EXIT':'opts-exit-dte',
+  };
+  const exitShort = {
+    'PROFIT_TARGET':'PT', 'STOP_LOSS':'SL', 'EXPIRED':'EXP',
+    'DELTA_EXIT':'\u0394', 'EOD':'EOD', 'DTE_EXIT':'DTE',
+  };
+
+  tbody.innerHTML = slice.map(t => {
+    const pnlCls = t.pnl_net > 0 ? 'green' : t.pnl_net < 0 ? 'red' : '';
+    const legs = (t.legs || []).map(l => {
+      const a = l.action === 'SELL' ? 'opts-chip-sell' : 'opts-chip-buy';
+      const r = l.right === 'CALL' ? 'opts-chip-call' : 'opts-chip-put';
+      return '<span class="opts-leg-chip ' + a + ' ' + r + '" style="font-size:10px;padding:1px 5px">' +
+             (l.action === 'SELL' ? '-' : '+') + l.right.charAt(0) + ' ' + l.strike + '</span>';
+    }).join(' ');
+    const exitCls = exitClass[t.exit_reason] || 'opts-exit-eod';
+    const exitTxt = exitShort[t.exit_reason] || t.exit_reason;
+    return '<tr class="opts-trade-row">' +
+      '<td style="font-size:11px"><div>' + t.entry_date + '</div><div style="color:var(--text-muted)">' + t.exit_date + '</div></td>' +
+      '<td style="font-size:11px"><div>$' + (t.underlying_at_entry || 0).toFixed(2) + '</div><div style="color:var(--text-muted)">$' + (t.underlying_at_exit || 0).toFixed(2) + '</div></td>' +
+      '<td>' + legs + '</td>' +
+      '<td style="font-size:12px">$' + (t.net_credit || 0).toFixed(2) + '</td>' +
+      '<td style="font-size:12px">$' + (t.cost_to_close || 0).toFixed(2) + '</td>' +
+      '<td style="font-size:12px">' + (t.days_in_trade || 0) + 'd</td>' +
+      '<td><span class="opts-exit-badge ' + exitCls + '">' + exitTxt + '</span></td>' +
+      '<td class="stat-value ' + pnlCls + '" style="font-size:13px">' +
+        (t.pnl_net >= 0 ? '+$' : '-$') + Math.abs(t.pnl_net).toFixed(2) + '</td>' +
+      '<td class="stat-value ' + pnlCls + '" style="font-size:12px">' +
+        (t.pnl_pct_of_max >= 0 ? '+' : '') + (t.pnl_pct_of_max || 0).toFixed(0) + '%</td>' +
+      '</tr>';
+  }).join('');
+
+  if (pageInfo) pageInfo.textContent = 'Showing ' + (start + 1) + '-' + Math.min(start + OPTS_PAGE_SIZE, trades.length) + ' of ' + trades.length;
+  const prev = document.getElementById('opts-prev-btn');
+  const next = document.getElementById('opts-next-btn');
+  if (prev) prev.disabled = _optsTradeLogPage <= 1;
+  if (next) next.disabled = _optsTradeLogPage >= totalPages;
+}
+
+function optsTradeLogPage(delta) {
+  _optsTradeLogPage += delta;
+  _optsRenderTradeLog();
+}
+
+function _optsRenderSkipSummary() {
+  const m = _optsResults.metrics;
+  const el = document.getElementById('opts-skip-summary');
+  if (!el) return;
+  const skipKeys = Object.keys(m).filter(k => k.startsWith('skipped_') && m[k] > 0);
+  if (!skipKeys.length) { el.innerHTML = ''; return; }
+  const parts = skipKeys.map(k => m[k] + ' ' + k.slice(8).replace(/_/g,' '));
+  el.innerHTML = 'Skipped days: ' + parts.join(' \u00B7 ');
+}
+
+function optsGoBackToSetup() {
+  document.getElementById('opts-results-view').style.display = 'none';
+  document.getElementById('opts-progress-section').style.display = 'none';
+  if (_optsEquityChart) { _optsEquityChart.destroy(); _optsEquityChart = null; }
+}
+
+function optsExportCSV() {
+  const trades = _optsTradeLog || [];
+  if (!trades.length) { showToast('No trades to export', 'error'); return; }
+  const header = ['entry_date','entry_time','exit_date','exit_time','symbol','strategy','expiration',
+                  'dte_at_entry','days_in_trade','underlying_at_entry','underlying_at_exit',
+                  'net_credit','cost_to_close','pnl_gross','commission','pnl_net',
+                  'exit_reason','pnl_pct_of_max'];
+  const lines = [header.join(',')];
+  trades.forEach(t => {
+    lines.push([
+      t.entry_date, t.entry_time, t.exit_date, t.exit_time, t.symbol, t.strategy_type, t.expiration,
+      t.dte_at_entry, t.days_in_trade, t.underlying_at_entry, t.underlying_at_exit,
+      t.net_credit, t.cost_to_close, t.pnl_gross, t.commission, t.pnl_net,
+      t.exit_reason, t.pnl_pct_of_max,
+    ].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = OPTS.symbol + '_' + OPTS.strategy_type + '_' + OPTS.start_date + '_' + OPTS.end_date + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function optsOpenDeployModal() {
+  const m = _optsResults?.metrics || {};
+  const el = document.getElementById('opts-deploy-summary');
+  if (el) {
+    el.innerHTML =
+      '<div style="margin-bottom:8px"><strong>Strategy:</strong> ' + esc(OPTS.symbol + ' ' + OPTS.strategy_type.replace(/_/g,' ')) + '</div>' +
+      '<div style="margin-bottom:8px"><strong>DTE:</strong> ' + OPTS.target_dte + '  \u00B7  <strong>Entry:</strong> ' + esc(OPTS.entry_time) + '</div>' +
+      '<div style="margin-bottom:8px"><strong>PT/SL:</strong> ' + OPTS.profit_target_pct + '% / ' + OPTS.stop_loss_pct + '%</div>' +
+      '<div><strong>Backtest:</strong> ' + m.total_trades + ' trades, ' + (m.win_rate || 0).toFixed(1) + '% WR, $' + (m.total_pnl || 0).toFixed(0) + ' PnL</div>';
+  }
+  document.getElementById('opts-deploy-modal').classList.add('open');
+}
+
+/* ── Cache Manager (Options Studio / Advanced) ──────── */
+async function optsCachePreload() {
+  const sym = document.getElementById('opts-cache-sym').value;
+  const period = document.getElementById('opts-cache-period').value;
+  const btn = document.getElementById('opts-cache-preload-btn');
+
+  const toISO = d => new Date(d).toISOString().slice(0, 10);
+  const end = toISO(new Date());
+  const start =
+    period === 'all' ? '2020-01-01' :
+    period === '3y'  ? toISO(Date.now() - 3 * 365 * 86400000) :
+    period === '2y'  ? toISO(Date.now() - 2 * 365 * 86400000) :
+                       toISO(Date.now() - 365 * 86400000);
+
+  btn.disabled = true;
+  btn.textContent = '\u23F3 Pre-warming...';
+  document.getElementById('opts-cache-progress').style.display = '';
+  document.getElementById('opts-cache-progress-fill').style.width = '0%';
+  document.getElementById('opts-cache-progress-msg').textContent =
+    'Downloading ' + sym + ' data (' + start + ' \u2192 ' + end + ')...';
+  document.getElementById('opts-cache-progress-pct').textContent = '0%';
+
+  try {
+    const resp = await fetch(API + '/api/options/cache/preload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: sym, start_date: start, end_date: end }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // SSE frames are separated by blank line (\n\n)
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const line = frame.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        if (evt.type === 'progress') {
+          const pct = evt.total > 0 ? Math.round(evt.done / evt.total * 100) : 0;
+          document.getElementById('opts-cache-progress-fill').style.width = pct + '%';
+          document.getElementById('opts-cache-progress-msg').textContent =
+            evt.done + '/' + evt.total + ' days cached \u2014 ' + (evt.date || '');
+          document.getElementById('opts-cache-progress-pct').textContent = pct + '%';
+        } else if (evt.type === 'complete') {
+          document.getElementById('opts-cache-progress-fill').style.width = '100%';
+          const sizeMB = (evt.size_mb != null ? evt.size_mb : 0).toFixed(0);
+          document.getElementById('opts-cache-progress-msg').textContent =
+            '\u2705 Done! ' + evt.cached_files + ' files cached (' + sizeMB + ' MB)';
+          showToast(sym + ' cache ready \u2014 backtests will now run in seconds', 'success');
+          optsCacheLoadStats();
+        } else if (evt.type === 'error') {
+          throw new Error(evt.message || 'preload failed');
+        }
+      }
+    }
+  } catch (e) {
+    showToast('Cache preload failed: ' + e.message, 'error');
+    document.getElementById('opts-cache-progress-msg').textContent = '\u274C ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '\u{1F4E5} Pre-warm';
+    // Refresh warm/cold badge in the header
+    fetch(API + '/api/options/cache/stats').then(r => r.json()).then(d => {
+      const badge = document.getElementById('opts-cache-status');
+      if (!badge) return;
+      const warm = (d.symbols || []).some(s => s.symbol === OPTS.symbol);
+      badge.className = 'opts-cache-badge ' + (warm ? 'opts-cache-warm' : 'opts-cache-cold');
+      badge.textContent = warm ? '\u26A1 Cache warm' : '\u{1F4E5} First run will download data';
+      optsUpdateRuntimeEstimate();
+    }).catch(() => {});
+  }
+}
+
+async function optsCacheLoadStats() {
+  const el = document.getElementById('opts-cache-stats-text');
+  if (!el) return;
+  try {
+    const r = await fetch(API + '/api/options/cache/stats');
+    const d = await r.json();
+    const syms = (d.symbols || []).map(s => s.symbol + '(' + s.files + 'd)').join(' \u00B7 ');
+    const totalMB = (d.total_size_mb != null ? d.total_size_mb : 0).toFixed(0);
+    el.textContent = '\u{1F4BE} ' + (d.total_files || 0) + ' files \u00B7 ' +
+                     totalMB + ' MB \u2014 ' + (syms || 'empty');
+  } catch (e) {
+    el.textContent = '\u26A0\uFE0F Could not load cache info';
+  }
+}
+
+async function optsClearCache() {
+  if (!confirm('Clear all cached options data? This cannot be undone.')) return;
+  try {
+    const r = await fetch(API + '/api/options/cache', { method: 'DELETE' });
+    const d = await r.json();
+    const freed = (d.freed_mb != null ? d.freed_mb : 0).toFixed(0);
+    showToast('Cleared ' + d.deleted_files + ' files (' + freed + ' MB freed)', 'info');
+    optsCacheLoadStats();
+    // Flip the header badge back to cold
+    const badge = document.getElementById('opts-cache-status');
+    if (badge) {
+      badge.className = 'opts-cache-badge opts-cache-cold';
+      badge.textContent = '\u{1F4E5} First run will download data';
+    }
+    optsUpdateRuntimeEstimate();
+  } catch (e) {
+    showToast('Clear failed: ' + e.message, 'error');
+  }
 }
 
 </script>

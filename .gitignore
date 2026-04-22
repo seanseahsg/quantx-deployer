@@ -26,3 +26,6 @@ config.json
 
 # Test files
 test_grid.py
+
+# Options data disk cache (multi-GB, re-downloadable from R2)
+options_cache/

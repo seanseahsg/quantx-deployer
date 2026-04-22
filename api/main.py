@@ -753,6 +753,80 @@ async def backtest_optimize_stream(request: Request):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+@app.post("/api/options/backtest")
+async def options_backtest_stream(request: Request):
+    """SSE streaming backtest for options strategies (vertical spreads, condors, etc.)."""
+    config = await request.json()
+
+    def event_stream():
+        from api.options_backtest import run_options_backtest_stream
+        try:
+            for event in run_options_backtest_stream(config):
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.get("/api/options/cache/stats")
+async def options_cache_stats():
+    """Disk-cache inventory: file counts + sizes per symbol."""
+    from api.options_data import get_cache_stats
+    return get_cache_stats()
+
+
+@app.get("/api/options/dates/{symbol}")
+async def get_options_dates(symbol: str):
+    """Return the actual date range available in R2 for a symbol.
+    Bypasses the TTL cache to ensure frontend sees fresh bucket contents."""
+    from api.options_data import get_available_dates, invalidate_dates_cache
+    invalidate_dates_cache(symbol)
+    dates = get_available_dates(symbol)
+    return {
+        "symbol": symbol.upper(),
+        "dates": dates,
+        "count": len(dates),
+        "first": dates[0] if dates else None,
+        "last": dates[-1] if dates else None,
+    }
+
+
+@app.delete("/api/options/cache")
+async def options_cache_clear(symbol: Optional[str] = Query(None)):
+    """Delete cache files. Pass ?symbol=SPY to clear one symbol, omit to clear all."""
+    from api.options_data import clear_cache
+    return clear_cache(symbol)
+
+
+@app.post("/api/options/cache/preload")
+async def options_cache_preload(request: Request):
+    """SSE stream: pre-download all R2 parquet files for [start_date, end_date]."""
+    body = await request.json()
+    symbol = body["symbol"].upper()
+    start = body["start_date"]
+    end = body["end_date"]
+
+    def event_stream():
+        from api.options_data import get_available_dates, _ensure_day_cached, get_cache_stats
+        try:
+            dates = [d for d in get_available_dates(symbol) if start <= d <= end]
+            total = len(dates)
+            yield f"data: {json.dumps({'type':'start','total':total,'symbol':symbol})}\n\n"
+            for i, d in enumerate(dates, 1):
+                _ensure_day_cached(symbol, d)
+                yield f"data: {json.dumps({'type':'progress','done':i,'total':total,'date':d})}\n\n"
+            stats = get_cache_stats()
+            sym_entry = next((s for s in stats["symbols"] if s["symbol"] == symbol), None)
+            yield f"data: {json.dumps({'type':'complete','cached_files':sym_entry['files'] if sym_entry else total,'size_mb':sym_entry['size_mb'] if sym_entry else 0})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.get("/api/fundamentals/{symbol}")
 async def fundamentals(symbol: str):
     from api.backtest import get_fundamentals, _fmp_symbol
