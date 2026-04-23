@@ -48,6 +48,96 @@ from api.generate import (generate_master_bot, generate_ibkr_bot, generate_simpl
 _log = _logging.getLogger("quantx-deployer")
 
 
+# ── LongPort connection pool ─────────────────────────────────────────────────
+# Previously every API call built a fresh QuoteContext / TradeContext. LongPort
+# enforces a per-key connection limit, and creating a context takes ~1s of
+# handshake, so both the UX and the rate limits suffered under multi-student
+# load. The pool below keys contexts by a hash of the credentials so each
+# student reuses the same ctx for up to LP_POOL_TTL seconds.
+#
+# LongPort support has confirmed a single QuoteContext/TradeContext is safe to
+# share across threads. Each student gets their own ctx so credential isolation
+# is preserved.
+import threading as _lp_threading  # noqa: E402  (distinct name to avoid shadowing)
+import hashlib as _lp_hashlib      # noqa: E402
+
+_lp_quote_pool: dict = {}           # cred_hash -> QuoteContext
+_lp_trade_pool: dict = {}           # cred_hash -> TradeContext
+_lp_pool_last_used: dict = {}       # cred_hash -> last-used epoch seconds
+_lp_pool_lock = _lp_threading.Lock()
+
+LP_POOL_TTL = 300  # seconds; after this, reuse stops and a fresh ctx is built
+
+
+def _lp_cred_hash(app_key: str, app_secret: str, access_token: str) -> str:
+    return _lp_hashlib.sha256(
+        f"{app_key}:{app_secret}:{access_token}".encode()
+    ).hexdigest()[:16]
+
+
+def _lp_build_config(app_key: str, app_secret: str, access_token: str):
+    """Config with optional LONGBRIDGE_LOG_PATH wired in (LP-requested)."""
+    from longport.openapi import Config
+    kwargs = dict(app_key=app_key, app_secret=app_secret, access_token=access_token)
+    log_path = os.environ.get("LONGBRIDGE_LOG_PATH", "")
+    if log_path:
+        kwargs["log_path"] = log_path
+    return Config(**kwargs)
+
+
+def get_lp_quote_ctx(app_key: str, app_secret: str, access_token: str):
+    """Return a reusable QuoteContext for these credentials."""
+    from longport.openapi import QuoteContext
+    key = _lp_cred_hash(app_key, app_secret, access_token)
+    now = time.time()
+    with _lp_pool_lock:
+        if key in _lp_quote_pool and (now - _lp_pool_last_used.get(key, 0)) < LP_POOL_TTL:
+            _lp_pool_last_used[key] = now
+            return _lp_quote_pool[key]
+        # Stale or absent -- drop and rebuild
+        _lp_quote_pool.pop(key, None)
+        ctx = QuoteContext(_lp_build_config(app_key, app_secret, access_token))
+        _lp_quote_pool[key] = ctx
+        _lp_pool_last_used[key] = now
+        _log.info("[LP-pool] Created QuoteContext (quote_pool=%d)", len(_lp_quote_pool))
+        return ctx
+
+
+def get_lp_trade_ctx(app_key: str, app_secret: str, access_token: str):
+    """Return a reusable TradeContext for these credentials."""
+    from longport.openapi import TradeContext
+    key = _lp_cred_hash(app_key, app_secret, access_token) + "_trade"
+    now = time.time()
+    with _lp_pool_lock:
+        if key in _lp_trade_pool and (now - _lp_pool_last_used.get(key, 0)) < LP_POOL_TTL:
+            _lp_pool_last_used[key] = now
+            return _lp_trade_pool[key]
+        _lp_trade_pool.pop(key, None)
+        ctx = TradeContext(_lp_build_config(app_key, app_secret, access_token))
+        _lp_trade_pool[key] = ctx
+        _lp_pool_last_used[key] = now
+        _log.info("[LP-pool] Created TradeContext (trade_pool=%d)", len(_lp_trade_pool))
+        return ctx
+
+
+def cleanup_lp_pool() -> int:
+    """Drop contexts untouched for > 2x TTL. Returns number removed. Safe to
+    call from a periodic task -- not wired to any scheduler by default."""
+    now = time.time()
+    dropped = 0
+    with _lp_pool_lock:
+        stale = [k for k, t in _lp_pool_last_used.items() if (now - t) > LP_POOL_TTL * 2]
+        for k in stale:
+            if _lp_quote_pool.pop(k, None) is not None:
+                dropped += 1
+            if _lp_trade_pool.pop(k, None) is not None:
+                dropped += 1
+            _lp_pool_last_used.pop(k, None)
+    if dropped:
+        _log.info("[LP-pool] cleanup removed %d stale contexts", dropped)
+    return dropped
+
+
 # ── Models ──────────────────────────────────────────────────────────────────
 
 class RegisterReq(BaseModel):
@@ -1260,9 +1350,7 @@ async def screen_now(req: ScreenNowReq):
     universe = get_universe(req.bot_type, req.arena, req.custom_tickers)
 
     def _run():
-        from longport.openapi import Config, QuoteContext
-        cfg = Config(app_key=student["app_key"], app_secret=student["app_secret"], access_token=student["access_token"])
-        ctx = QuoteContext(cfg)
+        ctx = get_lp_quote_ctx(student["app_key"], student["app_secret"], student["access_token"])
         from api.config import DB_PATH
         return run_screener(ctx, req.bot_type, universe, DB_PATH, email, req.strategy_id)
 
@@ -1462,13 +1550,8 @@ def _cancel_student_orders(student: dict) -> int:
     """Cancel all open LongPort orders for a student. Returns count cancelled."""
     logger = _logging.getLogger("quantx-deployer")
     try:
-        from longport.openapi import Config, TradeContext, OrderStatus
-        cfg = Config(
-            app_key=student["app_key"],
-            app_secret=student["app_secret"],
-            access_token=student["access_token"],
-        )
-        ctx = TradeContext(cfg)
+        from longport.openapi import OrderStatus  # noqa: F401  (used below via status name)
+        ctx = get_lp_trade_ctx(student["app_key"], student["app_secret"], student["access_token"])
         orders = ctx.today_orders()
         cancelled = 0
         for o in orders:
@@ -1525,11 +1608,9 @@ def _close_lp_positions(student: dict, positions: list) -> dict:
     if not positions:
         return {"closed": closed, "failed": failed}
     try:
-        from longport.openapi import Config, TradeContext, OrderType, OrderSide, TimeInForceType
+        from longport.openapi import OrderType, OrderSide, TimeInForceType
         import decimal
-        cfg = Config(app_key=student["app_key"], app_secret=student["app_secret"],
-                     access_token=student["access_token"])
-        trade_ctx = TradeContext(cfg)
+        trade_ctx = get_lp_trade_ctx(student["app_key"], student["app_secret"], student["access_token"])
         for pos in positions:
             symbol = pos["symbol"]
             qty = abs(int(pos["position"]))
@@ -1959,10 +2040,7 @@ async def test_broker_account(account_id: int):
     def _test():
         if broker == "longport":
             try:
-                from longport.openapi import Config, QuoteContext
-                cfg = Config(app_key=acct["app_key"], app_secret=acct["app_secret"],
-                             access_token=acct["access_token"])
-                ctx = QuoteContext(cfg)
+                ctx = get_lp_quote_ctx(acct["app_key"], acct["app_secret"], acct["access_token"])
                 quotes = ctx.quote(["700.HK"])
                 if quotes:
                     price = float(quotes[0].last_done)
@@ -2416,9 +2494,7 @@ def _fetch_symbol_lp(symbol: str, email: str) -> dict:
     if not student:
         return {"found": False, "error": "Register to search unlisted symbols."}
     try:
-        from longport.openapi import Config, QuoteContext
-        cfg = Config(app_key=student["app_key"], app_secret=student["app_secret"], access_token=student["access_token"])
-        ctx = QuoteContext(cfg)
+        ctx = get_lp_quote_ctx(student["app_key"], student["app_secret"], student["access_token"])
         result = ctx.static_info([symbol])
         if result and len(result) > 0:
             info = result[0]
@@ -2506,13 +2582,7 @@ async def test_connection(req: DeployReq):
         raise HTTPException(404, "Student not registered")
     def _test_lp():
         try:
-            from longport.openapi import Config, QuoteContext
-            cfg = Config(
-                app_key=student["app_key"],
-                app_secret=student["app_secret"],
-                access_token=student["access_token"],
-            )
-            ctx = QuoteContext(cfg)
+            ctx = get_lp_quote_ctx(student["app_key"], student["app_secret"], student["access_token"])
             quotes = ctx.quote(["700.HK"])
             if quotes:
                 q = quotes[0]
