@@ -1371,31 +1371,71 @@ async def prewarm_popular(request: Request, background_tasks: BackgroundTasks):
     start_str, end_str = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
     def _prewarm_all():
-        from api.options_data import get_available_dates, _ensure_day_cached
-        import concurrent.futures
+        # Stream R2 -> disk directly. NO pandas load, NO parallel workers --
+        # the previous version OOM'd Railway because 4 ThreadPool workers each
+        # held a ~600 MB DataFrame at once (4 * 600 = 2.4 GB peak).
+        # This version peaks at the size of one parquet file (~215 MB raw).
+        # Trade-off: stores the FULL raw R2 file (~215 MB), not the slim 50 MB
+        # cleaned version that _ensure_day_cached produces. Backtests that
+        # later read these files will need ~600 MB DataFrame memory at read
+        # time. Acceptable for prewarm-and-go: the OOM happened at prewarm,
+        # not at backtest, and backtests serialize one file at a time.
+        import boto3 as _boto3
+        import botocore.config as _botoconf
+        import time as _time
+        import pyarrow.parquet as _pq
+        from api.options_data import (
+            CACHE_DIR, get_available_dates,
+            R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET,
+        )
+
+        s3 = _boto3.client(
+            "s3",
+            endpoint_url=R2_ENDPOINT,
+            aws_access_key_id=R2_ACCESS_KEY,
+            aws_secret_access_key=R2_SECRET_KEY,
+            region_name="auto",
+            config=_botoconf.Config(read_timeout=300, connect_timeout=30),
+        )
+
         for symbol in symbols:
             sym_up = symbol.upper()
             try:
                 all_dates = get_available_dates(sym_up)
                 dates = [d for d in all_dates if start_str <= d <= end_str]
-                print(f"[prewarm] {sym_up}: {len(dates)} dates to cache "
-                      f"({start_str} -> {end_str})")
-                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-                    futures = {pool.submit(_ensure_day_cached, sym_up, d): d for d in dates}
-                    done = 0
-                    for f in concurrent.futures.as_completed(futures):
-                        done += 1
-                        d = futures[f]
+                sym_dir = CACHE_DIR / sym_up
+                sym_dir.mkdir(parents=True, exist_ok=True)
+                print(f"[prewarm] {sym_up}: {len(dates)} dates to download")
+                done = 0
+                skipped = 0
+                for d in dates:
+                    cf = sym_dir / f"{d}.parquet"
+                    # Skip if already cached and valid
+                    if cf.exists():
                         try:
-                            f.result()
-                            if done % 20 == 0 or done == len(dates):
-                                print(f"[prewarm] {sym_up}: {done}/{len(dates)} cached")
-                        except Exception as e:
-                            print(f"[prewarm] {sym_up} {d} failed: "
-                                  f"{type(e).__name__}: {e}")
-                print(f"[prewarm] {sym_up}: DONE")
+                            _pq.read_schema(cf)
+                            skipped += 1
+                            continue
+                        except Exception:
+                            cf.unlink(missing_ok=True)
+                    # Download directly to disk -- key matches the R2 layout
+                    # used by api/options_data._download_day, NOT a flat
+                    # SYMBOL/DATE.parquet path.
+                    try:
+                        key = f"{sym_up}/greeks_1min_daily/{d}.parquet"
+                        s3.download_file(R2_BUCKET, key, str(cf))
+                        done += 1
+                        if done % 10 == 0:
+                            print(f"[prewarm] {sym_up}: {done} downloaded, "
+                                  f"{skipped} already cached")
+                        _time.sleep(0.05)  # be nice to R2
+                    except Exception as e:
+                        print(f"[prewarm] SKIP {sym_up} {d}: {e}")
+                        cf.unlink(missing_ok=True)
+                print(f"[prewarm] {sym_up}: DONE -- "
+                      f"{done} downloaded, {skipped} already cached")
             except Exception as e:
-                print(f"[prewarm] {sym_up} error: {e}")
+                print(f"[prewarm] {sym_up} ERROR: {e}")
 
     background_tasks.add_task(_prewarm_all)
     return {
