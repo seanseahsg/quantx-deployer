@@ -20,7 +20,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query, Request, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Query, Request, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -410,7 +410,8 @@ async def health():
 #   PostgreSQL/Railway: /api/* (except /api/auth/* and /api/health) requires JWT
 
 _PUBLIC_API_PREFIXES = ("/api/auth/", "/api/health", "/api/debug",
-                        "/api/options/share")  # share links viewable without auth
+                        "/api/options/share",                   # share links viewable without auth
+                        "/api/options/cache/prewarm-popular")   # gated by ADMIN_PIN, not JWT
 
 
 @app.middleware("http")
@@ -1347,6 +1348,62 @@ async def options_cache_preload(request: Request):
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/options/cache/prewarm-popular")
+async def prewarm_popular(request: Request, background_tasks: BackgroundTasks):
+    """Fire-and-forget pre-warm of the most commonly backtested symbols.
+
+    Gated by an admin PIN (the `key` body field). The actual downloads
+    run in a FastAPI BackgroundTasks worker so the HTTP response returns
+    immediately; watch Railway logs for `[prewarm]` lines.
+    """
+    body = await request.json()
+    expected_pin = os.environ.get("ADMIN_PIN", "quantx2025")
+    if body.get("key") != expected_pin:
+        raise HTTPException(403, "Unauthorized")
+
+    symbols = body.get("symbols") or ["SPY", "SPXW"]
+    from datetime import date as _date
+    end = _date.today()
+    start = _date(end.year - 2, end.month, end.day)
+    start_str, end_str = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+
+    def _prewarm_all():
+        from api.options_data import get_available_dates, _ensure_day_cached
+        import concurrent.futures
+        for symbol in symbols:
+            sym_up = symbol.upper()
+            try:
+                all_dates = get_available_dates(sym_up)
+                dates = [d for d in all_dates if start_str <= d <= end_str]
+                print(f"[prewarm] {sym_up}: {len(dates)} dates to cache "
+                      f"({start_str} -> {end_str})")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                    futures = {pool.submit(_ensure_day_cached, sym_up, d): d for d in dates}
+                    done = 0
+                    for f in concurrent.futures.as_completed(futures):
+                        done += 1
+                        d = futures[f]
+                        try:
+                            f.result()
+                            if done % 20 == 0 or done == len(dates):
+                                print(f"[prewarm] {sym_up}: {done}/{len(dates)} cached")
+                        except Exception as e:
+                            print(f"[prewarm] {sym_up} {d} failed: "
+                                  f"{type(e).__name__}: {e}")
+                print(f"[prewarm] {sym_up}: DONE")
+            except Exception as e:
+                print(f"[prewarm] {sym_up} error: {e}")
+
+    background_tasks.add_task(_prewarm_all)
+    return {
+        "ok": True,
+        "message": f"Pre-warming {symbols} in background",
+        "symbols": symbols,
+        "date_range": {"start": start_str, "end": end_str},
+        "note": "Check Railway logs for [prewarm] lines",
+    }
 
 
 @app.get("/api/fundamentals/{symbol}")
