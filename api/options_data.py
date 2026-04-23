@@ -120,11 +120,23 @@ def _download_day(s3, symbol: str, date_str: str, dest: Path) -> str:
 
 def _ensure_day_cached(symbol: str, date_str: str) -> Path:
     """Download + clean + save one day's parquet if not already cached. Thread-safe
-    (filesystem-level: different processes may duplicate work but won't corrupt)."""
+    (filesystem-level: different processes may duplicate work but won't corrupt).
+
+    Also validates existing files -- Railway volumes can write truncated parquets
+    on disk-full. A metadata-only schema read (~1ms) catches those cleanly
+    and triggers a re-download rather than letting pd.read_parquet blow up
+    mid-backtest with a 'Couldn't deserialize thrift' error.
+    """
     symbol = symbol.upper()
     cf = _cache_path(symbol, date_str)
     if cf.exists():
-        return cf
+        try:
+            import pyarrow.parquet as _pq
+            _pq.read_schema(cf)  # fast metadata-only check
+            return cf
+        except Exception as e:
+            log.warning("[cache] Corrupted file detected, re-downloading: %s (%s)", cf, e)
+            cf.unlink(missing_ok=True)
     cf.parent.mkdir(parents=True, exist_ok=True)
     tmp = cf.with_suffix(".part")
     s3 = get_r2_client()

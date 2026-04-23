@@ -411,7 +411,8 @@ async def health():
 
 _PUBLIC_API_PREFIXES = ("/api/auth/", "/api/health", "/api/debug",
                         "/api/options/share",                   # share links viewable without auth
-                        "/api/options/cache/prewarm-popular")   # gated by ADMIN_PIN, not JWT
+                        "/api/options/cache/prewarm-popular",   # gated by ADMIN_PIN, not JWT
+                        "/api/options/cache/repair")            # gated by ADMIN_PIN, not JWT
 
 
 @app.middleware("http")
@@ -1404,6 +1405,43 @@ async def prewarm_popular(request: Request, background_tasks: BackgroundTasks):
         "date_range": {"start": start_str, "end": end_str},
         "note": "Check Railway logs for [prewarm] lines",
     }
+
+
+@app.post("/api/options/cache/repair")
+async def repair_cache(request: Request, background_tasks: BackgroundTasks):
+    """Scan cache and delete corrupted parquet files. Admin-gated. Fire-and-forget
+    background scan. Railway logs will show [repair] lines per bad file."""
+    body = await request.json()
+    if body.get("key") != os.environ.get("ADMIN_PIN", "quantx2025"):
+        raise HTTPException(403, "Unauthorized")
+
+    def _repair():
+        import pyarrow.parquet as pq
+        from api.options_data import CACHE_DIR
+        deleted = 0
+        checked = 0
+        if not CACHE_DIR.exists():
+            print("[repair] Cache dir does not exist; nothing to do")
+            return
+        for sym_dir in CACHE_DIR.iterdir():
+            if not sym_dir.is_dir():
+                continue
+            for f in sym_dir.glob("*.parquet"):
+                checked += 1
+                try:
+                    pq.read_schema(f)
+                except Exception as e:
+                    print(f"[repair] Corrupted: {f.name} -- {type(e).__name__}: {e}")
+                    try:
+                        f.unlink(missing_ok=True)
+                        deleted += 1
+                    except Exception as e2:
+                        print(f"[repair] Unlink failed: {f.name}: {e2}")
+        print(f"[repair] Done: checked={checked} deleted={deleted}")
+
+    background_tasks.add_task(_repair)
+    return {"ok": True, "message": "Repair scan running in background",
+            "note": "Check Railway logs for [repair] lines"}
 
 
 @app.get("/api/fundamentals/{symbol}")
