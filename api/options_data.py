@@ -65,8 +65,12 @@ CACHE_DIR = Path(os.environ.get(
 ))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Number of full-day DataFrames to hold in memory (~100-800MB each, decompressed).
-_DAY_CACHE_MAX = int(os.environ.get("OPTIONS_DAY_CACHE_MAX", "3"))
+# Number of full-day DataFrames to hold in memory (~200-600 MB each).
+# Default 20 = ~4-12 GB of cache footprint, comfortable on Railway 24 GB instances.
+# Boosting from 3 -> 20 means concurrent students hitting the same symbol's
+# date range share warm in-memory data instead of re-reading from disk.
+# Override via OPTIONS_DAY_CACHE_MAX env var.
+_DAY_CACHE_MAX = int(os.environ.get("OPTIONS_DAY_CACHE_MAX", "20"))
 _day_cache: "OrderedDict[tuple, dict]" = OrderedDict()
 _cache_lock = threading.Lock()
 
@@ -83,13 +87,25 @@ _KEEP_COLS = [
 
 # ── Boto3 client ─────────────────────────────────────────────────────────────
 def get_r2_client():
-    """Return a boto3 S3 client configured for Cloudflare R2."""
+    """Return a boto3 S3 client configured for Cloudflare R2.
+
+    Timeouts: 215 MB downloads from R2 to Railway can take 30-90s; default
+    boto3 read_timeout (60s) was triggering ReadTimeoutError mid-fetch.
+    Adaptive retries handle transient R2 5xx without burning the whole
+    backtest run.
+    """
+    import botocore.config
     return boto3.client(
         "s3",
         endpoint_url=R2_ENDPOINT,
         aws_access_key_id=R2_ACCESS_KEY,
         aws_secret_access_key=R2_SECRET_KEY,
         region_name="auto",
+        config=botocore.config.Config(
+            read_timeout=300,
+            connect_timeout=30,
+            retries={"max_attempts": 3, "mode": "adaptive"},
+        ),
     )
 
 
