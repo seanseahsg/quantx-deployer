@@ -585,3 +585,115 @@ def generate_options_bot(email: str, options_config: dict,
     assert not remaining, f"Unfilled placeholders: {remaining}"
 
     return str(script_path.resolve()), str(LOGS_DIR / log_name), trades_path
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LongPort Options Bot Generator (Options Studio -> deployable bot)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def generate_lp_options_bot(config: dict, student: dict, paths: dict) -> str:
+    """
+    Generate a LongPort options bot script from Options Studio config.
+
+    config  -- Options Studio backtest config (same keys as run_options_backtest)
+    student -- {email, app_key, app_secret, access_token, central_api_url}
+    paths   -- {log_dir, trades_dir, state_dir, script_path}
+    Returns -- the generated Python script as a string.
+    """
+    import json
+    from pathlib import Path
+
+    template_path = Path(__file__).parent / "bot_template_lp_options.py"
+    if not template_path.exists():
+        raise FileNotFoundError(f"Template not found: {template_path}")
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tpl_lp_opt", template_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    template = mod.LP_OPTIONS_BOT_TEMPLATE
+
+    strategy_type = config.get("strategy_type", "SHORT_PUT_SPREAD")
+    strike_method = config.get("short_strike_method", "DELTA")
+
+    custom_legs = config.get("custom_legs", [])
+    custom_legs_repr = json.dumps(custom_legs, indent=2) if custom_legs else "[]"
+
+    entry_days = config.get("entry_days", ["Mon", "Tue", "Wed", "Thu", "Fri"])
+    entry_days_repr = repr(entry_days)
+
+    profit_target_pct = float(config.get("profit_target_pct", 50)) / 100.0
+    stop_loss_pct = float(config.get("stop_loss_pct", 200)) / 100.0
+    contracts = int(config.get("contracts", 1))
+    starting_capital = float(config.get("starting_capital", 10000))
+    max_daily_loss = starting_capital * 0.05  # 5% of capital
+
+    symbol_clean = config.get("symbol", "SPY").replace(".", "_")
+    strategy_name = (
+        f"{symbol_clean}_{strategy_type}_{config.get('target_dte', 7)}DTE"
+        .replace("__", "_").upper()
+    )
+
+    subs = {
+        "__STRATEGY_NAME__":       strategy_name,
+        "__EMAIL__":               student.get("email", ""),
+        "__CENTRAL_API_URL__":     student.get("central_api_url", ""),
+        "__APP_KEY__":             student.get("app_key", ""),
+        "__APP_SECRET__":          student.get("app_secret", ""),
+        "__ACCESS_TOKEN__":        student.get("access_token", ""),
+        "__UNDERLYING__":          config.get("symbol", "SPY") + ".US",
+        "__STRATEGY_TYPE__":       strategy_type,
+        "__STRIKE_METHOD__":       strike_method,
+        "__TARGET_DTE__":          str(int(config.get("target_dte", 7))),
+        "__DTE_TOLERANCE__":       str(int(config.get("dte_tolerance", 2))),
+        "__PUT_DELTA__":           str(float(config.get("short_strike_value", -0.30))),
+        "__CALL_DELTA__":          str(float(config.get("short_call_strike_value", 0.30))),
+        "__PUT_WING_WIDTH__":      str(float(config.get("wing_width_value", 5.0))),
+        "__CALL_WING_WIDTH__":     str(float(config.get("call_wing_width_value", 5.0))),
+        "__CUSTOM_LEGS__":         custom_legs_repr,
+        "__ENTRY_TIME_ET__":       config.get("entry_time", "09:45"),
+        "__EXIT_TIME_ET__":        config.get("exit_time", "15:45"),
+        "__ENTRY_DAYS__":          entry_days_repr,
+        "__PROFIT_TARGET_PCT__":   str(profit_target_pct),
+        "__STOP_LOSS_MULT__":      str(stop_loss_pct),
+        "__CONTRACTS__":           str(contracts),
+        "__MAX_DAILY_LOSS__":      str(max_daily_loss),
+        "__DRY_RUN__":             "True",  # always paper first
+        "__LOG_DIR__":             str(paths.get("log_dir", "./logs")),
+        "__TRADES_DIR__":          str(paths.get("trades_dir", "./trades")),
+        "__STATE_DIR__":           str(paths.get("state_dir", "./state")),
+    }
+
+    script = template
+    for placeholder, value in subs.items():
+        script = script.replace(placeholder, value)
+
+    remaining = [p for p in subs if p in script]
+    if remaining:
+        raise ValueError(f"Unsubstituted placeholders: {remaining}")
+    return script
+
+
+def save_lp_options_bot(config: dict, student: dict, output_path) -> str:
+    """Generate and save the bot script. Returns the script path as a string."""
+    from pathlib import Path
+    symbol_clean = config.get("symbol", "SPY").replace(".", "_")
+    strategy_type = config.get("strategy_type", "SHORT_PUT_SPREAD")
+    dte = config.get("target_dte", 7)
+
+    out = Path(output_path)
+    out.mkdir(parents=True, exist_ok=True)
+
+    script_name = f"bot_{symbol_clean}_{strategy_type}_{dte}DTE.py"
+    script_path = out / script_name
+
+    paths = {
+        "log_dir":    str(out / "logs"),
+        "trades_dir": str(out / "trades"),
+        "state_dir":  str(out / "state"),
+        "script_path": str(script_path),
+    }
+
+    script = generate_lp_options_bot(config, student, paths)
+    script_path.write_text(script, encoding="utf-8")
+    return str(script_path)

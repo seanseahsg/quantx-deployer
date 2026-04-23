@@ -920,7 +920,10 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     </div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-    <button class="btn btn-primary" id="opts-run-btn" onclick="optsRunBacktest()" style="padding:10px 24px;font-size:14px" disabled>&#9654; Run Backtest</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" id="opts-run-btn" onclick="optsRunBacktest()" style="padding:10px 24px;font-size:14px" disabled>&#9654; Run Backtest</button>
+      <button class="btn btn-outline" id="opts-deploy-direct-btn" onclick="optsDeployDirect()" style="padding:10px 20px;font-size:14px" title="Skip backtest -- generate bot script directly. DRY_RUN on by default.">&#128640; Deploy Direct</button>
+    </div>
     <div id="opts-runtime-hint" style="font-size:11px;color:var(--text-muted)"></div>
   </div>
 </div>
@@ -1412,7 +1415,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
     <div style="display:flex;gap:8px">
       <button class="btn btn-outline btn-sm" id="opts-share-btn" onclick="optsShare(event)">Share &#8599;</button>
       <button class="btn btn-sm" style="background:#7C3AED;color:#fff" onclick="showToast('Optimizer coming soon -- confirm backtest results first','info')">&#9881; Optimize</button>
-      <button class="btn btn-sm" style="background:var(--green);color:#fff" onclick="optsOpenDeployModal()">&#128640; Deploy</button>
+      <button class="btn btn-sm" id="opts-deploy-btn" style="background:var(--green);color:#fff" onclick="optsDeployStrategy(event)">&#128640; Deploy</button>
     </div>
   </div>
 
@@ -7010,7 +7013,56 @@ function optsOpenDeployModal() {
   document.getElementById('opts-deploy-modal').classList.add('open');
 }
 
-/* ── Share link (backend-stored, short-ID) ──────────── */
+/* -- Deploy LongPort options bot (direct POST to /api/options/deploy) -- */
+async function optsDeployStrategy(ev) {
+  if (!EMAIL) { showToast('Please register on the Home page first', 'error'); return; }
+  const btn = (ev && ev.currentTarget) || document.getElementById('opts-deploy-btn');
+  const original = btn ? btn.textContent : '\u{1F680} Deploy';
+  if (btn) { btn.disabled = true; btn.textContent = 'Deploying...'; }
+  try {
+    const config = { ...OPTS };
+    if (_optsMode === 'custom' && _optsCustomLegs.length > 0) {
+      config.strategy_type = 'CUSTOM';
+      config.custom_legs = _optsCustomLegs.map(l => ({ ...l }));
+    }
+    const r = await fetch(API + '/api/options/deploy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, config }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.detail || d.message || 'Deploy failed');
+    showToast(d.message || 'Bot deployed. View it on the Bots page.', 'success');
+    if (btn) {
+      btn.textContent = '✅ Deployed';
+      setTimeout(() => { if (btn) { btn.textContent = original; btn.disabled = false; } }, 3000);
+    }
+  } catch (e) {
+    showToast('Deploy failed: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = original; }
+  }
+}
+
+async function optsDeployDirect() {
+  if (!OPTS.symbol || !OPTS.strategy_type) {
+    showToast('Select a symbol and strategy first', 'error'); return;
+  }
+  if (_optsMode === 'custom' && _optsCustomLegs.length === 0) {
+    showToast('Add at least one leg before deploying', 'error'); return;
+  }
+  const label = _optsMode === 'custom'
+    ? ('CUSTOM (' + _optsCustomLegs.length + ' legs)')
+    : OPTS.strategy_type.replace(/_/g, ' ');
+  const ok = confirm(
+    'Deploy ' + OPTS.symbol + ' ' + label + ' ' + OPTS.target_dte + 'DTE ' +
+    'without backtesting?\n\nBot generated with DRY_RUN=True. Review the ' +
+    'script before enabling live trading.'
+  );
+  if (!ok) return;
+  await optsDeployStrategy({ currentTarget: document.getElementById('opts-deploy-direct-btn') });
+}
+
+/* -- Share link (backend-stored, short-ID) -- */
 async function optsShare(ev) {
   if (!_optsResults || !_optsTradeLog.length) {
     showToast('Run a backtest first', 'error');

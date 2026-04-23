@@ -1148,6 +1148,86 @@ def _ensure_options_shares_table():
         conn.close()
 
 
+@app.post("/api/options/deploy")
+async def deploy_options_bot(request: Request):
+    """Generate + save a LongPort options bot from an Options Studio config.
+
+    Body: {email, config}
+      email  -- student email (used to look up LP creds via get_student)
+      config -- Options Studio config dict (same shape as /api/options/backtest)
+    """
+    body = await request.json()
+    email = (body.get("email") or "").strip().lower()
+    config = body.get("config") or {}
+
+    if not email:
+        raise HTTPException(400, "email required")
+    if not config.get("strategy_type"):
+        raise HTTPException(400, "strategy_type required")
+    if not config.get("symbol"):
+        raise HTTPException(400, "symbol required")
+
+    # Pull credentials from the legacy single-set-per-student store
+    # (matches the pattern used by all other LP routes in this file).
+    student = get_student(email)
+    if not student or not student.get("app_key"):
+        raise HTTPException(400, "No LongPort credentials on file for this student")
+
+    student_payload = {
+        "email":           email,
+        "app_key":         student["app_key"],
+        "app_secret":      student["app_secret"],
+        "access_token":    student["access_token"],
+        "central_api_url": CENTRAL_API_URL,
+    }
+
+    # Generate + save the bot script under bots/<email>/bot_<symbol>_<strat>_<dte>DTE.py
+    from api.generate import save_lp_options_bot
+    from api.config import BOTS_DIR as _BOTS_DIR
+    output_dir = _BOTS_DIR / email
+    try:
+        script_path = save_lp_options_bot(
+            config=config, student=student_payload,
+            output_path=str(output_dir),
+        )
+    except Exception as e:
+        _log.exception("deploy: generate failed")
+        raise HTTPException(500, f"Bot generation failed: {e}")
+
+    # Register the strategy in the DB (positional args, matches save_strategy signature)
+    strategy_id = f"opts_{config['symbol']}_{config['strategy_type']}_{int(time.time())}"
+    strategy_name = f"{config['symbol']} {config['strategy_type']} {config.get('target_dte', 7)}DTE"
+    try:
+        save_strategy(
+            email,                    # email
+            strategy_id,              # strategy_id
+            strategy_name,            # strategy_name
+            config["symbol"],         # symbol
+            "options",                # arena
+            "",                       # timeframe (unused for options)
+            config,                   # conditions (stored as JSON)
+            {},                       # exit_rules (options engine owns its exits)
+            {},                       # risk (options engine owns its risk)
+            is_active=False,          # don't auto-start -- student reviews DRY_RUN first
+            mode="options",
+            library_id="",
+            custom_script=script_path,
+            broker="longport",
+        )
+    except Exception as e:
+        _log.exception("deploy: save_strategy failed")
+        # The script is already on disk; don't wipe it. Surface the error.
+        raise HTTPException(500, f"Strategy save failed: {e}")
+
+    return {
+        "ok": True,
+        "strategy_id": strategy_id,
+        "script_path": script_path,
+        "message": f"Options bot generated for {config['symbol']} {config['strategy_type']} "
+                   f"(DRY_RUN=True; review the script before enabling live trading)",
+    }
+
+
 @app.post("/api/options/share")
 async def options_share_create(request: Request):
     """Save a backtest result under a short random ID. Returns {share_id, url}."""
