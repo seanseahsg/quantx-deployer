@@ -1,6 +1,9 @@
 """QuantX Deployer — Unified master bot script generator."""
 
 import json
+import re
+from datetime import datetime
+from .bot_template_lp_options import LP_OPTIONS_BOT_TEMPLATE
 import hashlib
 from pathlib import Path
 
@@ -697,3 +700,112 @@ def save_lp_options_bot(config: dict, student: dict, output_path) -> str:
     script = generate_lp_options_bot(config, student, paths)
     script_path.write_text(script, encoding="utf-8")
     return str(script_path)
+# ─────────────────────────────────────────────────────────────────────────────
+# INSTRUCTIONS: make two changes to api/generate.py
+#
+# 1. Add these imports near the top (after "import json"):
+#
+#       import re
+#       from datetime import datetime
+#       from .bot_template_lp_options import LP_OPTIONS_BOT_TEMPLATE
+#
+# 2. Paste the function below at the END of the file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def save_lp_options_bot(config: dict, student: dict, output_path: str) -> str:
+    """Generate a LongPort options bot from an Options Studio config.
+
+    Writes two files to output_path/:
+      bot_{symbol}_{strategy}_{dte}DTE.py   — the runnable bot
+      bot_{symbol}_{strategy}_{dte}DTE.json — metadata for the orchestrator
+
+    Returns the absolute path to the .py script.
+    """
+    email        = student["email"]
+    app_key      = student["app_key"]
+    app_secret   = student["app_secret"]
+    access_token = student["access_token"]
+    central_url  = student.get("central_api_url", "")
+
+    symbol        = config["symbol"]
+    strategy_type = config["strategy_type"]
+    target_dte    = int(config.get("target_dte", 7))
+
+    # LP options need ".US" suffix
+    underlying   = symbol if symbol.endswith(".US") else f"{symbol}.US"
+    symbol_clean = symbol.replace(".US", "")
+    strategy_id  = f"OPT_{symbol_clean}_{strategy_type}_{target_dte}DTE"
+
+    out_dir = Path(output_path)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    script_path = out_dir / f"bot_{symbol_clean}_{strategy_type}_{target_dte}DTE.py"
+    meta_path   = out_dir / f"bot_{symbol_clean}_{strategy_type}_{target_dte}DTE.json"
+
+    dry_run     = config.get("dry_run", True)
+    custom_legs = config.get("custom_legs", [])
+
+    replacements = {
+        # String placeholders (template wraps in quotes already)
+        "__STRATEGY_NAME__":   strategy_id,
+        "__EMAIL__":           email,
+        "__CENTRAL_API_URL__": central_url,
+        "__APP_KEY__":         app_key,
+        "__APP_SECRET__":      app_secret,
+        "__ACCESS_TOKEN__":    access_token,
+        "__UNDERLYING__":      underlying,
+        "__STRATEGY_TYPE__":   strategy_type,
+        "__STRIKE_METHOD__":   config.get("strike_method", "DELTA"),
+        "__ENTRY_TIME_ET__":   config.get("entry_time_et", "09:45"),
+        "__EXIT_TIME_ET__":    config.get("exit_time_et", "15:45"),
+        "__LOG_DIR__":         str(LOGS_DIR).replace("\\", "/"),
+        "__TRADES_DIR__":      str(TRADES_DIR).replace("\\", "/"),
+        "__STATE_DIR__":       str(STATE_DIR).replace("\\", "/"),
+        # Python literal placeholders (no quotes in template)
+        "__TARGET_DTE__":        str(target_dte),
+        "__DTE_TOLERANCE__":     str(int(config.get("dte_tolerance", 2))),
+        "__PUT_DELTA__":         str(float(config.get("put_delta", -0.30))),
+        "__CALL_DELTA__":        str(float(config.get("call_delta",  0.30))),
+        "__PUT_WING_WIDTH__":    str(float(config.get("put_wing_width", 5.0))),
+        "__CALL_WING_WIDTH__":   str(float(config.get("call_wing_width", 5.0))),
+        "__PROFIT_TARGET_PCT__": str(float(config.get("profit_target_pct", 0.50))),
+        "__STOP_LOSS_MULT__":    str(float(config.get("stop_loss_mult", 2.0))),
+        "__CONTRACTS__":         str(int(config.get("contracts", 1))),
+        "__MAX_DAILY_LOSS__":    str(float(config.get("max_daily_loss", 5000))),
+        "__DRY_RUN__":           "True" if dry_run else "False",
+        "__ENTRY_DAYS__":        repr(config.get("entry_days", ["Mon","Tue","Wed","Thu","Fri"])),
+        "__CUSTOM_LEGS__":       repr(custom_legs),
+    }
+
+    content = LP_OPTIONS_BOT_TEMPLATE
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
+
+    remaining = re.findall(r'__[A-Z_]{3,}__', content)
+    if remaining:
+        raise ValueError(f"Unfilled placeholders in LP options template: {remaining}")
+
+    script_path.write_text(content, encoding="utf-8")
+
+    # Metadata JSON — orchestrator reads this to decide what to run
+    meta = {
+        "strategy_id":    strategy_id,
+        "email":          email,
+        "symbol":         symbol_clean,
+        "underlying":     underlying,
+        "strategy_type":  strategy_type,
+        "target_dte":     target_dte,
+        "strike_method":  config.get("strike_method", "DELTA"),
+        "broker":         "longport",
+        "bot_type":       "lp_options",
+        "enabled":        True,
+        "dry_run":        dry_run,
+        "script_path":    str(script_path.resolve()),
+        "created_at":     datetime.utcnow().isoformat(),
+        "status":         "pending",
+        "pid":            None,
+        "last_heartbeat": None,
+    }
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    return str(script_path.resolve())
