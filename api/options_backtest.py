@@ -15,6 +15,7 @@ Helpers:
 
 from __future__ import annotations
 
+import gc
 import math
 import time
 import logging
@@ -33,7 +34,9 @@ _dates_cache: dict = {}
 
 # Thread pool for parallel disk-cache prewarm of exit dates.
 # boto3.download_file is thread-safe; per-date work is independent.
-_PREWARM_WORKERS = 4
+# Railway: limit to 2 workers to avoid OOM; local: 4 for speed.
+import os as _os
+_PREWARM_WORKERS = 2 if _os.environ.get("RAILWAY_ENVIRONMENT") else 4
 _prewarm_pool = ThreadPoolExecutor(max_workers=_PREWARM_WORKERS,
                                    thread_name_prefix="options-prewarm")
 
@@ -58,15 +61,20 @@ def _prewarm_exit_dates(symbol: str, entry_date: str, expiry: str) -> None:
 
 
 def _prewarm_all_window_dates(symbol: str, dates: list) -> None:
-    """Fire-and-forget parallel download of every date in the backtest window.
+    """Rolling-window prewarm: only submit the next N dates at a time.
 
-    Called once at the start of a backtest run. On warm cache, each
-    _ensure_day_cached short-circuits. On cold cache, this saturates bandwidth
-    with parallel downloads instead of serializing them trade-by-trade.
+    On Railway we limit to a small window to avoid loading hundreds of
+    parquet files into memory simultaneously (each SPXW file ~40MB means
+    252 dates = ~10GB RAM for a full-year backtest).
+
+    On warm cache _ensure_day_cached short-circuits immediately.
     """
     if not dates:
         return
-    for d in dates:
+    import os as _os
+    # On Railway limit lookahead to avoid OOM; locally use full window
+    window = 30 if _os.environ.get("RAILWAY_ENVIRONMENT") else len(dates)
+    for d in dates[:window]:
         _prewarm_pool.submit(options_data._ensure_day_cached, symbol.upper(), d)
 
 _WEEKDAY_MAP = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
@@ -883,6 +891,7 @@ def run_options_backtest_stream(config: dict):
         yield {"type": "progress", "done": i + 1, "total": total,
                "date": entry_date, "skipped": None}
         yield {"type": "trade", "trade": trade}
+        gc.collect()  # free parquet DataFrames from this trade
 
     metrics = _compute_metrics(trades, config, skipped, equity)
     yield {"type": "complete", "metrics": metrics, "trade_log": trades}
