@@ -123,6 +123,13 @@ def init_db():
             timestamp TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (email) REFERENCES students(email)
         );
+        CREATE TABLE IF NOT EXISTS ibkr_configs (
+            email TEXT PRIMARY KEY,
+            host TEXT DEFAULT '127.0.0.1',
+            port INTEGER DEFAULT 7497,
+            client_id INTEGER DEFAULT 1,
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
     """)
     conn.commit()
     # Migration: add new strategy columns
@@ -133,11 +140,6 @@ def init_db():
                               ("broker", "'longport'")]:
             if col not in cols:
                 conn.execute(f"ALTER TABLE strategies ADD COLUMN {col} TEXT DEFAULT {default}")
-        conn.commit()
-    except Exception:
-        pass
-    try:
-        conn.execute("ALTER TABLE strategies ADD COLUMN is_dry_run INTEGER DEFAULT 0")
         conn.commit()
     except Exception:
         pass
@@ -177,16 +179,6 @@ def init_db():
         seed_builtin_indicators(conn)
     except Exception:
         pass
-    # Indicator table migrations
-    try:
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(indicators)").fetchall()}
-        if "source" not in cols:
-            conn.execute("ALTER TABLE indicators ADD COLUMN source TEXT DEFAULT ''")
-        if "inputs" not in cols:
-            conn.execute("ALTER TABLE indicators ADD COLUMN inputs TEXT DEFAULT '[\"closes\"]'")
-        conn.commit()
-    except Exception:
-        pass
     # Broker accounts table
     try:
         conn.executescript("""
@@ -200,6 +192,8 @@ def init_db():
                 app_key_enc TEXT DEFAULT '',
                 app_secret_enc TEXT DEFAULT '',
                 access_token_enc TEXT DEFAULT '',
+                ibkr_host TEXT DEFAULT '127.0.0.1',
+                ibkr_port INTEGER DEFAULT 7497,
                 is_connected INTEGER DEFAULT 0,
                 last_tested TEXT DEFAULT '',
                 last_error TEXT DEFAULT '',
@@ -210,6 +204,20 @@ def init_db():
         conn.commit()
         # Migrate existing LongPort credentials
         _migrate_broker_accounts(conn)
+        # Backtest result cache table (idempotent)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS backtest_cache (
+                    cache_key  TEXT PRIMARY KEY,
+                    result_json TEXT NOT NULL,
+                    strategy   TEXT DEFAULT '',
+                    symbol     TEXT DEFAULT '',
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            conn.commit()
+        except Exception:
+            pass
     except Exception:
         pass
     conn.close()
@@ -231,6 +239,17 @@ def _migrate_broker_accounts(conn):
                    (email, broker, account_type, nickname, app_key_enc, app_secret_enc, access_token_enc)
                    VALUES (?, 'longport', 'paper', 'LongPort Demo', ?, ?, ?)""",
                 (r[0], r[1], r[2], r[3]))
+        # Migrate IBKR from ibkr_configs table
+        try:
+            ibkr_rows = conn.execute("SELECT email, host, port FROM ibkr_configs").fetchall()
+            for r in ibkr_rows:
+                conn.execute(
+                    """INSERT OR IGNORE INTO broker_accounts
+                       (email, broker, account_type, nickname, ibkr_host, ibkr_port)
+                       VALUES (?, 'ibkr', 'paper', 'IBKR Paper', ?, ?)""",
+                    (r[0], r[1], r[2]))
+        except Exception:
+            pass
         conn.commit()
     except Exception:
         pass
@@ -284,14 +303,14 @@ def save_strategy(email: str, strategy_id: str, strategy_name: str, symbol: str,
                   arena: str, timeframe: str, conditions: dict, exit_rules: dict,
                   risk: dict, is_active: bool = True, mode: str = "library",
                   library_id: str = "", custom_script: str = "",
-                  broker: str = "longport", is_dry_run: bool = False):
+                  broker: str = "longport"):
     conn = get_db()
     try:
         conn.execute(
             """INSERT INTO strategies (email, strategy_id, strategy_name, symbol, arena, timeframe,
                                       conditions_json, exit_rules_json, risk_json, is_active,
-                                      mode, library_id, custom_script, broker, is_dry_run)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      mode, library_id, custom_script, broker)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(strategy_id) DO UPDATE SET
                  strategy_name=excluded.strategy_name,
                  symbol=excluded.symbol,
@@ -304,12 +323,10 @@ def save_strategy(email: str, strategy_id: str, strategy_name: str, symbol: str,
                  mode=excluded.mode,
                  library_id=excluded.library_id,
                  custom_script=excluded.custom_script,
-                 broker=excluded.broker,
-                 is_dry_run=excluded.is_dry_run""",
+                 broker=excluded.broker""",
             (email, strategy_id, strategy_name, symbol, arena, timeframe,
              json.dumps(conditions), json.dumps(exit_rules), json.dumps(risk),
-             1 if is_active else 0, mode, library_id, custom_script, broker,
-             1 if is_dry_run else 0),
+             1 if is_active else 0, mode, library_id, custom_script, broker),
         )
         conn.commit()
     finally:
@@ -345,7 +362,6 @@ def get_strategies(email: str, active_only: bool = False) -> list[dict]:
                 "backtest_results": json.loads(r["backtest_results_json"]) if "backtest_results_json" in rk and r["backtest_results_json"] else None,
                 "live_results": json.loads(r["live_results_json"]) if "live_results_json" in rk and r["live_results_json"] else None,
                 "trade_log": json.loads(r["trade_log_json"]) if "trade_log_json" in rk and r["trade_log_json"] else [],
-                "is_dry_run": bool(r["is_dry_run"]) if "is_dry_run" in rk else False,
             }
             result.append(d)
         return result
@@ -440,9 +456,39 @@ def get_trades(email: str) -> list[dict]:
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT * FROM trades WHERE email = ? ORDER BY timestamp DESC LIMIT 500", (email,)
+            "SELECT * FROM trades WHERE email = ? ORDER BY timestamp DESC", (email,)
         ).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ── IBKR config helpers ────────────────────────────────────────────────────
+
+def save_ibkr_config(email: str, host: str = "127.0.0.1", port: int = 7497,
+                     client_id: int = 1):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO ibkr_configs (email, host, port, client_id, updated_at)
+               VALUES (?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(email) DO UPDATE SET
+                 host=excluded.host, port=excluded.port,
+                 client_id=excluded.client_id, updated_at=excluded.updated_at""",
+            (email, host, port, client_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_ibkr_config(email: str) -> dict | None:
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM ibkr_configs WHERE email = ?", (email,)).fetchone()
+        if not row:
+            return None
+        return {"host": row["host"], "port": row["port"], "client_id": row["client_id"]}
     finally:
         conn.close()
 
@@ -480,7 +526,8 @@ def get_broker_account(account_id: int) -> dict | None:
 def save_broker_account(email: str, broker: str, account_type: str,
                         nickname: str = "", account_id: str = "",
                         app_key: str = "", app_secret: str = "",
-                        access_token: str = "") -> int:
+                        access_token: str = "",
+                        ibkr_host: str = "127.0.0.1", ibkr_port: int = 7497) -> int:
     conn = get_db()
     try:
         # Encrypt LP credentials if provided
@@ -490,14 +537,16 @@ def save_broker_account(email: str, broker: str, account_type: str,
         conn.execute(
             """INSERT INTO broker_accounts
                (email, broker, account_type, nickname, account_id,
-                app_key_enc, app_secret_enc, access_token_enc)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                app_key_enc, app_secret_enc, access_token_enc,
+                ibkr_host, ibkr_port)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(email, broker, account_type) DO UPDATE SET
                  nickname=excluded.nickname, account_id=excluded.account_id,
                  app_key_enc=excluded.app_key_enc, app_secret_enc=excluded.app_secret_enc,
-                 access_token_enc=excluded.access_token_enc""",
+                 access_token_enc=excluded.access_token_enc,
+                 ibkr_host=excluded.ibkr_host, ibkr_port=excluded.ibkr_port""",
             (email, broker, account_type, nickname, account_id,
-             ak_enc, as_enc, at_enc))
+             ak_enc, as_enc, at_enc, ibkr_host, ibkr_port))
         conn.commit()
         row = conn.execute(
             "SELECT id FROM broker_accounts WHERE email=? AND broker=? AND account_type=?",
@@ -547,45 +596,69 @@ def get_broker_credentials(account_id: int) -> dict | None:
         conn.close()
 
 
-# ── Custom indicator helpers ───────────────────────────────────────────────
+# ── Backtest result cache ──────────────────────────────────────────────────
 
-def register_custom_indicator(conn, data: dict, email: str,
-                              overwrite: bool = False) -> str:
-    """Register a custom indicator from .quantx file data. Returns indicator_id."""
-    ind_id = data["indicator_id"]
-    calc_code = "\n".join(data["calc_code"]) if isinstance(data.get("calc_code"), list) else data.get("calc_code", "")
-    if overwrite:
-        conn.execute("DELETE FROM indicators WHERE indicator_id = ? AND is_builtin = 0", (ind_id,))
-    conn.execute(
-        """INSERT OR REPLACE INTO indicators
-           (indicator_id, name, display_name, category, description,
-            output_type, output_labels, params, calc_code, usage_example,
-            inputs, source, created_by, is_builtin, is_approved)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,1)""",
-        (ind_id, data.get("name", ind_id), data.get("display_name", data.get("name", ind_id)),
-         data.get("category", "custom"), data.get("description", ""),
-         data.get("output_type", "single"),
-         json.dumps(data.get("output_labels", ["main"])),
-         json.dumps(data.get("params", [])),
-         calc_code,
-         data.get("usage_example", f"calc_{ind_id.lower()}(closes, ...)"),
-         json.dumps(data.get("inputs", ["closes"])),
-         data.get("source", ""),
-         email))
-    conn.commit()
-    return ind_id
+import hashlib
+
+def _bt_cache_key(strategy: str, symbol: str, timeframe: str,
+                  params: dict, limit: int,
+                  commission_pct: float = 0.0, slippage_pct: float = 0.0) -> str:
+    """Deterministic cache key for a backtest run."""
+    import json
+    payload = json.dumps({
+        "strategy": strategy, "symbol": symbol, "timeframe": timeframe,
+        "params": dict(sorted((params or {}).items())),
+        "limit": limit, "commission_pct": commission_pct, "slippage_pct": slippage_pct,
+    }, sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def get_custom_indicators(conn, email: str = None) -> list:
-    """Return all non-builtin indicators as dicts.
-    On a local app there's no multi-tenancy, so return all custom indicators."""
-    rows = conn.execute(
-        "SELECT * FROM indicators WHERE is_builtin = 0 ORDER BY name").fetchall()
-    result = []
-    for r in rows:
-        d = dict(r)
-        d["output_labels"] = json.loads(d.get("output_labels") or "[]")
-        d["params"] = json.loads(d.get("params") or "[]")
-        d["inputs"] = json.loads(d.get("inputs") or '["closes"]')
-        result.append(d)
-    return result
+def get_backtest_cache(cache_key: str, ttl_hours: int = 24):
+    """Return cached result dict or None if missing/expired."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT result_json, created_at FROM backtest_cache
+               WHERE cache_key = ?
+               AND created_at > datetime('now', ?)""",
+            (cache_key, f'-{ttl_hours} hours')
+        ).fetchone()
+        if row:
+            import json
+            return json.loads(row["result_json"])
+        return None
+    finally:
+        conn.close()
+
+
+def set_backtest_cache(cache_key: str, result: dict,
+                       strategy: str = '', symbol: str = '') -> None:
+    """Store a backtest result in the cache."""
+    import json
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT OR REPLACE INTO backtest_cache
+               (cache_key, result_json, strategy, symbol, created_at)
+               VALUES (?, ?, ?, ?, datetime('now'))""",
+            (cache_key, json.dumps(result), strategy, symbol)
+        )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+
+def prune_backtest_cache(max_age_hours: int = 48) -> int:
+    """Delete cache entries older than max_age_hours. Returns rows deleted."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "DELETE FROM backtest_cache WHERE created_at < datetime('now', ?)",
+            (f'-{max_age_hours} hours',)
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()

@@ -828,6 +828,18 @@ async def log_bot_trade(strategy_id: str, body: dict):
 async def backtest_run(body: BacktestReq):
     from api.backtest import run_backtest
     from api.data_manager import fetch_bars_waterfall_sync
+    from api.database import _bt_cache_key, get_backtest_cache, set_backtest_cache
+
+    # ── Cache check (skip if user explicitly asked to skip) ──
+    if not body.skip_cache:
+        ck = _bt_cache_key(body.strategy, body.symbol, body.timeframe,
+                           body.params, body.limit,
+                           body.commission_pct, body.slippage_pct)
+        cached = get_backtest_cache(ck)
+        if cached:
+            cached["_cached"] = True
+            return cached
+
     def _run():
         # Get credentials if email provided, respecting broker_hint
         hint = (body.broker_hint or "").lower()
@@ -870,6 +882,12 @@ async def backtest_run(body: BacktestReq):
         return result
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)
+        # Store in cache if successful (don't cache errors)
+        if not body.skip_cache and result.get("status") != "error":
+            ck = _bt_cache_key(body.strategy, body.symbol, body.timeframe,
+                               body.params, body.limit,
+                               body.commission_pct, body.slippage_pct)
+            set_backtest_cache(ck, result, strategy=body.strategy, symbol=body.symbol)
         return result
     except Exception as e:
         raise HTTPException(400, str(e))
@@ -878,6 +896,18 @@ async def backtest_run(body: BacktestReq):
 @app.post("/api/backtest/optimize")
 async def backtest_optimize(body: OptimizeReq):
     from api.backtest import fetch_ohlcv, run_optimization
+    from api.database import _bt_cache_key, get_backtest_cache, set_backtest_cache
+
+    # ── Cache check for optimize ──
+    opt_cache_key = _bt_cache_key(
+        body.strategy, body.symbol, body.timeframe,
+        body.param_grid, body.limit
+    )
+    cached = get_backtest_cache(opt_cache_key, ttl_hours=24)
+    if cached:
+        cached["_cached"] = True
+        return cached
+
     def _run():
         bars, source = fetch_ohlcv(body.symbol, body.timeframe, body.limit)
         result = run_optimization(bars, body.strategy, body.param_grid, body.initial_capital)
@@ -886,6 +916,10 @@ async def backtest_optimize(body: OptimizeReq):
         return result
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)
+        # Cache successful optimization results
+        if result.get("results"):
+            set_backtest_cache(opt_cache_key, result,
+                               strategy=body.strategy, symbol=body.symbol)
         return result
     except Exception as e:
         raise HTTPException(400, str(e))
