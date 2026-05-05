@@ -440,7 +440,7 @@ def get_trades(email: str) -> list[dict]:
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT * FROM trades WHERE email = ? ORDER BY timestamp DESC", (email,)
+            "SELECT * FROM trades WHERE email = ? ORDER BY timestamp DESC LIMIT 500", (email,)
         ).fetchall()
         return [dict(r) for r in rows]
     finally:

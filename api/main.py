@@ -284,6 +284,13 @@ def _auto_restart_bots():
     restarted = 0
     for row in rows:
         script = row["master_script_path"]
+        # Skip if already running in this server instance
+        if row["email"] in _running_processes:
+            existing = _running_processes[row["email"]]
+            if existing.poll() is None:  # still alive
+                _log.info("[STARTUP] Bot for %s already running (PID %s), skipping",
+                          row["email"], existing.pid)
+                continue
         if script and Path(script).exists():
             try:
                 proc = _launch_bot(script, row["log_path"])

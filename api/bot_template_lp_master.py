@@ -54,6 +54,9 @@ HEARTBEAT_INTERVAL = 60
 STRATEGIES = __STRATEGIES_LIST__
 
 # ── Logging ────────────────────────────────────────────────────────────────
+# Clear any existing handlers to prevent duplicates if module is reloaded
+_root_logger = logging.getLogger()
+_root_logger.handlers.clear()
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(message)s',
@@ -61,8 +64,11 @@ logging.basicConfig(
         logging.FileHandler(os.path.join(LOG_DIR, '__LOG_NAME__'), encoding='utf-8'),
         logging.StreamHandler(sys.stdout),
     ],
+    force=True,
 )
 logger = logging.getLogger('quantx-lp-master')
+# Prevent log propagation to root which would cause double logging
+logger.propagate = False
 
 _shutdown = threading.Event()
 
