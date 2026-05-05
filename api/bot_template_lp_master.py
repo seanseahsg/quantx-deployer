@@ -276,11 +276,11 @@ def log_trade(strategy_id, symbol, side, qty, price, pnl=0.0, signal='',
               bar_date='', indicator_values='', bar_close=0.0, order_id=''):
     trades_file = os.path.join(TRADES_DIR, f'trades_{strategy_id}_all.csv')
     ensure_csv(trades_file)
-    eid = f'{strategy_id}_{datetime.utcnow():%Y%m%d%H%M%S%f}'
+    eid = f'{strategy_id}_{datetime.now(timezone.utc):%Y%m%d%H%M%S%f}'
     with open(trades_file, 'a', newline='') as f:
         csv.DictWriter(f, fieldnames=CSV_FIELDS).writerow({
             'execId': eid, 'order_id': order_id or eid,
-            'datetime': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+            'datetime': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
             'bar_date': bar_date, 'strategy': strategy_id,
             'symbol': symbol, 'side': side,
             'quantity': qty, 'price': round(price, 6),
@@ -483,7 +483,7 @@ class GridState:
                 buy_fees = calc_hk_fees(fill_price, fill_qty, 'buy') if self.arena == 'HK' else 0.0
                 pnl = -buy_fees  # cost of entry
                 log_trade(self.sid, self.symbol, 'BOT', fill_qty, fill_price, pnl,
-                          signal='grid_entry', bar_date=str(datetime.utcnow()),
+                          signal='grid_entry', bar_date=str(datetime.now(timezone.utc)),
                           indicator_values=f'level={lv["level_id"]},cmp={self.cmp_reference:.4f},fees={buy_fees:.2f}',
                           bar_close=fill_price, order_id=order_id)
 
@@ -514,7 +514,7 @@ class GridState:
                 self.tracked_order_ids.discard(order_id)
 
                 log_trade(self.sid, self.symbol, 'SLD', fill_qty, fill_price, round(net_pnl, 4),
-                          signal='grid_exit', bar_date=str(datetime.utcnow()),
+                          signal='grid_exit', bar_date=str(datetime.now(timezone.utc)),
                           indicator_values=f'level={lv["level_id"]},cycle={self.completed_cycles},gross={gross_pnl:.2f},fees={sell_fees:.2f}',
                           bar_close=fill_price, order_id=order_id)
 
@@ -593,7 +593,7 @@ class GridState:
     def _submit_limit(self, action, qty, price):
         """Submit a limit order. Returns order_id string, or '' on failure."""
         if DRY_RUN:
-            fake_oid = f'DRY_{self.sid}_{action}_{datetime.utcnow():%H%M%S%f}'
+            fake_oid = f'DRY_{self.sid}_{action}_{datetime.now(timezone.utc):%H%M%S%f}'
             logger.info('[DRY RUN][%s] SIMULATED LIMIT %s %d %s @ %.4f → oid=%s',
                         self.sid, action, qty, self.symbol, price, fake_oid)
             # In dry run, simulate immediate fill after a short delay
@@ -813,7 +813,7 @@ def main():
                 limit_price = round(price * (0.998 if action == 'BUY' else 1.002), 2)
 
             if DRY_RUN:
-                order_id = f'DRY_{st.sid}_{datetime.utcnow():%H%M%S%f}'
+                order_id = f'DRY_{st.sid}_{datetime.now(timezone.utc):%H%M%S%f}'
                 logger.info('[DRY RUN][%s] SIMULATED %s %d %s @ %.4f | signal=%s',
                             st.sid, action, st.lot_size, st.symbol, limit_price, signal)
                 pnl = 0.0

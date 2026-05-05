@@ -768,6 +768,10 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   <!-- Results -->
   <div id="bt-results" style="display:none">
     <div id="bt-data-warning" style="display:none;background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#92400E"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div id="bt-cached-badge" style="display:none;background:#F0FDF4;color:#166534;border:1px solid #86EFAC;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600">⚡ Instant result (cached)</div>
+      <div style="flex:1"></div>
+    </div>
     <div class="stat-row" style="grid-template-columns:repeat(6,1fr)">
       <div class="stat-card"><div class="stat-label">Total Return</div><div class="stat-value" id="btr-return">—</div></div>
       <div class="stat-card"><div class="stat-label">CAGR</div><div class="stat-value" id="btr-cagr">—</div></div>
@@ -4002,6 +4006,9 @@ function showBacktestResults(d, sym, strat, tf) {
     }
   }
   document.getElementById('bt-results').style.display = '';
+  // Show cache badge if result came from cache
+  const cacheBadge = document.getElementById('bt-cached-badge');
+  if (cacheBadge) cacheBadge.style.display = d._cached ? '' : 'none';
   document.getElementById('bt-results').scrollIntoView({ behavior: 'smooth' });
 }
 
