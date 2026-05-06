@@ -7424,7 +7424,7 @@ async function optsRunBacktest() {
   _optsAbortController = new AbortController();
 
   try {
-    const r = await fetch(API + '/api/options/backtest-fast', {
+    const r = await fetch(API + '/api/options/backtest', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(config),
@@ -7637,7 +7637,8 @@ function _optsRenderEquityChart() {
   if (!canvas || !curve.length) return;
   if (_optsEquityChart) { _optsEquityChart.destroy(); _optsEquityChart = null; }
   const ctx = canvas.getContext('2d');
-  _optsEquityChart = new Chart(ctx, {
+  _if (optsEquityChart) { optsEquityChart.destroy(); optsEquityChart = null; }
+        optsEquityChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: curve.map(p => p.date),
