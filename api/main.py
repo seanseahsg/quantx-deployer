@@ -205,6 +205,8 @@ class OptimizeReq(BaseModel):
     param_grid: dict = {}
     initial_capital: float = 10000
     limit: int = 1260
+    email: str = ""
+    broker_hint: str = ""
 
 
 class ScriptBacktestReq(BaseModel):
@@ -895,7 +897,8 @@ async def backtest_run(body: BacktestReq):
 
 @app.post("/api/backtest/optimize")
 async def backtest_optimize(body: OptimizeReq):
-    from api.backtest import fetch_ohlcv, run_optimization
+    from api.backtest import run_optimization
+    from api.data_manager import fetch_bars_waterfall_sync
     from api.database import _bt_cache_key, get_backtest_cache, set_backtest_cache
 
     # ── Cache check for optimize ──
@@ -909,11 +912,36 @@ async def backtest_optimize(body: OptimizeReq):
         return cached
 
     def _run():
-        bars, source = fetch_ohlcv(body.symbol, body.timeframe, body.limit)
+        # Resolve LongPort credentials (same pattern as /api/backtest/run)
+        hint = (body.broker_hint or "").lower()
+        lp_creds = None
+        if body.email and hint != "yahoo":
+            student = get_student(body.email.lower().strip())
+            if student and student.get("app_key"):
+                lp_creds = {
+                    "app_key": student["app_key"],
+                    "app_secret": student["app_secret"],
+                    "access_token": student["access_token"],
+                }
+        if hint == "yahoo":
+            lp_creds = None
+
+        # Waterfall: LongPort → R2 → Yahoo → FMP
+        data = fetch_bars_waterfall_sync(
+            symbol=body.symbol, timeframe=body.timeframe, limit=body.limit,
+            db_path=str(DB_PATH), lp_credentials=lp_creds)
+        if data["error"]:
+            raise ValueError(data["error"])
+        bars = data["bars"]
+        if len(bars) < 50:
+            raise ValueError(f"Only {len(bars)} bars available for {body.symbol}/{body.timeframe}, need 50+.")
+
         result = run_optimization(bars, body.strategy, body.param_grid, body.initial_capital)
-        result["source"] = source
+        result["source"] = data["source"]
+        result["source_message"] = data["source_message"]
         result["symbol"] = body.symbol
         return result
+
     try:
         result = await asyncio.get_event_loop().run_in_executor(_executor, _run)
         # Cache successful optimization results
