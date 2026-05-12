@@ -3158,26 +3158,42 @@ async function createBot(andDeploy = false) {
       broker: broker,
       is_dry_run: isDryRun,
     };
+    // Phase 1: Save strategy
+    btns.forEach(b => { if (andDeploy) b.textContent = '⏳ Saving...'; });
     const r = await fetch(API + '/api/strategy', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
     const rData = await r.json();
     if (!r.ok) throw new Error(rData.detail || 'Failed to create strategy');
-    // Close modal immediately — don't wait for loadBots
-    closeModal('newbot-modal');
+
     if (andDeploy) {
       try {
+        // Phase 2: Activate
+        btns.forEach(b => { b.textContent = '⏳ Activating...'; });
         await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
+
+        // Phase 3: Deploy (the slow part ~8-10s)
+        btns.forEach(b => { b.textContent = '⏳ Deploying bot...'; });
         const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
         const dd = await dr.json();
-        if (!dr.ok) { showToast('Created but deploy failed: ' + (dd.detail || ''), 'error'); }
-        else { BOT_RUNNING = true; showToast('Bot deployed: ' + name, 'success'); }
-      } catch (de) { showToast('Created but deploy failed: ' + de.message, 'error'); }
+
+        closeModal('newbot-modal');
+        if (!dr.ok) {
+          showToast('Created but deploy failed: ' + (dd.detail || ''), 'error');
+        } else {
+          BOT_RUNNING = true;
+          showToast('✅ Bot deployed: ' + name, 'success');
+        }
+      } catch (de) {
+        closeModal('newbot-modal');
+        showToast('Created but deploy failed: ' + de.message, 'error');
+      }
     } else {
+      closeModal('newbot-modal');
       showToast('Bot created: ' + name, 'success');
     }
     navigate('bots');
-    setTimeout(loadBots, 300);
+    setTimeout(loadBots, 2000);
   } catch (e) { errEl.textContent = e.message; }
   btns.forEach(b => { b.disabled = false; b.textContent = b._origText || 'Create Bot'; });
 }
