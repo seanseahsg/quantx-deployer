@@ -2349,8 +2349,14 @@ async function libRunOptimize() {
   let mi = 0;
   if (progMsg) progMsg.textContent = msgs[0];
   const msgInt = setInterval(() => { mi = (mi+1) % msgs.length; if (progMsg) progMsg.textContent = msgs[mi]; }, 3000);
+  // Progress UI elements
+  const progEl = document.getElementById('bt-opt-progress');
+  const progMsgEl = document.getElementById('bt-opt-progress-msg');
+  clearInterval(msgInt);  // Stop cycling static messages
+  let _libOptDone = 0, _libOptTotal = 0;
+  const _libAllResults = [];
   try {
-    const r = await fetch(API + '/api/backtest/optimize', {
+    const resp = await fetch(API + '/api/backtest/optimize-stream-lib', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         symbol: sym, timeframe: tf, strategy: strat,
@@ -2360,9 +2366,38 @@ async function libRunOptimize() {
         email: EMAIL || '', broker_hint: document.getElementById('bt-broker-yahoo')?.classList.contains('active') ? 'yahoo' : 'longport',
       })
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Optimization failed');
-    _libOptRenderResults(d, enableWF, enableMC);
+    if (!resp.ok) throw new Error('Optimization failed: ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      sseBuffer += decoder.decode(value, {stream: true});
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'start') {
+            _libOptTotal = ev.total;
+            if (progMsgEl) progMsgEl.textContent = ev.message || '';
+          } else if (ev.type === 'progress') {
+            _libOptDone = ev.done; _libOptTotal = ev.total;
+            const pct = _libOptTotal > 0 ? Math.round(_libOptDone / _libOptTotal * 100) : 0;
+            const etaStr = ev.eta > 0 ? ' · ETA ~' + Math.round(ev.eta) + 's' : '';
+            if (progMsgEl) progMsgEl.textContent = _libOptDone + ' / ' + _libOptTotal + ' combinations' + etaStr;
+          } else if (ev.type === 'result') {
+            _libAllResults.push(ev);
+          } else if (ev.type === 'complete') {
+            _libOptRenderResults({results: ev.results || _libAllResults.map(r => ({params:r.params,metrics:r.metrics,walk_forward:r.walk_forward,monte_carlo:r.monte_carlo})), total: ev.total_results}, enableWF, enableMC);
+          } else if (ev.type === 'error') {
+            throw new Error(ev.message);
+          }
+        } catch(pe) { if(pe.message && !pe.message.includes('JSON')) throw pe; }
+      }
+    }
   } catch(e) {
     showToast('Optimization error: ' + e.message, 'error');
   } finally {
