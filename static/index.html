@@ -495,7 +495,7 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table id="bots-table">
-      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Mode</th><th>Live Return</th><th>Live P/L</th><th>Win Rate</th><th>Trades</th><th style="width:120px">Status</th><th style="width:40px"></th></tr></thead>
+      <thead><tr><th style="width:40px"></th><th>Bot Name</th><th>Broker</th><th>Symbol</th><th>Strategy</th><th>Mode</th><th>Return</th><th>Trades</th><th style="width:120px">Status</th><th style="width:40px"></th></tr></thead>
       <tbody id="bots-tbody"></tbody>
     </table>
     <div id="bots-empty" class="empty-state" style="display:none">
@@ -548,102 +548,30 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
   </div>
   <!-- Dashboard -->
   <div id="bd-dashboard">
-
-    <!-- ── LIVE PERFORMANCE ── Primary section, always shown first ── -->
-    <div class="card" style="margin-bottom:16px">
+    <div id="bd-no-bt" class="card" style="display:none;margin-bottom:16px;text-align:center;padding:20px;color:var(--text-muted)">
+      No backtest data available. <a href="#" onclick="navigate('backtester');return false" style="color:var(--blue-primary)">Run a backtest</a> to see stats.
+    </div>
+    <div class="stat-row" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-label">Return</div><div class="stat-value" id="bd-return">—</div></div>
+      <div class="stat-card"><div class="stat-label">Sharpe</div><div class="stat-value" id="bd-sharpe">—</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="bd-winrate">—</div></div>
+      <div class="stat-card"><div class="stat-label">Max DD</div><div class="stat-value" id="bd-dd">—</div></div>
+      <div class="stat-card"><div class="stat-label">Trades</div><div class="stat-value" id="bd-trades">—</div></div>
+    </div>
+    <div class="chart-container"><canvas id="bd-chart"></canvas></div>
+    <!-- Live P/L -->
+    <div class="card" style="margin-top:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <h4 style="font-size:13px;font-weight:700;margin:0;color:var(--text-primary)">Live Performance</h4>
-          <span id="bd-live-mode-label"></span>
-        </div>
-        <span id="bd-live-last-label" style="font-size:11px;color:var(--text-muted)"></span>
+        <h4 style="font-size:13px;font-weight:600;margin:0;color:var(--text-secondary)">Live Trading</h4>
+        <span id="bd-live-mode-label"></span>
       </div>
-      <div id="bd-live-empty" style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 8px">
-        No trades yet — stats will appear here once the bot places its first trade.
+      <div class="stat-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-label">Total P/L</div><div class="stat-value" id="bd-live-pnl">—</div></div>
+        <div class="stat-card"><div class="stat-label">Trade Count</div><div class="stat-value" id="bd-live-count">0</div></div>
+        <div class="stat-card"><div class="stat-label">Last Trade</div><div class="stat-value" id="bd-live-last" style="font-size:12px">—</div></div>
       </div>
-      <!-- 7-metric live stats grid -->
-      <div id="bd-live-stats" style="display:none">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">
-          <div class="stat-card" style="border-left:3px solid var(--blue-primary)">
-            <div class="stat-label">Total P/L</div>
-            <div class="stat-value" id="bd-live-pnl">—</div>
-          </div>
-          <div class="stat-card" style="border-left:3px solid var(--blue-primary)">
-            <div class="stat-label">Return %</div>
-            <div class="stat-value" id="bd-return">—%</div>
-          </div>
-          <div class="stat-card" style="border-left:3px solid var(--blue-primary)">
-            <div class="stat-label">Win Rate</div>
-            <div class="stat-value" id="bd-winrate">—%</div>
-          </div>
-          <div class="stat-card" style="border-left:3px solid var(--blue-primary)">
-            <div class="stat-label">Trade Count</div>
-            <div class="stat-value" id="bd-live-count">—</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-          <div class="stat-card">
-            <div class="stat-label">CAGR</div>
-            <div class="stat-value" id="bd-live-cagr">—%</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Rolling Sharpe</div>
-            <div class="stat-value" id="bd-sharpe">—</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Max Drawdown</div>
-            <div class="stat-value red" id="bd-dd">—%</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Avg P/L per Trade</div>
-            <div class="stat-value" id="bd-live-avg">—</div>
-          </div>
-        </div>
-      </div>
+      <div id="bd-live-empty" style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;display:none">No trades yet. Bot will show trades here when live.</div>
     </div>
-
-    <!-- ── EQUITY CURVE ── -->
-    <div class="card" style="margin-bottom:16px">
-      <h4 style="font-size:12px;font-weight:600;margin:0 0 10px;color:var(--text-secondary)">Cumulative P/L Curve</h4>
-      <div class="chart-container"><canvas id="bd-chart"></canvas></div>
-      <div id="bd-chart-empty" style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px;display:none">No trade data yet for equity curve.</div>
-    </div>
-
-    <!-- ── BACKTEST COMPARISON ── Secondary reference section ── -->
-    <div class="card" style="margin-bottom:16px;border:1px dashed var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <h4 style="font-size:12px;font-weight:600;margin:0;color:var(--text-muted)">📊 Backtest Reference</h4>
-        <a href="#" onclick="navigate('backtester');return false" style="font-size:11px;color:var(--blue-primary)">Run backtest →</a>
-      </div>
-      <div id="bd-no-bt" style="font-size:12px;color:var(--text-muted);padding:4px 0">
-        No backtest data. <a href="#" onclick="navigate('backtester');return false" style="color:var(--blue-primary)">Run a backtest</a> to see how this strategy performs historically.
-      </div>
-      <div id="bd-bt-stats" style="display:none">
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-          <div class="stat-card" style="opacity:.85">
-            <div class="stat-label" style="font-size:9px">BT Return</div>
-            <div class="stat-value" id="bd-bt-return" style="font-size:15px">—%</div>
-          </div>
-          <div class="stat-card" style="opacity:.85">
-            <div class="stat-label" style="font-size:9px">BT Sharpe</div>
-            <div class="stat-value" id="bd-bt-sharpe" style="font-size:15px">—</div>
-          </div>
-          <div class="stat-card" style="opacity:.85">
-            <div class="stat-label" style="font-size:9px">BT Win Rate</div>
-            <div class="stat-value" id="bd-bt-winrate" style="font-size:15px">—%</div>
-          </div>
-          <div class="stat-card" style="opacity:.85">
-            <div class="stat-label" style="font-size:9px">BT Max DD</div>
-            <div class="stat-value red" id="bd-bt-dd" style="font-size:15px">—%</div>
-          </div>
-          <div class="stat-card" style="opacity:.85">
-            <div class="stat-label" style="font-size:9px">BT Trades</div>
-            <div class="stat-value" id="bd-trades" style="font-size:15px">—</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
   <!-- Strategy -->
   <div id="bd-strategy" style="display:none">
@@ -1941,7 +1869,7 @@ async function validateAndSetCentral(url) {
   }
   try {
     const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 3000);
+    setTimeout(() => ctrl.abort(), 500);  // 500ms max — don't block page load
     const r = await fetch(url.replace(/\/$/, '') + '/api/health', { signal: ctrl.signal });
     if (r.ok) {
       CENTRAL = url.replace(/\/$/, '');
@@ -2055,7 +1983,7 @@ let _savedBacktests = JSON.parse(localStorage.getItem('qx_backtests') || '[]');
   }
 
   await loadConfig();  // Must complete before loadLibrary — sets CENTRAL
-  await checkLpCredentials();
+  checkLpCredentials();  // Non-blocking — just updates _hasLpCreds flag in background
   initBtBroker();
   loadLibrary();
   checkArchStatus();
@@ -2150,11 +2078,14 @@ async function loadConfig() {
     const d = await r.json();
     document.getElementById('set-central').value = d.central_api_url || '';
     document.getElementById('set-version').value = 'v' + (d.version || '1.0.0');
-    // Validate central URL before trusting it
+    // Validate central URL in background — never block page load for this
     const candidateUrl = d.central_api_url || '';
     if (candidateUrl && candidateUrl.startsWith('http') && !candidateUrl.includes('localhost')) {
-      const ok = await validateAndSetCentral(candidateUrl);
-      console.log('[CONFIG] Central API:', candidateUrl, ok ? '(reachable)' : '(unreachable, using local)');
+      // Fire-and-forget: don't await — worst case it times out in 500ms quietly in background
+      validateAndSetCentral(candidateUrl).then(ok => {
+        console.log('[CONFIG] Central API:', candidateUrl, ok ? '(reachable)' : '(unreachable, using local)');
+        updateBacktestBadge();
+      });
     } else {
       // No central configured on backend — clear any stale localStorage
       CENTRAL = '';
@@ -2862,7 +2793,8 @@ async function loadBots() {
     const d = await r.json();
     USER_STRATEGIES = Array.isArray(d) ? d : (d.strategies || []);
     console.log('[BOTS] Loaded', USER_STRATEGIES.length, 'user strategies');
-    // live_results comes directly from the DB via /api/strategies — no separate poll needed
+    // Fetch live P/L for all bots from trades DB (async, non-blocking)
+    _fetchBotsPnl();
     // Get real subprocess state
     try {
       const sr = await fetch(API + '/api/status/' + encodeURIComponent(EMAIL));
@@ -2898,78 +2830,36 @@ function renderBots() {
   if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px">No bots match filter</td></tr>'; empty.style.display = 'none'; return; }
   empty.style.display = 'none';
 
-  // Stats — prefer live results, fall back to backtest
+  // Stats
   const active = USER_STRATEGIES.filter(s => s.is_active && LP_BOT_RUNNING).length;
   document.getElementById('bs-total').textContent = USER_STRATEGIES.length;
   document.getElementById('bs-active').textContent = active;
-  // Best Return: use live return if available, else backtest
-  const liveRets = USER_STRATEGIES.map(s => (s.live_results||{}).total_return_pct).filter(v => typeof v === 'number' && !isNaN(v));
-  const btRets = USER_STRATEGIES.map(s => (s.backtest_results || {}).total_return_pct).filter(v => typeof v === 'number');
-  const bestRets = liveRets.length ? liveRets : btRets;
-  document.getElementById('bs-best').textContent = bestRets.length ? Math.max(...bestRets).toFixed(1) + '%' : '—';
+  const rets = USER_STRATEGIES.map(s => (s.backtest_results || {}).total_return_pct).filter(v => typeof v === 'number');
+  document.getElementById('bs-best').textContent = rets.length ? Math.max(...rets).toFixed(1) + '%' : '—';
   const sharpes = USER_STRATEGIES.map(s => (s.backtest_results || {}).sharpe_ratio).filter(v => typeof v === 'number');
   document.getElementById('bs-sharpe').textContent = sharpes.length ? (sharpes.reduce((a, b) => a + b, 0) / sharpes.length).toFixed(2) : '—';
 
   tbody.innerHTML = list.map(s => {
     const bt = s.backtest_results || {};
-    const lr = s.live_results || {};  // from DB — updated by POST /api/trade
-    const mf1 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(1) : '—';
-    const mf2 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(2) : '—';
+    const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) : '—';
+    const retClass = (bt.total_return_pct || 0) >= 0 ? 'green' : 'red';
     const isDry = s.is_dry_run || s.dry_run;
     const modeBadge = isDry
       ? '<span style="background:#EDE9FE;color:#5B21B6;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">🧪 Dry</span>'
       : '<span style="background:#DCFCE7;color:#166534;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">🔴 Live</span>';
-
-    // ── Live stats from DB live_results (authoritative after main.py fix) ──
-    const hasLive = lr && lr.total_trades > 0;
-    const liveRet = hasLive ? lr.total_return_pct : null;
-    const livePnl = hasLive ? lr.total_pnl : null;
-    const liveWr  = hasLive ? lr.win_rate_pct : null;
-    const liveTrades = hasLive ? lr.total_trades : null;
-
-    const liveRetCls = (liveRet || 0) >= 0 ? 'var(--green)' : 'var(--red)';
-    const livePnlCls = (livePnl || 0) >= 0 ? 'var(--green)' : 'var(--red)';
-
-    const liveRetCell = hasLive
-      ? `<span style="font-weight:700;color:${liveRetCls}">${mf1(liveRet)}%</span>`
-      : '<span style="color:var(--text-muted);font-size:11px">—%</span>';
-    const livePnlCell = hasLive
-      ? `<span style="font-weight:700;color:${livePnlCls}">$${Number(livePnl).toFixed(2)}</span>`
-      : '<span style="color:var(--text-muted);font-size:11px">—</span>';
-    const liveWrCell = hasLive
-      ? `<span style="font-weight:600">${mf1(liveWr)}%</span>`
-      : '<span style="color:var(--text-muted);font-size:11px">—</span>';
-    const liveTradesCell = hasLive
-      ? `<span style="font-weight:600">${liveTrades}</span>`
-      : '<span style="color:var(--text-muted);font-size:11px">—</span>';
-
-    // ── Backtest comparison sub-row ──
-    const hasBt = bt && bt.total_return_pct !== undefined && bt.total_return_pct !== null;
-    const btRetCls = (bt.total_return_pct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
-    const btSubrow = hasBt
-      ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;line-height:1.4">
-           <span style="opacity:.7">BT:</span>
-           <span style="color:${btRetCls}">${mf1(bt.total_return_pct)}%</span>
-           &nbsp;·&nbsp;WR <span>${mf1(bt.win_rate_pct)}%</span>
-           &nbsp;·&nbsp;<span>${bt.total_trades||'—'} trades</span>
-           ${bt.sharpe_ratio !== undefined ? `&nbsp;·&nbsp;Sharpe <span>${mf2(bt.sharpe_ratio)}</span>` : ''}
-         </div>`
-      : '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">BT: <em>no backtest run</em></div>';
-
-    return `<tr onclick="openBotDetail('${s.strategy_id}')" style="cursor:pointer">
+    // Live P/L from cached trades (populated by pollBotPnl)
+    const livePnl = s._live_pnl !== undefined
+      ? `<span style="font-weight:600;color:${s._live_pnl>=0?'var(--green)':'var(--red)'}">$${s._live_pnl.toFixed(0)}</span>`
+      : '<span style="color:var(--text-muted)">—</span>';
+    return `<tr onclick="openBotDetail('${s.strategy_id}')">
       <td style="font-size:20px">🤖</td>
-      <td>
-        <strong>${esc(s.strategy_name || s.strategy_id)}</strong>
-        ${btSubrow}
-      </td>
+      <td><strong>${esc(s.strategy_name || s.strategy_id)}</strong></td>
       <td><span class="badge badge-blue">LongPort</span></td>
       <td style="font-weight:600;color:var(--blue-primary)">${esc(s.symbol)}</td>
       <td>${esc(s.library_id || s.mode || '—')}</td>
       <td>${modeBadge}</td>
-      <td>${liveRetCell}</td>
-      <td>${livePnlCell}</td>
-      <td>${liveWrCell}</td>
-      <td>${liveTradesCell}</td>
+      <td class="stat-value ${retClass}" style="font-size:13px">${mf(bt.total_return_pct)}%</td>
+      <td>${livePnl}</td>
       <td onclick="event.stopPropagation()" id="btn-${s.strategy_id}">${_renderDeployBtn(s)}</td>
       <td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center">
         <span style="cursor:pointer;opacity:.5;font-size:14px" onclick="openCloneBot('${s.strategy_id}')" title="Clone bot">⧉</span>
@@ -3449,40 +3339,20 @@ function openBotDetail(sid) {
   document.getElementById('bd-name').textContent = _currentBot.strategy_name || sid;
   document.getElementById('bd-symbol').textContent = _currentBot.symbol;
   updateBdToggleBtn();
-
-  // ── Populate backtest reference section ──
   const bt = _currentBot.backtest_results || {};
   const hasBt = bt && bt.total_return_pct !== undefined && bt.total_return_pct !== null;
-  const mf1 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(1) : '—';
-  const mf2 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(2) : '—';
-
-  const noBtEl = document.getElementById('bd-no-bt');
-  const btStatsEl = document.getElementById('bd-bt-stats');
-  if (hasBt) {
-    if (noBtEl) noBtEl.style.display = 'none';
-    if (btStatsEl) btStatsEl.style.display = '';
-    const btRet = document.getElementById('bd-bt-return');
-    if (btRet) {
-      btRet.textContent = mf1(bt.total_return_pct) + '%';
-      btRet.className = 'stat-value ' + ((bt.total_return_pct||0) >= 0 ? 'green' : 'red');
-    }
-    const btSharpe = document.getElementById('bd-bt-sharpe');
-    if (btSharpe) btSharpe.textContent = mf2(bt.sharpe_ratio);
-    const btWr = document.getElementById('bd-bt-winrate');
-    if (btWr) btWr.textContent = mf1(bt.win_rate_pct) + '%';
-    const btDd = document.getElementById('bd-bt-dd');
-    if (btDd) btDd.textContent = mf1(bt.max_drawdown_pct) + '%';
-    const btTrades = document.getElementById('bd-trades');
-    if (btTrades) btTrades.textContent = bt.total_trades ?? '—';
-  } else {
-    if (noBtEl) noBtEl.style.display = '';
-    if (btStatsEl) btStatsEl.style.display = 'none';
-  }
-
-  // ── Load live trades (populates the Live Performance section) ──
+  const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) : '—';
+  document.getElementById('bd-return').textContent = mf(bt.total_return_pct) + '%';
+  document.getElementById('bd-return').className = 'stat-value ' + ((bt.total_return_pct||0) >= 0 ? 'green' : 'red');
+  document.getElementById('bd-sharpe').textContent = mf(bt.sharpe_ratio);
+  document.getElementById('bd-winrate').textContent = mf(bt.win_rate_pct) + '%';
+  document.getElementById('bd-dd').textContent = mf(bt.max_drawdown_pct) + '%';
+  document.getElementById('bd-dd').className = 'stat-value red';
+  document.getElementById('bd-trades').textContent = mf(bt.total_trades);
+  document.getElementById('bd-no-bt').style.display = hasBt ? 'none' : '';
+  // Load live trades (will override top-5 metrics with real data if trades exist)
   loadBotLiveTrades();
-
-  // ── Settings fields ──
+  // Settings fields
   document.getElementById('bd-set-name').value = _currentBot.strategy_name || '';
   document.getElementById('bd-set-symbol').value = _currentBot.symbol || '';
   document.getElementById('bd-set-alloc').value = _currentBot.allocation || 10000;
@@ -3691,7 +3561,7 @@ async function loadBotLiveTrades() {
   if (!_currentBot || !EMAIL) return;
   const isDry = !!(_currentBot.is_dry_run || _currentBot.dry_run);
 
-  // ── Mode badge in page header ──
+  // Update mode badge in header
   const modeBadge = document.getElementById('bd-mode-badge');
   if (modeBadge) {
     if (_currentBot.is_active) {
@@ -3704,7 +3574,7 @@ async function loadBotLiveTrades() {
     }
   }
 
-  // ── SIMULATED badge in live section header ──
+  // Update Live Trading card label
   const modeLabel = document.getElementById('bd-live-mode-label');
   if (modeLabel) {
     modeLabel.innerHTML = isDry && _currentBot.is_active
@@ -3716,205 +3586,138 @@ async function loadBotLiveTrades() {
     const r = await fetch(API + '/api/trades/' + encodeURIComponent(EMAIL));
     const all = await r.json();
     const allTrades = all.trades || (Array.isArray(all) ? all : []);
-    // Filter to this bot's trades and sort oldest-first
-    const trades = allTrades
-      .filter(t => t.strategy_id === _currentBot.strategy_id)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-    const emptyEl = document.getElementById('bd-live-empty');
-    const statsEl = document.getElementById('bd-live-stats');
-    const chartEmptyEl = document.getElementById('bd-chart-empty');
+    const trades = allTrades.filter(t => t.strategy_id === _currentBot.strategy_id);
 
     if (trades.length === 0) {
-      if (emptyEl) emptyEl.style.display = '';
-      if (statsEl) statsEl.style.display = 'none';
-      if (chartEmptyEl) chartEmptyEl.style.display = '';
+      document.getElementById('bd-live-empty').style.display = '';
+      document.getElementById('bd-live-pnl').textContent = '—';
+      document.getElementById('bd-live-count').textContent = '0';
+      document.getElementById('bd-live-last').textContent = '—';
+      _renderLiveMetrics(null);
       _renderEquityCurve([]);
       return;
     }
 
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (statsEl) statsEl.style.display = '';
-    if (chartEmptyEl) chartEmptyEl.style.display = 'none';
+    document.getElementById('bd-live-empty').style.display = 'none';
 
-    // Closed trades = trades where pnl != 0 (completed round-trips)
-    const closed = trades.filter(t => t.pnl !== 0 && t.pnl !== null && t.pnl !== undefined);
-    const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+    // Separate buys and sells
+    const sells = trades.filter(t => ['sld','sell','dry_sld'].includes((t.side||'').toLowerCase()) || t.pnl > 0);
+    const totalPnl = sells.reduce((s, t) => s + (t.pnl || 0), 0);
 
-    _renderLiveMetrics({ trades, closed, totalPnl });
-    _renderEquityCurve(trades);
+    document.getElementById('bd-live-pnl').textContent = '$' + totalPnl.toFixed(2);
+    document.getElementById('bd-live-pnl').className = 'stat-value ' + (totalPnl >= 0 ? 'green' : 'red');
+    document.getElementById('bd-live-count').textContent = trades.length;
+    const ts = trades[0].timestamp || '';
+    const lastTs = ts ? new Date(ts).toLocaleTimeString('en-SG', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+    document.getElementById('bd-live-last').textContent = lastTs;
 
-    // Last trade timestamp
-    const lastEl = document.getElementById('bd-live-last-label');
-    if (lastEl && trades.length > 0) {
-      const lastTs = trades[trades.length - 1].timestamp || '';
-      if (lastTs) {
-        const d = new Date(lastTs);
-        lastEl.textContent = 'Last trade: ' + d.toLocaleDateString('en-SG', {day:'numeric',month:'short'}) + ' ' +
-          d.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
-      }
-    }
+    // Compute live metrics from trades
+    _renderLiveMetrics({ trades, sells, totalPnl });
+
+    // Render equity curve using cumulative_pnl series (sorted oldest first)
+    const sorted = [...trades].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    _renderEquityCurve(sorted);
 
   } catch(e) {
-    const emptyEl = document.getElementById('bd-live-empty');
-    if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'Could not load trade data.'; }
+    document.getElementById('bd-live-empty').style.display = '';
   }
 }
 
-function _renderLiveMetrics({ trades, closed, totalPnl } = {}) {
-  if (!_currentBot) return;
-  const allocation = parseFloat(_currentBot.allocation || (_currentBot.risk||{}).capital || 10000);
-  const mf1 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(1) : '—';
-  const mf2 = v => (v !== undefined && v !== null && !isNaN(v)) ? Number(v).toFixed(2) : '—';
-
-  if (!trades || trades.length === 0) return;
-
-  // ── Total P/L ──
-  const pnlEl = document.getElementById('bd-live-pnl');
-  if (pnlEl) {
-    pnlEl.textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(2);
-    pnlEl.className = 'stat-value ' + (totalPnl >= 0 ? 'green' : 'red');
+function _renderLiveMetrics({ trades, sells, totalPnl } = {}) {
+  const allocation = (_currentBot.allocation || (_currentBot.risk||{}).capital || 10000);
+  if (!trades || trades.length === 0) {
+    // Clear to backtest data or dashes
+    const bt = _currentBot.backtest_results || {};
+    const mf = v => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(1) : v) : '—';
+    document.getElementById('bd-return').textContent = bt.total_return_pct !== undefined ? mf(bt.total_return_pct) + '%' : '—%';
+    document.getElementById('bd-sharpe').textContent = mf(bt.sharpe_ratio);
+    document.getElementById('bd-winrate').textContent = bt.win_rate_pct !== undefined ? mf(bt.win_rate_pct) + '%' : '—%';
+    document.getElementById('bd-dd').textContent = bt.max_drawdown_pct !== undefined ? mf(bt.max_drawdown_pct) + '%' : '—%';
+    document.getElementById('bd-trades').textContent = mf(bt.total_trades);
+    document.getElementById('bd-no-bt').style.display = bt.total_return_pct !== undefined ? 'none' : '';
+    return;
   }
+  document.getElementById('bd-no-bt').style.display = 'none';
 
-  // ── Return % ──
-  const retPct = allocation > 0 ? (totalPnl / allocation) * 100 : 0;
+  // Return %
+  const retPct = (totalPnl / allocation) * 100;
   const retEl = document.getElementById('bd-return');
-  if (retEl) {
-    retEl.textContent = retPct.toFixed(2) + '%';
-    retEl.className = 'stat-value ' + (retPct >= 0 ? 'green' : 'red');
-  }
+  retEl.textContent = retPct.toFixed(2) + '%';
+  retEl.className = 'stat-value ' + (retPct >= 0 ? 'green' : 'red');
 
-  // ── Trade count (closed cycles only) ──
-  const countEl = document.getElementById('bd-live-count');
-  if (countEl) countEl.textContent = closed.length;
+  // Win rate
+  const wins = sells.filter(t => t.pnl > 0).length;
+  const winRate = sells.length > 0 ? (wins / sells.length) * 100 : 0;
+  document.getElementById('bd-winrate').textContent = winRate.toFixed(1) + '%';
 
-  // ── Win rate (closed trades with pnl > 0) ──
-  const wins = closed.filter(t => t.pnl > 0).length;
-  const winRate = closed.length > 0 ? (wins / closed.length) * 100 : 0;
-  const wrEl = document.getElementById('bd-winrate');
-  if (wrEl) wrEl.textContent = winRate.toFixed(1) + '%';
+  // Trade count
+  document.getElementById('bd-trades').textContent = trades.length;
 
-  // ── Avg P/L per closed trade ──
-  const avgPnl = closed.length > 0 ? totalPnl / closed.length : 0;
-  const avgEl = document.getElementById('bd-live-avg');
-  if (avgEl) {
-    avgEl.textContent = (avgPnl >= 0 ? '+$' : '-$') + Math.abs(avgPnl).toFixed(2);
-    avgEl.className = 'stat-value ' + (avgPnl >= 0 ? 'green' : 'red');
-  }
-
-  // ── CAGR ──
-  // Use first and last trade timestamps to compute annualised return
-  const cagrEl = document.getElementById('bd-live-cagr');
-  if (cagrEl) {
-    try {
-      const first = new Date(trades[0].timestamp);
-      const last = new Date(trades[trades.length - 1].timestamp);
-      const daysDiff = Math.max(1, (last - first) / (1000 * 60 * 60 * 24));
-      const years = daysDiff / 365;
-      if (years >= 0.005 && allocation > 0) {
-        // CAGR = (1 + totalReturn)^(1/years) - 1
-        const totalRetDecimal = totalPnl / allocation;
-        const cagr = (Math.pow(1 + totalRetDecimal, 1 / years) - 1) * 100;
-        cagrEl.textContent = (isFinite(cagr) ? cagr.toFixed(1) : '—') + '%';
-        cagrEl.className = 'stat-value ' + (cagr >= 0 ? 'green' : 'red');
-      } else {
-        // Too short for meaningful CAGR — show annualised estimate
-        const annualised = allocation > 0 ? (totalPnl / allocation) * (365 / daysDiff) * 100 : 0;
-        cagrEl.textContent = (isFinite(annualised) ? annualised.toFixed(1) : '—') + '%*';
-        cagrEl.className = 'stat-value ' + (annualised >= 0 ? 'green' : 'red');
-        cagrEl.title = '*Annualised estimate (< 1 year of data)';
-      }
-    } catch(e) { cagrEl.textContent = '—%'; }
-  }
-
-  // ── Max Drawdown (from running cumulative PnL) ──
-  let runPnl = 0, peakPnl = 0, maxDd = 0;
-  // Build a per-trade cumulative series
-  trades.forEach(t => {
-    runPnl += (t.pnl || 0);
-    if (runPnl > peakPnl) peakPnl = runPnl;
-    const dd = peakPnl > 0 ? ((peakPnl - runPnl) / (allocation + peakPnl)) * 100 : 0;
+  // Max drawdown from cumulative_pnl series
+  const sorted = [...trades].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+  let peak = 0, maxDd = 0;
+  sorted.forEach(t => {
+    const cum = t.cumulative_pnl || 0;
+    if (cum > peak) peak = cum;
+    const dd = peak > 0 ? ((peak - cum) / (allocation + peak)) * 100 : 0;
     if (dd > maxDd) maxDd = dd;
   });
   const ddEl = document.getElementById('bd-dd');
-  if (ddEl) {
-    ddEl.textContent = '-' + maxDd.toFixed(1) + '%';
-    ddEl.className = 'stat-value red';
-  }
+  ddEl.textContent = '-' + maxDd.toFixed(1) + '%';
+  ddEl.className = 'stat-value red';
 
-  // ── Rolling Sharpe (trade-by-trade PnL returns) ──
-  // Group closed trade PnLs by day
-  const sharpeEl = document.getElementById('bd-sharpe');
-  if (sharpeEl) {
-    const byDay = {};
-    closed.forEach(t => {
-      const day = (t.timestamp || '').slice(0, 10);
-      if (!byDay[day]) byDay[day] = 0;
-      byDay[day] += (t.pnl || 0);
-    });
-    const dailyRets = Object.values(byDay).map(p => allocation > 0 ? p / allocation : 0);
-    if (dailyRets.length >= 2) {
-      const mean = dailyRets.reduce((a, b) => a + b, 0) / dailyRets.length;
-      const variance = dailyRets.reduce((a, b) => a + (b - mean) ** 2, 0) / dailyRets.length;
-      const std = Math.sqrt(variance);
-      const sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : 0;
-      sharpeEl.textContent = isFinite(sharpe) ? sharpe.toFixed(2) : '—';
-    } else {
-      sharpeEl.textContent = '—';
-    }
+  // Sharpe — daily grouped returns
+  const byDay = {};
+  sorted.forEach(t => {
+    if (t.pnl <= 0) return; // only completed sell PnL
+    const day = (t.timestamp || '').slice(0, 10);
+    if (!byDay[day]) byDay[day] = 0;
+    byDay[day] += t.pnl;
+  });
+  const dailyRets = Object.values(byDay).map(p => p / allocation);
+  if (dailyRets.length >= 2) {
+    const mean = dailyRets.reduce((a,b) => a+b, 0) / dailyRets.length;
+    const std = Math.sqrt(dailyRets.map(r => (r-mean)**2).reduce((a,b)=>a+b,0) / dailyRets.length);
+    const sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : 0;
+    document.getElementById('bd-sharpe').textContent = sharpe.toFixed(2);
+  } else {
+    document.getElementById('bd-sharpe').textContent = '—';
   }
 }
 
 function _renderEquityCurve(trades) {
   const canvas = document.getElementById('bd-chart');
-  const chartEmptyEl = document.getElementById('bd-chart-empty');
   if (!canvas) return;
+  // Destroy existing chart
   if (window._bdChartInstance) { window._bdChartInstance.destroy(); window._bdChartInstance = null; }
+  if (!trades || trades.length === 0) return;
 
-  // Build cumulative PnL series using all trades (including buy costs)
-  if (!trades || trades.length === 0) {
-    if (chartEmptyEl) chartEmptyEl.style.display = '';
-    return;
-  }
+  // Build cumulative PnL series (sell trades only for smooth curve)
+  const sells = trades.filter(t => ['sld','sell','dry_sld'].includes((t.side||'').toLowerCase()) || t.pnl > 0);
+  if (sells.length < 2) return;
 
-  // Use all trades sorted oldest-first, accumulate pnl
-  let cum = 0;
-  const points = trades.map(t => {
-    cum += (t.pnl || 0);
-    return { x: t.timestamp || '', y: parseFloat(cum.toFixed(2)) };
+  const labels = sells.map(t => {
+    const d = new Date(t.timestamp);
+    return d.toLocaleDateString('en-SG', {month:'short',day:'numeric'}) + ' ' +
+           d.toLocaleTimeString('en-SG', {hour:'2-digit',minute:'2-digit'});
   });
+  const data = sells.map(t => parseFloat((t.cumulative_pnl || 0).toFixed(2)));
 
-  // Only plot if we have meaningful moves
-  if (points.length < 2) {
-    if (chartEmptyEl) chartEmptyEl.style.display = '';
-    return;
-  }
-  if (chartEmptyEl) chartEmptyEl.style.display = 'none';
-
-  const labels = points.map(p => {
-    const d = new Date(p.x);
-    return d.toLocaleDateString('en-SG', {month:'short', day:'numeric'}) + ' ' +
-           d.toLocaleTimeString('en-SG', {hour:'2-digit', minute:'2-digit'});
-  });
-  const data = points.map(p => p.y);
-  const finalVal = data[data.length - 1];
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const lineColor = finalVal >= 0 ? '#16A34A' : '#DC2626';
-  const fillColor = finalVal >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)';
+  const lineColor = data[data.length-1] >= 0 ? '#16A34A' : '#DC2626';
+  const fillColor = data[data.length-1] >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)';
 
   window._bdChartInstance = new Chart(canvas, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Cumulative P/L',
         data,
         borderColor: lineColor,
         backgroundColor: fillColor,
         fill: true,
         tension: 0.3,
-        pointRadius: points.length > 60 ? 0 : 3,
-        pointHoverRadius: 5,
+        pointRadius: sells.length > 50 ? 0 : 3,
         borderWidth: 2,
       }]
     },
@@ -3930,7 +3733,7 @@ function _renderEquityCurve(trades) {
         }
       },
       scales: {
-        x: { display: points.length <= 200, ticks: { maxTicksLimit: 6, font: { size: 10 } } },
+        x: { display: sells.length <= 100, ticks: { maxTicksLimit: 6, font: { size: 10 } } },
         y: {
           ticks: { callback: v => '$' + v, font: { size: 10 } },
           grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
@@ -3939,7 +3742,6 @@ function _renderEquityCurve(trades) {
     }
   });
 }
-
 
 function showBdTab(tab) {
   ['dashboard', 'strategy', 'log', 'settings'].forEach(t => {
