@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuantX Deployer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 :root {
@@ -338,6 +339,10 @@ label { display:block; font-size:12px; font-weight:600; color:var(--text-seconda
 </style>
 </head>
 <body>
+<script>
+// Stub: prevent ReferenceError if nav clicked before main script loads
+function navigate(p){if(window._navReady)window._navReady(p);else window._navQueue=(window._navQueue||[]).concat(p);}
+</script>
 
 <!-- Toast Container -->
 <div id="toast-container"></div>
@@ -2037,6 +2042,7 @@ function activateLicense() {
 
 /* ── Navigation ────────────────────────────────────────────────────── */
 function navigate(page) {
+  window._navReady=navigate; (window._navQueue||[]).forEach(p=>navigate(p)); window._navQueue=[];
   // Redirect studio → backtester in builder mode
   if (page === 'studio') {
     navigate('backtester');
