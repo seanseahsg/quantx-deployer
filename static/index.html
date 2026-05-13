@@ -7637,7 +7637,7 @@ function _optsRenderEquityChart() {
   if (!canvas || !curve.length) return;
   if (_optsEquityChart) { _optsEquityChart.destroy(); _optsEquityChart = null; }
   const ctx = canvas.getContext('2d');
-  _if (optsEquityChart) { optsEquityChart.destroy(); optsEquityChart = null; }
+  if (optsEquityChart) { optsEquityChart.destroy(); optsEquityChart = null; }
         optsEquityChart = new Chart(ctx, {
     type: 'line',
     data: {
