@@ -2349,51 +2349,19 @@ async function libRunOptimize() {
   let mi = 0;
   if (progMsg) progMsg.textContent = msgs[0];
   const msgInt = setInterval(() => { mi = (mi+1) % msgs.length; if (progMsg) progMsg.textContent = msgs[mi]; }, 3000);
-  clearInterval(msgInt);
   try {
-    const resp = await fetch(API + '/api/backtest/optimize-stream-lib', {
+    const r = await fetch(API + '/api/backtest/optimize', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         symbol: sym, timeframe: tf, strategy: strat,
         param_grid: paramGrid, initial_capital: cap,
         limit: _btLimit, commission_pct: commPct, slippage_pct: slipPct,
         enable_walk_forward: enableWF, enable_monte_carlo: enableMC,
-        email: EMAIL || '', broker_hint: document.getElementById('bt-broker-yahoo')?.classList.contains('active') ? 'yahoo' : 'longport',
       })
     });
-    if (!resp.ok) throw new Error('Optimization failed: ' + resp.status);
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let _sseBuffer = '';
-    const _libAllResults = [];
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      _sseBuffer += decoder.decode(value, {stream: true});
-      const _sseLines = _sseBuffer.split('\n');
-      _sseBuffer = _sseLines.pop();
-      for (const _sseLine of _sseLines) {
-        if (!_sseLine.startsWith('data: ')) continue;
-        try {
-          const ev = JSON.parse(_sseLine.slice(6));
-          if (ev.type === 'start') {
-            if (progMsg) progMsg.textContent = ev.message || '';
-          } else if (ev.type === 'progress') {
-            const _eta = ev.eta > 0 ? ' · ETA ~' + Math.round(ev.eta) + 's' : '';
-            if (progMsg) progMsg.textContent = ev.done + ' / ' + ev.total + ' combinations' + _eta;
-          } else if (ev.type === 'result') {
-            _libAllResults.push(ev);
-          } else if (ev.type === 'complete') {
-            const _allR = (ev.results || _libAllResults).map(function(r) {
-              return {params:r.params, metrics:r.metrics, walk_forward:r.walk_forward, monte_carlo:r.monte_carlo};
-            });
-            _libOptRenderResults({results: _allR, total: ev.total_results}, enableWF, enableMC);
-          } else if (ev.type === 'error') {
-            throw new Error(ev.message);
-          }
-        } catch(_pe) { if (_pe.message && !_pe.message.includes('JSON')) throw _pe; }
-      }
-    }
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Optimization failed');
+    _libOptRenderResults(d, enableWF, enableMC);
   } catch(e) {
     showToast('Optimization error: ' + e.message, 'error');
   } finally {
@@ -2403,42 +2371,11 @@ async function libRunOptimize() {
   }
 }
 
-// Optimizer sort state
-let _libOptSortKey = null, _libOptSortAsc = false, _libOptLastData = null, _libOptLastWF = false, _libOptLastMC = false;
-
-function _libOptSort(th, key) {
-  if (_libOptSortKey === key) { _libOptSortAsc = !_libOptSortAsc; }
-  else { _libOptSortKey = key; _libOptSortAsc = key === 'max_drawdown_pct'; }
-  if (!_libOptLastData) return;
-  const sorted = [...(_libOptLastData.results || [])].sort((a, b) => {
-    const av = a.metrics ? (a.metrics[key] || 0) : 0;
-    const bv = b.metrics ? (b.metrics[key] || 0) : 0;
-    return _libOptSortAsc ? av - bv : bv - av;
-  });
-  _libOptRenderResults({..._libOptLastData, results: sorted}, _libOptLastWF, _libOptLastMC);
-}
-
 function _libOptRenderResults(data, showWF, showMC) {
-  _libOptLastData = data; _libOptLastWF = showWF; _libOptLastMC = showMC;
   const results = data.results || [];
   const resEl = document.getElementById('bt-opt-results');
   const table = document.getElementById('bt-opt-table');
   if (!results.length) { resEl.style.display = ''; table.innerHTML = '<tr><td style="padding:12px;color:var(--text-muted)">No results returned.</td></tr>'; return; }
-  // Inject tested-count + best result summary above table
-  const _totalTested = data.total || results.length;
-  const _best = results[0];
-  const _bestRet = (_best && _best.metrics && _best.metrics.total_return_pct != null)
-    ? parseFloat(_best.metrics.total_return_pct).toFixed(1) + '%' : '—';
-  const _bestSharpe = (_best && _best.metrics && _best.metrics.sharpe_ratio != null)
-    ? parseFloat(_best.metrics.sharpe_ratio).toFixed(2) : '—';
-  let _summaryEl = document.getElementById('bt-opt-summary');
-  if (!_summaryEl) {
-    _summaryEl = document.createElement('div');
-    _summaryEl.id = 'bt-opt-summary';
-    _summaryEl.style.cssText = 'font-size:12px;color:var(--text-secondary);margin-bottom:8px;padding:6px 8px;background:var(--surface-2);border-radius:6px';
-    resEl.insertBefore(_summaryEl, resEl.firstChild);
-  }
-  _summaryEl.innerHTML = 'Tested <strong>' + _totalTested.toLocaleString() + '</strong> combinations  ·  Best: <strong>' + _bestRet + ' return</strong>, Sharpe <strong>' + _bestSharpe + '</strong>';
   const strat = document.getElementById('bt-strategy').value;
   const mf = (v, dec=1) => v !== undefined && v !== null ? (typeof v === 'number' ? v.toFixed(dec) : v) : '—';
   const wfBadge = wf => wf?.pass ? '<span style="background:#DCFCE7;color:#166534;padding:1px 6px;border-radius:4px;font-size:10px">✓ PASS</span>' : '<span style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:4px;font-size:10px">✗ FAIL</span>';
@@ -2451,13 +2388,7 @@ function _libOptRenderResults(data, showWF, showMC) {
     const meta = PARAM_META[k] || {};
     thead += `<th style="padding:6px 8px">${esc(meta.label || k)}</th>`;
   });
-  const _thStyle = 'padding:6px 8px;cursor:pointer;user-select:none;white-space:nowrap';
-  const _thHint = ' title="Click to sort"';
-  thead += '<th style="' + _thStyle + '"' + _thHint + ' onclick="_libOptSort(this,'total_return_pct')">Return ↕</th>';
-  thead += '<th style="' + _thStyle + '"' + _thHint + ' onclick="_libOptSort(this,'sharpe_ratio')">Sharpe ↕</th>';
-  thead += '<th style="' + _thStyle + '"' + _thHint + ' onclick="_libOptSort(this,'max_drawdown_pct')">Max DD ↕</th>';
-  thead += '<th style="' + _thStyle + '"' + _thHint + ' onclick="_libOptSort(this,'win_rate_pct')">Win Rate ↕</th>';
-  thead += '<th style="' + _thStyle + '"' + _thHint + ' onclick="_libOptSort(this,'total_trades')">Trades ↕</th>';
+  thead += '<th style="padding:6px 8px">Return</th><th style="padding:6px 8px">Sharpe</th><th style="padding:6px 8px">Max DD</th><th style="padding:6px 8px">Win Rate</th><th style="padding:6px 8px">Trades</th>';
   if (showWF) thead += '<th style="padding:6px 8px">Walk-Fwd</th>';
   if (showMC) thead += '<th style="padding:6px 8px">Monte Carlo</th>';
   thead += '<th style="padding:6px 8px">Load</th>';
@@ -2503,28 +2434,17 @@ function _libOptRenderResults(data, showWF, showMC) {
 function libOptLoadParams(paramsJson) {
   try {
     const params = JSON.parse(paramsJson);
-    // Get current library's default_params for proper labels/metadata
-    const strat = document.getElementById('bt-strategy')?.value;
-    const lib = (LIB_CACHE || []).find(l => l.id === strat);
-    // Build params object: start from library defaults, override with loaded values
-    const baseParams = lib && lib.default_params ? Object.assign({}, lib.default_params) : params;
-    Object.keys(params).forEach(k => { if (k in baseParams) baseParams[k] = params[k]; });
-    // Re-render param inputs with correct metadata + loaded values
-    renderParamInputs('bt-params-container', baseParams, 'bt');
-    // Set values explicitly after render (inputs are newly created)
     Object.entries(params).forEach(([key, val]) => {
-      const el = document.getElementById('bt-param-' + key);
+      const el = document.getElementById(`bt-param-${key}`);
       if (el) el.value = val;
-      const p = (_libOptParams || []).find(p => p.key === key);
+      // Also update _libOptParams current values
+      const p = _libOptParams.find(p => p.key === key);
       if (p) p.current = val;
     });
-    // Scroll to params and show backtest button
-    document.getElementById('bt-params-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showToast('✅ Parameters loaded — click Run Backtest', 'success');
-  } catch(e) {
-    console.error('libOptLoadParams error:', e);
-    showToast('Failed to load params: ' + e.message, 'error');
-  }
+    showToast('Parameters loaded — click Run Backtest to verify', 'success');
+    // Scroll up to params
+    document.getElementById('bt-params-container')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch(e) { showToast('Failed to load params', 'error'); }
 }
 
 // ── Bot Settings: load params for current bot ──────────────────────────────
@@ -3220,58 +3140,26 @@ async function createBot(andDeploy = false) {
       broker: broker,
       is_dry_run: isDryRun,
     };
-    // Phase 1: Save strategy
-    if (andDeploy) { showDeployOverlay(0, 10, 'Saving strategy...'); }
-    btns.forEach(b => { if (andDeploy) b.textContent = '⏳ Saving...'; });
     const r = await fetch(API + '/api/strategy', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
     const rData = await r.json();
     if (!r.ok) throw new Error(rData.detail || 'Failed to create strategy');
-
+    // Close modal immediately — don't wait for loadBots
+    closeModal('newbot-modal');
     if (andDeploy) {
       try {
-        // Phase 2: Activate
-        showDeployOverlay(1, 35, 'Activating strategy...');
-        btns.forEach(b => { b.textContent = '⏳ Activating...'; });
         await fetch(API + '/api/strategy/' + encodeURIComponent(sid) + '/toggle?active=true', { method: 'PUT' });
-
-        // Phase 3: Deploy (the slow part ~8-10s)
-        showDeployOverlay(2, 65, 'Generating bot script...');
-        btns.forEach(b => { b.textContent = '⏳ Deploying bot...'; });
         const dr = await fetch(API + '/api/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL }) });
         const dd = await dr.json();
-
-        closeModal('newbot-modal');
-        if (!dr.ok) {
-          hideDeployOverlay();
-          showToast('Created but deploy failed: ' + (dd.detail || ''), 'error');
-        } else {
-          showDeployOverlay(3, 100, 'Bot is live!');
-          BOT_RUNNING = true;
-          setTimeout(() => {
-            hideDeployOverlay();
-            navigate('bots');
-            showToast('✅ Bot deployed: ' + name, 'success');
-            // Show skeleton while bots load
-            const bl = document.getElementById('bots-list');
-            if (bl) bl.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--text-secondary)"><span class="spinner" style="width:20px;height:20px;display:inline-block;margin-right:8px"></span>Loading bots...</td></tr>';
-            setTimeout(loadBots, 2500);
-          }, 1200);
-        }
-      } catch (de) {
-        hideDeployOverlay();
-        closeModal('newbot-modal');
-        showToast('Created but deploy failed: ' + de.message, 'error');
-        navigate('bots');
-        setTimeout(loadBots, 500);
-      }
+        if (!dr.ok) { showToast('Created but deploy failed: ' + (dd.detail || ''), 'error'); }
+        else { BOT_RUNNING = true; showToast('Bot deployed: ' + name, 'success'); }
+      } catch (de) { showToast('Created but deploy failed: ' + de.message, 'error'); }
     } else {
-      closeModal('newbot-modal');
       showToast('Bot created: ' + name, 'success');
-      navigate('bots');
-      setTimeout(loadBots, 500);
     }
+    navigate('bots');
+    setTimeout(loadBots, 300);
   } catch (e) { errEl.textContent = e.message; }
   btns.forEach(b => { b.disabled = false; b.textContent = b._origText || 'Create Bot'; });
 }
@@ -3885,12 +3773,6 @@ const PERIOD_DEFS = [
   {key:"10Y", bars:2520,  months:120},
   {key:"Max", bars:99999, months:0},
 ];
-// Bars per trading day by timeframe (used to scale PERIOD_DEFS for intraday)
-const BARS_PER_DAY = {
-  "1min": 390, "3min": 130, "5min": 78, "10min": 39,
-  "15min": 26, "30min": 13, "1hour": 7, "2hour": 4,
-  "4hour": 2,  "1day": 1,  "1week": 0.2,
-};
 let _btBroker = 'longport';
 
 function setBtBroker(broker) {
@@ -3944,14 +3826,12 @@ function updatePeriodPills() {
   const container = document.getElementById('bt-period-pills');
   if (!container) return;
 
-  // Scale bar counts for intraday timeframes
-  const _bpd = BARS_PER_DAY[tf] || 1;
   let bestEnabled = null;
   const pills = PERIOD_DEFS.map(p => {
     const enabled = p.months === 0 || depth.months >= p.months;
     if (enabled && p.key !== 'Max') bestEnabled = p;
     const label = p.key === 'Max' ? 'Max (' + _monthsLabel(depth.months) + ')' : p.key;
-    const limit = p.key === 'Max' ? depth.bars : Math.min(depth.bars, Math.round(p.bars * _bpd));
+    const limit = p.key === 'Max' ? depth.bars : p.bars;
     const cls = enabled ? 'filter-pill has-data' : 'filter-pill disabled';
     const tip = enabled ? '' : ' title="Only ' + depth.label + ' available for this timeframe"';
     return {html: '<span class="' + cls + '" data-limit="' + limit + '"' + tip
@@ -3962,9 +3842,8 @@ function updatePeriodPills() {
 
   // Auto-select largest enabled non-Max
   if (bestEnabled) {
-    const _autoLimit = Math.min(depth.bars, Math.round(bestEnabled.bars * _bpd));
-    _btLimit = _autoLimit;
-    const active = container.querySelector('[data-limit="' + _autoLimit + '"]');
+    _btLimit = bestEnabled.bars;
+    const active = container.querySelector('[data-limit="' + bestEnabled.bars + '"]');
     if (active) active.classList.add('active');
   } else {
     // Only Max available
@@ -7758,7 +7637,8 @@ function _optsRenderEquityChart() {
   if (!canvas || !curve.length) return;
   if (_optsEquityChart) { _optsEquityChart.destroy(); _optsEquityChart = null; }
   const ctx = canvas.getContext('2d');
-  _optsEquityChart = new Chart(ctx, {
+  _if (optsEquityChart) { optsEquityChart.destroy(); optsEquityChart = null; }
+        optsEquityChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: curve.map(p => p.date),
@@ -8175,80 +8055,6 @@ async function optsClearCache() {
   }
 }
 
-</script>
-
-<div id="deploy-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--color-background-primary);z-index:9999;flex-direction:column;align-items:center;justify-content:center;">
-  <style>
-    @keyframes qx-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-    @keyframes qx-pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-    @keyframes qx-glow{0%,100%{box-shadow:0 0 8px #378ADD44}50%{box-shadow:0 0 20px #378ADD88}}
-    @keyframes qx-slideup{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes qx-spark{0%,100%{opacity:0;transform:scale(0)}50%{opacity:1;transform:scale(1)}}
-    .qx-stage{display:flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);font-size:12px;color:var(--color-text-secondary);transition:all 0.4s}
-    .qx-stage.done{border-color:#1D9E75;color:#0F6E56;background:#E1F5EE}
-    .qx-stage.active{border-color:#378ADD;color:#185FA5;background:#E6F1FB;animation:qx-pulse 1s infinite}
-  </style>
-  <div style="animation:qx-float 2.5s ease-in-out infinite;margin-bottom:1.5rem">
-    <svg width="120" height="140" viewBox="0 0 120 140">
-      <rect x="30" y="10" width="60" height="50" rx="8" fill="#B5D4F4" stroke="#378ADD" stroke-width="1.5"/>
-      <rect x="38" y="18" width="18" height="12" rx="3" fill="#378ADD" opacity="0.7"/>
-      <rect x="64" y="18" width="18" height="12" rx="3" fill="#378ADD" opacity="0.7"/>
-      <rect x="20" y="22" width="10" height="30" rx="4" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <rect x="90" y="22" width="10" height="30" rx="4" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <rect x="25" y="60" width="70" height="55" rx="6" fill="#B5D4F4" stroke="#378ADD" stroke-width="1.5"/>
-      <rect x="15" y="62" width="12" height="40" rx="5" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <rect x="93" y="62" width="12" height="40" rx="5" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <rect x="33" y="115" width="20" height="22" rx="4" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <rect x="67" y="115" width="20" height="22" rx="4" fill="#85B7EB" stroke="#378ADD" stroke-width="1"/>
-      <circle cx="60" cy="37" r="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
-      <circle cx="60" cy="37" r="4" fill="#378ADD" id="qx-arc"/>
-      <text x="60" y="100" text-anchor="middle" font-size="8" fill="#185FA5" font-weight="500">QUANT-X</text>
-    </svg>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:1rem" id="qx-stages">
-    <div class="qx-stage" id="qxs1">Strategy saved</div>
-    <div class="qx-stage" id="qxs2">Generating script</div>
-    <div class="qx-stage" id="qxs3">Launching bot</div>
-    <div class="qx-stage" id="qxs4">Going live</div>
-  </div>
-  <div style="width:240px;height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;border:0.5px solid var(--color-border-tertiary)">
-    <div id="qx-pbar" style="height:100%;background:#378ADD;border-radius:3px;transition:width 0.5s ease;width:0%"></div>
-  </div>
-  <div id="qx-msg" style="font-size:13px;color:var(--color-text-secondary);margin-top:0.8rem">Preparing bot...</div>
-</div>
-
-<script>
-(function(){
-  let _qxAngle=0;
-  function _qxArc(){
-    const d=document.getElementById("qx-arc");
-    if(!d)return;
-    _qxAngle=(_qxAngle+8)%360;
-    const x=60+4*Math.cos(_qxAngle*Math.PI/180),y=37+4*Math.sin(_qxAngle*Math.PI/180);
-    d.setAttribute("cx",x);d.setAttribute("cy",y);
-  }
-  window._qxArcInt=null;
-  window.showDeployOverlay=function(stage,pct,msg){
-    const o=document.getElementById("deploy-overlay");
-    if(!o)return;
-    o.style.display="flex";
-    if(!window._qxArcInt)window._qxArcInt=setInterval(_qxArc,40);
-    ["qxs1","qxs2","qxs3","qxs4"].forEach((id,i)=>{
-      const el=document.getElementById(id);
-      if(!el)return;
-      el.className="qx-stage"+(i<stage?" done":i===stage?" active":"");
-    });
-    const pb=document.getElementById("qx-pbar");
-    if(pb)pb.style.width=pct+"%";
-    const pm=document.getElementById("qx-msg");
-    if(pm)pm.textContent=msg||"";
-  };
-  window.hideDeployOverlay=function(){
-    const o=document.getElementById("deploy-overlay");
-    if(o)o.style.display="none";
-    if(window._qxArcInt){clearInterval(window._qxArcInt);window._qxArcInt=null;}
-  };
-})();
 </script>
 </body>
 </html>
