@@ -26,19 +26,46 @@ def _get_or_create_key() -> bytes:
     return key
 
 
-_fernet = Fernet(_get_or_create_key())
+_fernet = None
+
+def _init_fernet():
+    global _fernet
+    if _fernet is not None:
+        return
+    try:
+        _fernet = Fernet(_get_or_create_key())
+    except Exception as e:
+        import logging
+        logging.getLogger("quantx-deployer").error(
+            "Fernet init failed — credentials will not be encrypted/decrypted: %s", e
+        )
+        # Fallback: identity cipher so app still starts (credentials stored as plaintext)
+        class _IdentityFernet:
+            def encrypt(self, b): return b
+            def decrypt(self, b): return b
+        _fernet = _IdentityFernet()
+
+_init_fernet()
 
 
 def encrypt(value: str) -> str:
     if not value:
         return ""
-    return _fernet.encrypt(value.encode()).decode()
+    _init_fernet()
+    result = _fernet.encrypt(value.encode())
+    return result.decode() if isinstance(result, bytes) else result
 
 
 def decrypt(token: str) -> str:
     if not token:
         return ""
-    return _fernet.decrypt(token.encode()).decode()
+    _init_fernet()
+    try:
+        result = _fernet.decrypt(token.encode())
+        return result.decode() if isinstance(result, bytes) else result
+    except Exception:
+        # Token may be plaintext (identity fallback) or corrupted — return as-is
+        return token
 
 
 import threading
@@ -692,7 +719,52 @@ def set_backtest_cache(cache_key: str, result: dict,
         conn.close()
 
 
-def prune_backtest_cache(max_age_hours: int = 48) -> int:
+def register_custom_indicator(conn, data: dict, email: str = "",
+                               overwrite: bool = False) -> str:
+    """Insert or update a custom indicator from a validated .quantx data dict.
+    Returns the indicator_id on success. Called by main.py indicators_import endpoint.
+    """
+    import json as _json
+    ind_id = data["indicator_id"]
+    calc_code = data.get("calc_code", [])
+    code_str = "\n".join(calc_code) if isinstance(calc_code, list) else str(calc_code)
+
+    conn.execute(
+        """INSERT INTO indicators
+           (indicator_id, name, display_name, category, description,
+            output_type, output_labels, params, calc_code,
+            usage_example, created_by, is_builtin, is_approved)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
+           ON CONFLICT(indicator_id) DO UPDATE SET
+             name=excluded.name,
+             display_name=excluded.display_name,
+             category=excluded.category,
+             description=excluded.description,
+             output_type=excluded.output_type,
+             output_labels=excluded.output_labels,
+             params=excluded.params,
+             calc_code=excluded.calc_code,
+             usage_example=excluded.usage_example,
+             created_by=excluded.created_by""",
+        (
+            ind_id,
+            data.get("name", ind_id),
+            data.get("display_name", data.get("name", ind_id)),
+            data.get("category", "custom"),
+            data.get("description", ""),
+            data.get("output_type", "single"),
+            _json.dumps(data.get("output_labels", ["main"])),
+            _json.dumps(data.get("params", [])),
+            code_str,
+            data.get("usage_example", ""),
+            email or "user",
+        )
+    )
+    conn.commit()
+    return ind_id
+
+
+
     """Delete cache entries older than max_age_hours. Returns rows deleted."""
     conn = get_db()
     try:
