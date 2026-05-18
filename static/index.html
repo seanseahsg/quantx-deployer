@@ -2331,7 +2331,6 @@ async function libRunOptimize() {
   const paramGrid = _libOptBuildParamGrid();
   const included = _libOptParams.filter(p => p.include);
   if (!included.length) { showToast('Select at least one parameter to optimize', 'error'); return; }
-  // Combo count guard
   let total = 1;
   Object.values(paramGrid).forEach(vals => { total *= vals.length; });
   if (total > 2000) {
@@ -2346,30 +2345,87 @@ async function libRunOptimize() {
   const progMsg = document.getElementById('bt-opt-progress-msg');
   btn.disabled = true; btn.textContent = 'Running...';
   prog.style.display = 'flex';
+  prog.style.flexDirection = 'column';
+  prog.style.gap = '6px';
   document.getElementById('bt-opt-results').style.display = 'none';
-  const msgs = ['Fetching price data...','Running combinations...','Validating walk-forward...','Running Monte Carlo...','Ranking results...'];
-  let mi = 0;
-  if (progMsg) progMsg.textContent = msgs[0];
-  const msgInt = setInterval(() => { mi = (mi+1) % msgs.length; if (progMsg) progMsg.textContent = msgs[mi]; }, 3000);
+
+  // Inject progress bar into the progress div (once)
+  if (!document.getElementById('bt-opt-bar-wrap')) {
+    const barWrap = document.createElement('div');
+    barWrap.id = 'bt-opt-bar-wrap';
+    barWrap.style.cssText = 'width:100%;height:6px;background:#DDD6FE;border-radius:3px;overflow:hidden';
+    barWrap.innerHTML = '<div id="bt-opt-bar-fill" style="height:100%;width:0%;background:#5B21B6;border-radius:3px;transition:width .4s"></div>';
+    const countRow = document.createElement('div');
+    countRow.style.cssText = 'display:flex;justify-content:space-between;font-size:11px;color:#5B21B6';
+    countRow.innerHTML = '<span id="bt-opt-count-left"></span><span id="bt-opt-count-right"></span>';
+    prog.appendChild(barWrap);
+    prog.appendChild(countRow);
+  }
+  if (progMsg) progMsg.textContent = 'Fetching price data...';
+  const setProgress = (done, tot, msg) => {
+    const pct = tot > 0 ? Math.round(done / tot * 100) : 0;
+    const fill = document.getElementById('bt-opt-bar-fill');
+    if (fill) fill.style.width = pct + '%';
+    const left = document.getElementById('bt-opt-count-left');
+    const right = document.getElementById('bt-opt-count-right');
+    if (left) left.textContent = tot > 0 ? `${done.toLocaleString()} / ${tot.toLocaleString()}` : '';
+    if (right) right.textContent = '';
+    if (progMsg && msg) progMsg.textContent = msg;
+  };
+
   try {
-    const r = await fetch(API + '/api/backtest/optimize', {
+    const resp = await fetch(API + '/api/backtest/optimize-stream-lib', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         symbol: sym, timeframe: tf, strategy: strat,
         param_grid: paramGrid, initial_capital: cap,
         limit: _btLimit, commission_pct: commPct, slippage_pct: slipPct,
         enable_walk_forward: enableWF, enable_monte_carlo: enableMC,
+        email: EMAIL || '',
       })
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Optimization failed');
-    _libOptRenderResults(d, enableWF, enableMC);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({detail:'Optimization failed'}));
+      throw new Error(err.detail || 'Optimization failed');
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', lastData = null;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) !== -1) {
+        const frame = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const line = frame.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        if (evt.type === 'progress') {
+          setProgress(evt.done || 0, evt.total || total, evt.message || null);
+        } else if (evt.type === 'complete') {
+          lastData = evt;
+          setProgress(evt.total_results || total, evt.total_results || total, evt.message || 'Done!');
+        } else if (evt.type === 'start') {
+          setProgress(0, evt.total || total, evt.message || 'Starting...');
+        } else if (evt.type === 'error') {
+          throw new Error(evt.message || 'Optimization error');
+        }
+      }
+    }
+    if (lastData && lastData.results) {
+      _libOptRenderResults({results: lastData.results, total_combinations: lastData.total_results || total}, enableWF, enableMC);
+    } else {
+      showToast('Optimization returned no results', 'warning');
+    }
   } catch(e) {
     showToast('Optimization error: ' + e.message, 'error');
   } finally {
-    clearInterval(msgInt);
     prog.style.display = 'none';
     btn.disabled = false; btn.textContent = 'Run Optimization';
+    setProgress(0, 0, 'Running combinations...');
   }
 }
 
@@ -3820,6 +3876,13 @@ function _monthsLabel(m) {
   return Math.round(m) + 'mo';
 }
 
+// Bars-per-day multiplier for intraday timeframes.
+// Period pills are defined in daily bars; multiply to get correct intraday limit.
+function _intradayMultiplier(tf) {
+  const m = {'1min':390,'5min':78,'15min':26,'30min':13,'1hour':7,'4hour':2,'1day':1,'1week':1};
+  return m[tf] || 1;
+}
+
 function updatePeriodPills() {
   const broker = _btBroker;
   const tf = getBtTimeframe();
@@ -3827,13 +3890,15 @@ function updatePeriodPills() {
   const depth = src[tf] || src['1day'];
   const container = document.getElementById('bt-period-pills');
   if (!container) return;
+  const mult = _intradayMultiplier(tf);
 
   let bestEnabled = null;
   const pills = PERIOD_DEFS.map(p => {
     const enabled = p.months === 0 || depth.months >= p.months;
     if (enabled && p.key !== 'Max') bestEnabled = p;
     const label = p.key === 'Max' ? 'Max (' + _monthsLabel(depth.months) + ')' : p.key;
-    const limit = p.key === 'Max' ? depth.bars : p.bars;
+    // Scale daily bar count by intraday multiplier so server fetches the right amount
+    const limit = p.key === 'Max' ? depth.bars : p.bars * mult;
     const cls = enabled ? 'filter-pill has-data' : 'filter-pill disabled';
     const tip = enabled ? '' : ' title="Only ' + depth.label + ' available for this timeframe"';
     return {html: '<span class="' + cls + '" data-limit="' + limit + '"' + tip
@@ -3844,8 +3909,8 @@ function updatePeriodPills() {
 
   // Auto-select largest enabled non-Max
   if (bestEnabled) {
-    _btLimit = bestEnabled.bars;
-    const active = container.querySelector('[data-limit="' + bestEnabled.bars + '"]');
+    _btLimit = bestEnabled.bars * mult;
+    const active = container.querySelector('[data-limit="' + bestEnabled.bars * mult + '"]');
     if (active) active.classList.add('active');
   } else {
     // Only Max available
